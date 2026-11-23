@@ -48,11 +48,19 @@
       </el-table-column>
       <el-table-column :label="t('runHistory.colStatus')" width="96">
         <template #default="{ row }">
-          <el-tag
-            size="small"
-            :type="row.hasError ? 'danger' : 'success'"
-            :data-test="`run-history-status-${row.runToken}`"
-          >{{ row.hasError ? t('runHistory.statusFailed') : t('runHistory.statusDone') }}</el-tag>
+          <!-- R63: the failure tag names its repair route — same-row replay
+               button first, retention parameter literal when the tail expired. -->
+          <el-tooltip
+            :disabled="!row.hasError"
+            :content="t('runHistory.statusFailedTip', { param: retentionParam })"
+            placement="top"
+          >
+            <el-tag
+              size="small"
+              :type="row.hasError ? 'danger' : 'success'"
+              :data-test="`run-history-status-${row.runToken}`"
+            >{{ row.hasError ? t('runHistory.statusFailed') : t('runHistory.statusDone') }}</el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column :label="t('runHistory.colFrames')" width="92" align="right">

@@ -448,6 +448,13 @@ class PerfMetricServiceTest {
     }
 
     private void hotSetConfig(String key, String value) {
+        hotSetConfig(key, value,
+                "压测实况曲线单屏最大点数（超出=服务端按秒窗聚合降采样，峰值时延保留；报告页始终全量口径）");
+    }
+
+    /** Single hot-set helper: replace the row by key so tests never carry a
+     *  second upsert path; the description travels with the key under test. */
+    private void hotSetConfig(String key, String value, String description) {
         Long id = jdbcTemplate.query(
                 "SELECT id FROM tp_sys_config WHERE config_key = ?",
                 rs -> rs.next() ? rs.getLong(1) : null, key);
@@ -455,8 +462,7 @@ class PerfMetricServiceTest {
             configService.delete(null, id);
         }
         configService.create(null, new com.sixbean.testpike.core.config.api.dto.ConfigInput(
-                key, value, "系统", "int", 0,
-                "压测实况曲线单屏最大点数（超出=服务端按秒窗聚合降采样，峰值时延保留；报告页始终全量口径）"));
+                key, value, "系统", "int", 0, description));
     }
 
 
@@ -504,5 +510,55 @@ class PerfMetricServiceTest {
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("4000")
                 .hasMessageContaining("摘要");
+    }
+
+    /**
+     * R67/R57 bounded event window at the write gate: stored rows per run are
+     * trimmed to the newest N right after each ingest batch (hot key
+     * perf.run.events-tail-cap), oldest first. The drawer read-out and the
+     * stored set share one ceiling — a long run can never accumulate an
+     * unbounded event leg.
+     */
+    @Test
+    void eventIngestEvictsOldestRowsBeyondHotTailCap() {
+        hotSetConfig("perf.run.events-tail-cap", "10",
+                "压测事件流每跑保留条数上限（超出即淘汰最早事件，运行结果不受影响）");
+        try {
+            List<PerfEventRow> batch = new ArrayList<>();
+            for (int i = 1; i <= 12; i++) {
+                batch.add(new PerfEventRow(i, "WORKER_TRACEBACK", "tail-event-" + i));
+            }
+            int inserted = perfMetricService.recordEvents(projectId, runId, batch);
+
+            assertThat(inserted).isEqualTo(12);
+            List<Map<String, Object>> stored = perfMetricService.listEvents(projectId, runId);
+            assertThat(stored).hasSize(10);
+            assertThat(stored.stream()
+                    .map(e -> ((Number) e.get("second_offset")).intValue()).toList())
+                    .containsExactly(3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+        } finally {
+            hotSetConfig("perf.run.events-tail-cap", "2000",
+                    "压测事件流每跑保留条数上限（超出即淘汰最早事件，运行结果不受影响）");
+        }
+    }
+
+    /** A dirty cap value falls back to the factory default (2000) — it can
+     *  neither switch the bound off nor collapse the window below one screen. */
+    @Test
+    void dirtyEventTailCapFallsBackToFactoryDefault() {
+        hotSetConfig("perf.run.events-tail-cap", "dirty-not-a-number",
+                "压测事件流每跑保留条数上限（超出即淘汰最早事件，运行结果不受影响）");
+        try {
+            List<PerfEventRow> batch = new ArrayList<>();
+            for (int i = 1; i <= 12; i++) {
+                batch.add(new PerfEventRow(i, "CIRCUIT_BREAK", "fallback-event-" + i));
+            }
+            perfMetricService.recordEvents(projectId, runId, batch);
+
+            assertThat(perfMetricService.listEvents(projectId, runId)).hasSize(12);
+        } finally {
+            hotSetConfig("perf.run.events-tail-cap", "2000",
+                    "压测事件流每跑保留条数上限（超出即淘汰最早事件，运行结果不受影响）");
+        }
     }
 }

@@ -31,15 +31,16 @@ from network_guard_fakes import FakePage as _FakePage
 
 
 class _FakeFailedRequest:
+    """Mirrors the real Playwright shape: ``Request.failure()`` is a method
+    returning an Optional[str], not an object carrying ``.text``."""
+
     def __init__(self, url: str, method: str, failure_text: str):
         self.url = url
         self.method = method
-        self.failure = _FakeFailure(failure_text)
+        self._failure_text = failure_text
 
-
-class _FakeFailure:
-    def __init__(self, text: str):
-        self.text = text
+    def failure(self):
+        return self._failure_text
 
 
 def _run(load_entries, steps, failed=()):

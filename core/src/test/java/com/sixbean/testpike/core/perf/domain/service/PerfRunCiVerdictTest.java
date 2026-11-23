@@ -190,6 +190,6 @@ class PerfRunCiVerdictTest {
 
         assertThatThrownBy(() -> perfReportService.ciVerdict(otherProject, runId))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("压测运行不存在或不属于该项目");
+                .hasMessageContaining("不存在或不属于该项目");
     }
 }

@@ -13,9 +13,10 @@ import java.util.Map;
 /**
  * ai-service scenario-drafting door RestClient implementation (B-11 ;
  * RestAiServiceNlStepClient family posture: shared RestClientInvoker, downstream
- * error codes rethrown with the same code). Read budget widened to 90s for the
- * model leg (same posture as RestAiServicePerfInsightClient): a live run showed
- * one real model hop can exceed the default 30s bridge budget).
+ * error codes rethrown with the same code). Read budget is 820s for the model
+ * leg (same posture as RestAiServicePerfInsightClient): every hop of the
+ * request chain must stay at or above the 800s floor, and the value is
+ * installation-configurable via ai.perf.draft-read-timeout-seconds.
  * <p>Path-join self-check: base-url + /internal/perf/draft is exactly the
  * ai-service PerfDraftInternalController route (live probe accompanies L3).
  */
@@ -25,8 +26,10 @@ public class RestAiServicePerfDraftClient implements AiServicePerfDraftClient {
     private final RestClient rest;
 
     public RestAiServicePerfDraftClient(
-            @Value("${aiservice.base-url:http://localhost:18084}") String aiBaseUrl) {
-        this.rest = RestClientInvoker.defaultRestClient(aiBaseUrl, java.time.Duration.ofSeconds(90));
+            @Value("${aiservice.base-url:http://localhost:18084}") String aiBaseUrl,
+            @Value("${ai.perf.draft-read-timeout-seconds:820}") long readTimeoutSeconds) {
+        this.rest = RestClientInvoker.defaultRestClient(aiBaseUrl,
+                java.time.Duration.ofSeconds(readTimeoutSeconds));
     }
 
     @Override

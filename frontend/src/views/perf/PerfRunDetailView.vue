@@ -12,6 +12,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectPageContext } from '@/composables/useProjectPageContext'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
+import TaskTailDrawer from '@/components/TaskTailDrawer.vue'
+import type { ExtractionEvent } from '@/api/taskEvents'
+import { tailFirstFrameMs, tailHeartbeatSeconds } from '@/composables/tailWindowConfig'
 import PerfReportView from './PerfReportView.vue'
 import { bizErrorMsg } from '@/utils/bizError'
 import {
@@ -130,6 +133,23 @@ const collectedShown = computed(() => curveCollectedTotal.value)
  *  pressed span did not all reach the curve. Surfaced on the page body (not only the
  *  drawer) so a truncated tail can never impersonate a complete run. */
 const dataLossEvent = computed(() => events.value.find((e) => e.event_kind === 'data-loss') ?? null)
+
+/** R67 replay door: the stored run tail renders through the shared tail window
+ *  foundation (the same TaskTailDrawer every live tail uses) instead of a
+ *  view-local row list — one replay chain site-wide, no second tail renderer.
+ *  live=false marks the finished-run replay shape; cursor = the row ordinal the
+ *  write gate trimmed tail ships in stable stored order, so leaving the page and
+ *  re-entering re-reads the same frame sequence (no lost or repeated rows).
+ *  Failure-flavored kinds join the viewer's error domain, the rest stay steps. */
+const tailEvents = computed<ExtractionEvent[]>(() =>
+  events.value.map((e, i) => ({
+    cursor: i + 1,
+    level: e.event_kind === 'data-loss' ? 'error' : 'step',
+    summary: e.second_offset !== null ? `+${e.second_offset}s · ${e.event_kind}` : e.event_kind,
+    detail: e.detail,
+    landedAt: '',
+  })),
+)
 
 async function refreshOnce(): Promise<PerfRunItem | null> {
   if (!projectId.value || !Number.isFinite(runId.value)) return null
@@ -405,12 +425,9 @@ onBeforeUnmount(stopPolling)
         </ul>
       </section>
       <el-divider />
-      <p v-if="!events.length" class="perf-run__drawer-empty">{{ t('perf.run.eventsEmpty') }}</p>
-      <div v-for="(e, i) in events" :key="i" class="perf-event" data-test="perf-event-row">
-        <span class="perf-event__sec">{{ e.second_offset !== null ? `+${e.second_offset}s` : '—' }}</span>
-        <el-tag size="small" type="warning">{{ e.event_kind }}</el-tag>
-        <p v-if="e.detail" class="perf-event__detail">{{ e.detail }}</p>
-      </div>
+      <TaskTailDrawer :events="tailEvents" :live="false"
+        :heartbeat-seconds="tailHeartbeatSeconds" :first-frame-ms="tailFirstFrameMs"
+        data-test="perf-run-tail-window" />
     </el-drawer>
   </div>
 </template>
@@ -452,7 +469,4 @@ onBeforeUnmount(stopPolling)
 .perf-topn-list { list-style: none; margin: 0; padding: 0; }
 .perf-topn-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
 .perf-topn-count { font-variant-numeric: tabular-nums; font-weight: 600; }
-.perf-event { border-bottom: 1px solid var(--el-border-color-lighter); padding: 8px 0; }
-.perf-event__sec { font-size: 12px; color: var(--el-text-color-secondary); margin-right: 8px; }
-.perf-event__detail { margin: 6px 0 0; font-size: 13px; word-break: break-all; }
 </style>

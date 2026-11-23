@@ -446,7 +446,10 @@ public class PerfRunServiceImpl implements PerfRunService {
                         + "WHERE id = :id AND project_id = :p",
                 new MapSqlParameterSource("id", runId).addValue("p", projectId))
                 .stream().findFirst()
-                .orElseThrow(() -> new ServiceException("压测运行不存在或不属于该项目",
+                .orElseThrow(() -> new ServiceException("压测运行 " + runId + " 不存在或不属于该项目；"
+                        + "若是较早的运行，可能已超出历史保留期被每日清理删除"
+                        + "（默认保留 90 天，金跑标记豁免；已清理的数据不可恢复，调大保留天数仅保护后续运行），"
+                        + "保留天数可在「系统设置」调整 perf.run.retention-days（保存即生效）",
                         BizErrorCode.NOT_FOUND));
         perfQueueNote.annotate(List.of(row));
         return row;

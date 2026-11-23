@@ -92,6 +92,14 @@ public class PerfConfigReader {
      *  forever. &lt;1 / non-numeric / missing falls back to 90 — a dirty value can
      *  never shrink history to nothing nor switch the sweep off. */
     public static final String KEY_RUN_RETENTION_DAYS = "perf.run.retention-days";
+    /** R67 event-leg tail cap per run (K8 key, hot-updatable): after each
+     *  ingest batch the stored event rows of the run are trimmed to the
+     *  newest N, so the drawer window and the stored set share one ceiling
+     *  and a long soak can never accumulate the event leg without bound.
+     *  &lt;10 / &gt;20000 / non-numeric / missing falls back to 2000 — a dirty
+     *  value can neither switch the bound off nor collapse it under one
+     *  useful screen. */
+    public static final String KEY_RUN_EVENTS_TAIL_CAP = "perf.run.events-tail-cap";
 
     private static final Map<String, String> DEFAULTS = Map.ofEntries(
             Map.entry(KEY_PRODUCTION_ENABLED, "false"),
@@ -118,7 +126,8 @@ public class PerfConfigReader {
             Map.entry(KEY_CANARY_PROBE_TIMEOUT, "5"),
             Map.entry(KEY_CANARY_BASELINE_P95_MS, "3000"),
             Map.entry(KEY_SELF_MONITOR_LOAD_RATIO, "0.85"),
-            Map.entry(KEY_RUN_RETENTION_DAYS, "90"));
+            Map.entry(KEY_RUN_RETENTION_DAYS, "90"),
+            Map.entry(KEY_RUN_EVENTS_TAIL_CAP, "2000"));
 
     private final ConfigService configService;
 
@@ -292,6 +301,18 @@ public class PerfConfigReader {
      *  in a second fallback table. &lt;1 / non-numeric / missing falls back to 90. */
     public int runRetentionDays() {
         return positiveInt(KEY_RUN_RETENTION_DAYS);
+    }
+
+    /** Event-leg stored tail cap per run (K8 key, hot-updatable); the ingest
+     *  write gate trims to this newest-N. &lt;10 / &gt;20000 / non-numeric /
+     *  missing falls back to 2000 (never off, never below one screen). */
+    public int eventsTailCap() {
+        try {
+            int parsed = Integer.parseInt(value(KEY_RUN_EVENTS_TAIL_CAP).trim());
+            return parsed >= 10 && parsed <= 20000 ? parsed : 2000;
+        } catch (NumberFormatException e) {
+            return 2000;
+        }
     }
 
     /**

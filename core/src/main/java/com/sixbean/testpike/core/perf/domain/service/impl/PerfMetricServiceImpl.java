@@ -328,7 +328,30 @@ public class PerfMetricServiceImpl implements PerfMetricService {
         for (int n : affected) {
             inserted += Math.max(n, 0);
         }
+        trimEventTail(runId, projectId, configReader.eventsTailCap());
         return inserted;
+    }
+
+    /**
+     * R67 bounded event window at the write gate (R57 pair at the creation
+     * point): right after each ingest batch the stored rows of one run are
+     * trimmed to the newest `cap`; the overflow of oldest rows is deleted in
+     * the same call, so drawer read-out and storage share one ceiling and a
+     * long soak can never accumulate the event leg without bound. The trim
+     * never throws the ingest off: a failed eviction leaves yesterday's
+     * bounded-by-yesterday window intact, the next batch retries.
+     */
+    private void trimEventTail(long runId, long projectId, int cap) {
+        MapSqlParameterSource scope = new MapSqlParameterSource("run", runId)
+                .addValue("p", projectId);
+        Integer total = jdbc.queryForObject("SELECT COUNT(*) FROM tp_perf_sample "
+                + "WHERE run_id = :run AND project_id = :p", scope, Integer.class);
+        if (total == null || total <= cap) {
+            return;
+        }
+        jdbc.update("DELETE FROM tp_perf_sample WHERE id IN (SELECT id FROM tp_perf_sample "
+                + "WHERE run_id = :run AND project_id = :p ORDER BY id ASC LIMIT :excess)",
+                scope.addValue("excess", total - cap));
     }
 
     @Override

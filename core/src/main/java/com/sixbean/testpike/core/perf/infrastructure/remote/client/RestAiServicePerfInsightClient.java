@@ -13,10 +13,13 @@ import java.util.Map;
 /**
  * ai-service run-insight door RestClient implementation (B-11 ;
  * RestAiServicePerfDraftClient family: shared RestClientInvoker, downstream
- * error codes rethrown with the same code). Read budget is widened to 90s for
- * the model leg: a live run showed one real read-out can exceed the default
- * 30s bridge budget (vision close-out 2026-10-26), and the inner leg must
- * time out first so its honest refusal still rides through untranslated.
+ * error codes rethrown with the same code). Read budget is 820s: this hop
+ * carries the model leg, and every hop of the request chain must stay at or
+ * above the 800s floor (a small cap on one hop disables the whole chain —
+ * the earlier 90s widening still starved slow model legs). The inner leg
+ * keeps the smaller budget, so its honest refusal still rides through
+ * untranslated. The value is hot-reloadable per installation
+ * (ai.perf.insight-read-timeout-seconds).
  * <p>Path-join self-check: base-url + /internal/perf/insight is exactly the
  * ai-service PerfInsightInternalController route (live probe accompanies L3).
  */
@@ -26,8 +29,10 @@ public class RestAiServicePerfInsightClient implements AiServicePerfInsightClien
     private final RestClient rest;
 
     public RestAiServicePerfInsightClient(
-            @Value("${aiservice.base-url:http://localhost:18084}") String aiBaseUrl) {
-        this.rest = RestClientInvoker.defaultRestClient(aiBaseUrl, java.time.Duration.ofSeconds(90));
+            @Value("${aiservice.base-url:http://localhost:18084}") String aiBaseUrl,
+            @Value("${ai.perf.insight-read-timeout-seconds:820}") long readTimeoutSeconds) {
+        this.rest = RestClientInvoker.defaultRestClient(aiBaseUrl,
+                java.time.Duration.ofSeconds(readTimeoutSeconds));
     }
 
     @Override

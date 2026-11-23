@@ -180,7 +180,19 @@ def test_perf_run_detail_stop_report_compare(logged_in, collectors, api_client, 
 
     page.locator('[data-test="perf-run-events-btn"]').click()
     expect(page.locator('[data-test="perf-run-events-drawer"]')).to_be_visible(timeout=10000)
-    expect(page.locator('[data-test="perf-run-events-drawer"]')).to_contain_text("暂无事件")
+    # R67: the drawer read-out renders through the shared tail foundation, not a
+    # view-local row list — the foundation's own window and empty wording prove it.
+    tail_window = page.locator('[data-test="perf-run-events-drawer"] [data-test="task-tail-list"]')
+    expect(tail_window).to_be_visible(timeout=10000)
+    expect(page.locator('[data-test="perf-run-events-drawer"]')).to_contain_text("暂无过程事件")
+    page.keyboard.press("Escape")
+    # Revisit door: leaving the page and returning keeps the tail window reachable
+    # (a dashboard bounce forces a remount; the events button re-mounts the foundation).
+    page.goto(f"{BASE_URL}/#/dashboard", wait_until="domcontentloaded")
+    page.goto(f"{BASE_URL}/#/perf/run/{r3}?projectId={pid}", wait_until="domcontentloaded")
+    expect(page.locator('[data-test="perf-run-page"]')).to_be_visible(timeout=15000)
+    page.locator('[data-test="perf-run-events-btn"]').click()
+    expect(tail_window).to_be_visible(timeout=10000)
     page.keyboard.press("Escape")
 
     nav_to(page, "压测工作台", "/perf", '[data-test="perf-page"]', submenu="执行测试")

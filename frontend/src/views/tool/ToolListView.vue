@@ -283,6 +283,11 @@
           <el-form-item v-if="!editingId" :label="t('tool.submitNowLabel')">
             <el-switch v-model="form.submitNow" data-test="tool-form-submit-now" />
           </el-form-item>
+          <el-form-item v-if="editingId" label=" ">
+            <span class="text-secondary edit-hint" data-test="tool-form-edit-hint">
+              {{ t('tool.editHint') }}
+            </span>
+          </el-form-item>
         </el-form>
         <template #footer>
           <el-button @click="formVisible = false">{{ t('common.cancel') }}</el-button>
@@ -1328,6 +1333,9 @@ watch(followTick, () => {
 <style scoped>
 .tool-name {
   font-weight: 600;
+}
+.edit-hint {
+  font-size: 12px;
 }
 .genkit-opt-desc {
   float: right;

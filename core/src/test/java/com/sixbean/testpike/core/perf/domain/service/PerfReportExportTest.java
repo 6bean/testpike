@@ -154,7 +154,8 @@ class PerfReportExportTest {
                 .isInstanceOfSatisfying(ServiceException.class, e -> {
                     assertThat(e.getCode()).isEqualTo(BizErrorCode.NOT_FOUND);
                     // the refusal is the same wording as the online report face
-                    assertThat(e.getMessage()).isEqualTo("压测运行不存在或不属于该项目");
+                    assertThat(e.getMessage()).contains("不存在或不属于该项目")
+                            .contains("perf.run.retention-days");
                 });
     }
 }

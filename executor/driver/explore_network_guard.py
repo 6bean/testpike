@@ -165,14 +165,12 @@ class ExploreNetworkGuard:
 
     def _on_request_failed(self, request: Any) -> None:
         try:
-            failure = getattr(request, "failure", None)
-            text = getattr(failure, "text", None) if failure is not None else None
             self._emit("failures", {
                 "url": redact_url(str(getattr(request, "url", "") or "")),
                 "method": str(getattr(request, "method", "") or "").upper(),
                 "status": None,
                 "errorType": ERROR_TYPE_ENVIRONMENT,
-                "failureText": text,
+                "failureText": _failure_text(request),
             })
         except Exception:  # noqa: BLE001 — observation must not disturb the run
             return
@@ -212,6 +210,21 @@ class ExploreNetworkGuard:
         if self._page is not None:
             return bool(self._page["writeEvents"] or self._page["writeSurface"])
         return bool(self._write_events or self._write_surface)
+
+
+def _failure_text(request: Any) -> Optional[str]:
+    """Read the network failure reason in its real Playwright shape.
+
+    ``Request.failure()`` is a method returning a plain string (e.g.
+    ``net::ERR_CONNECTION_RESET``); reading the handle as an object with a
+    ``.text`` attribute silently yields None, so the health card would lose
+    the detail while classification itself keeps working.
+    """
+    failure = getattr(request, "failure", None)
+    if failure is None:
+        return None
+    value = failure() if callable(failure) else failure
+    return value if isinstance(value, str) and value else None
 
 
 def describe_write_event(event: dict) -> str:
