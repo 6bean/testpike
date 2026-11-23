@@ -45,7 +45,7 @@
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp-spring-webmvc</artifactId>
-            <version>0.18.3</version>
+            <version>0.18.5</version>
         </dependency>
         <!-- Redis：mcp.rate-limit/min 窗口计数 + 写工具 Idempotency-Key 幂等
              （IdempotentGuard 装配自 common，宿主须供 StringRedisTemplate） -->
