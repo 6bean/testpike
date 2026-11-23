@@ -160,7 +160,7 @@ Explicitly pinned to 1.5.7, the same-source version of the API-side MCP SDK tran
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>1.5.7</version>
+            <version>3.0.9</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
