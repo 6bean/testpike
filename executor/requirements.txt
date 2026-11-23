@@ -4,7 +4,7 @@ playwright>=1.40
 requests>=2.31
 pytest>=7.4
 pillow>=10,<13
-httpx>=0.28
+httpx>=0.28.1
 websockets>=15
 # JSON Schema validation kernel for the api-test 'schema' assertion type
 # (license=MIT, see the open-source ledger doc; pure-Python, safe to pin in
