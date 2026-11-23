@@ -1,0 +1,2 @@
+
+ALTER TABLE tp_judge_run ALTER COLUMN target_ref TYPE VARCHAR(2000);

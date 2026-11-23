@@ -1,0 +1,26 @@
+{
+  "_comment": "Single-source link template-folding corpus (WU batch). Both the Java contract test (ContractMatchKeyRules.foldedPath) and the Python executor frontier (driver/link_frontier.fold_template_path) consume this exact file; any drift on either side must fail. Rows are path-only (scheme/origin/fragment handled by each side's own normalizer before folding).",
+  "rows": [
+    {"path": "/pr/", "folded": "/pr"},
+    {"path": "/pr", "folded": "/pr"},
+    {"path": "", "folded": "/"},
+    {"path": "/", "folded": "/"},
+    {"path": "/pr/order/123", "folded": "/pr/order/{var}"},
+    {"path": "/pr/order/123?page=2", "folded": "/pr/order/{var}"},
+    {"path": "/pets/{petId}/toes", "folded": "/pets/{var}/toes"},
+    {"path": "/md/x/20261011001", "folded": "/md/x/{var}"},
+    {"path": "/api/6f9d2c1e-4b3a-4c5d-9e8f-1a2b3c4d5e6f/detail", "folded": "/api/{var}/detail"},
+    {"path": "/api/D1B2C3D4-E5F6-A7B8-C9D0-E1F2A3B4C5D6", "folded": "/api/{var}"},
+    {"path": "/dl/a1b2c3d4e5f6a7b8", "folded": "/dl/{var}"},
+    {"path": "/dl/A1B2C3D4E5F6A7B8", "folded": "/dl/{var}"},
+    {"path": "/dl/a1b2c3d4e5f6a7", "folded": "/dl/a1b2c3d4e5f6a7"},
+    {"path": "/dl/12345678901234567890abcdef", "folded": "/dl/{var}"},
+    {"path": "/report/q1-2026", "folded": "/report/q1-2026"},
+    {"path": "/items/{id}{x}/view", "folded": "/items/{var}{var}/view"},
+    {"path": "/pr/list/12/34", "folded": "/pr/list/{var}/{var}"},
+    {"path": "pr/no/leading/slash", "folded": "/pr/no/leading/slash"},
+    {"path": "/pr/double//slash", "folded": "/pr/double//slash"},
+    {"path": "/pr/trail///", "folded": "/pr/trail"},
+    {"path": "/pr/logout", "folded": "/pr/logout"}
+  ]
+}

@@ -1,0 +1,21 @@
+{{- define "tp-executor.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default .Release.Name .Values.serviceAccount.name }}
+{{- else }}
+{{- required "serviceAccount.name is required when create=false" .Values.serviceAccount.name }}
+{{- end }}
+{{- end -}}
+{{- if .Values.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ default .Release.Name .Values.serviceAccount.name }}
+  labels:
+    app.kubernetes.io/name: tp-executor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+# The executor pool needs no Kubernetes API permissions: registration,
+# claiming and reporting all flow through the platform api service. Keeping
+# the ServiceAccount rule-free is the least-privilege posture, and pod
+# token automount stays off in the deployment.
+automountServiceAccountToken: false
+{{- end }}

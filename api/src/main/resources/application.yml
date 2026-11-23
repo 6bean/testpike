@@ -1,0 +1,26 @@
+server:
+  port: ${API_PORT:8082}
+
+spring:
+  application:
+    name: testpike-api
+  profiles:
+    active: dev
+  autoconfigure:
+    exclude:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+core:
+  base-url: ${CORE_BASE_URL:http://localhost:8083}

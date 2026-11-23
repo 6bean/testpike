@@ -1,0 +1,37 @@
+{
+  "engine": "GATLING",
+  "purpose": "load engine runtime for perf executors (GA-4 capability face: java>=17 plus GATLING_LIB jar directory)",
+  "version_pin": "3.16.0",
+  "source": "https://github.com/gatling/gatling/releases/tag/v3.16.0 (official gatling releases; AGPL body is user-fetched at install time and never ships in this repository)",
+  "hosts": {
+    "linux": {
+      "probe": ["java -version", "test -d \"$GATLING_LIB\""],
+      "install": [
+        {"cmd": "curl -fsSL -o /tmp/gatling.zip https://github.com/gatling/gatling/releases/download/v3.16.0/gatling-bundle-3.16.0.zip"},
+        {"cmd": "unzip -o /tmp/gatling.zip -d /opt/gatling-bundle"}
+      ],
+      "uninstall": [{"cmd": "rm -rf /opt/gatling-bundle"}]
+    },
+    "macos": {
+      "probe": ["java -version", "test -d \"$GATLING_LIB\""],
+      "install": [
+        {"cmd": "curl -fsSL -o /tmp/gatling.zip https://github.com/gatling/gatling/releases/download/v3.16.0/gatling-bundle-3.16.0.zip"},
+        {"cmd": "unzip -o /tmp/gatling.zip -d /usr/local/gatling-bundle"}
+      ],
+      "uninstall": [{"cmd": "rm -rf /usr/local/gatling-bundle"}]
+    },
+    "windows": {
+      "probe": ["where java"],
+      "install": [
+        {"cmd": "powershell -Command \"Invoke-WebRequest -Uri https://github.com/gatling/gatling/releases/download/v3.16.0/gatling-bundle-3.16.0.zip -OutFile $env:TEMP\\gatling.zip; Expand-Archive -Force $env:TEMP\\gatling.zip C:\\tools\\gatling-bundle\""}
+      ],
+      "uninstall": [{"cmd": "powershell -Command \"Remove-Item -Recurse -Force C:\\tools\\gatling-bundle\""}]
+    }
+  },
+  "manual_steps": [
+    "Gatling 采用 AGPL 许可：引擎本体由装机人从官方源自行下载，产品不内置分发（本配方只提供下载命令）",
+    "解压后把 lib/ 引擎 jar 目录设为 GATLING_LIB 环境变量：执行器按 java 17 以上且该目录存在两个条件登记 GATLING 能力，缺一不登记",
+    "gatling-app-<版本>.jar 保留在 GATLING_LIB 目录内：版本取自该 jar 文件名（Gatling 无版本命令行，jar 名是唯一可信版本源）",
+    "设置 GATLING_LIB 后重启执行器服务重新注册"
+  ]
+}

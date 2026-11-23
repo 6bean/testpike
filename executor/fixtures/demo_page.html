@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>testPike 本地测试页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; background: #f5f7fa; }
+    .card { max-width: 360px; margin: 0 auto; padding: 24px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    h2 { text-align: center; color: #333; }
+    label { display: block; margin: 12px 0 4px; color: #555; font-size: 14px; }
+    input { width: 100%; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; margin-top: 16px; padding: 9px; background: #c00000; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .welcome { color: #c00000; font-size: 16px; margin-top: 12px; }
+    .hint { color: #999; font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>测试门户登录</h2>
+  <form id="login-form">
+    <label for="username">账号</label>
+    <input id="username" name="username" type="text" placeholder="请输入账号">
+    <label for="password">密码</label>
+    <input id="password" name="password" type="password" placeholder="请输入密码">
+    <button id="login-btn" type="submit">登 录</button>
+  </form>
+  <div id="welcome" class="welcome" style="display:none"></div>
+  <div class="hint">testPike 执行器试运行目标页（TC-EXEC-04）</div>
+</div>
+<script>
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var u = document.getElementById('username').value;
+    if (u) {
+      document.getElementById('welcome').style.display = 'block';
+      document.getElementById('welcome').textContent = '欢迎，' + u + '！登录成功';
+    }
+  });
+</script>
+</body>
+</html>

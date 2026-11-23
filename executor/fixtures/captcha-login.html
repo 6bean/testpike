@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Portal - Captcha Login</title>
+  <!-- AV login-state fixture page (T605): shape-simulated captcha target.
+       The server validates the fixed value; nothing here does recognition.
+       The capture wizard drives this page through a real human login. -->
+</head>
+<body>
+  <h2>Fixture Portal Login</h2>
+  <form id="login-form" autocomplete="off">
+    <p><label for="username">Account</label>
+       <input id="username" name="username" type="text"></p>
+    <p><label for="password">Password</label>
+       <input id="password" name="password" type="password"></p>
+    <p><label for="captcha">Captcha</label>
+       <span id="captcha-image" style="border:1px solid #999;padding:2px 6px;letter-spacing:2px">7K3Q</span>
+       <input id="captcha" name="captcha" type="text"></p>
+    <button id="submit" type="submit">Login</button>
+  </form>
+  <pre id="result"></pre>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const payload = {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        captcha: document.getElementById('captcha').value
+      };
+      const resp = await fetch('/api/captcha-login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+# 测试侧默认监听器：种子管理员防回归守卫（详见类注释）
+org.springframework.test.context.TestExecutionListener=\
+com.sixbean.testpike.core.testsupport.SeedAdminGuardListener
+
+# Test-classpath default: disable the scheduler master gate unless a test opts in
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.sixbean.testpike.core.testsupport.SchedulingDisabledByDefaultEnvironmentPostProcessor

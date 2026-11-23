@@ -1,0 +1,429 @@
+
+# Host-side ports are env-overridable (${KEY:-factory default}) so an install
+# can move off a port another service already holds. Unset = shipped mapping.
+
+# Shared runtime wiring for the opt-in application tier (profile `app` below):
+# in-network middleware hosts, credentials indirected to install-time env keys,
+# and cross-service base URLs. Individual services add only their own port.
+x-app-environment: &app-env
+  DB_URL: "${APP_DB_URL:-jdbc:postgresql://testpike-postgres:5432/testpike}"
+  DB_USERNAME: "${DB_USERNAME:-testpike}"
+  DB_PASSWORD: "${DB_PASSWORD:-testpike_dev}"
+  REDIS_HOST: ${TP_CONTAINER_PREFIX:-testpike}-redis
+  REDIS_PORT: "6379"
+  REDIS_DATABASE: "${REDIS_DATABASE:-0}"
+  RABBITMQ_HOST: ${TP_CONTAINER_PREFIX:-testpike}-rabbitmq
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USERNAME: "${RABBITMQ_USERNAME:-testpike}"
+  RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD:-testpike_dev}"
+  MQ_VHOST: "${MQ_VHOST:-/}"
+  S3_ENDPOINT: "http://${TP_CONTAINER_PREFIX:-testpike}-seaweedfs:8333"
+  # S3 wiring for the app tier; defaults mirror the storage gateway block
+  # (single source). Real values come from the install .env at runtime.
+  S3_BUCKET: "${S3_BUCKET:-testpike-exec}"
+  S3_ACCESS_KEY: "${S3_ACCESS_KEY:-testpike}"
+  S3_SECRET_KEY: "${S3_SECRET_KEY:-testpike_dev}"
+  # Auth/secret pass-through for the backend tier. The admin SSO door refuses
+  # startup without SSO_JWT_SECRET (L4 r2 live evidence: core UP, admin
+  # crash-loop). Shipped defaults mirror .env.example (single source, R48);
+  # real values come from the install .env at runtime. REDIS_PASSWORD ships
+  # empty because the gateway redis ships unauthenticated; AUTH_MODE/SSO_MODE
+  # keep the local/mock defaults so a fresh install boots without config.
+  # The LLM_* family stays optional (feature off = honest guidance, R32).
+  SSO_JWT_SECRET: "${SSO_JWT_SECRET:-dev-only-change-me}"
+  STORAGE_URL_SIGN_SECRET: "${STORAGE_URL_SIGN_SECRET:-dev-hmac-change-me}"
+  REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+  AUTH_MODE: "${AUTH_MODE:-local}"
+  SSO_MODE: "${SSO_MODE:-mock}"
+  # LLM endpoint pass-through for the docker install path: the startup seed
+  # (LlmConfigGenerationSeedInitializer) registers the default chat-model row
+  # from these keys; unset LLM_BASE_URL/LLM_MODEL = honest skip with guidance
+  # on where to configure (feature off stays honest, R32). Defaults mirror the
+  # Java @Value shipped defaults (single source, R48); the API key ships empty
+  # so no credential ever reaches the compose file itself.
+  LLM_PROVIDER: "${LLM_PROVIDER:-openai}"
+  LLM_BASE_URL: "${LLM_BASE_URL:-}"
+  LLM_API_KEY: "${LLM_API_KEY:-}"
+  LLM_MODEL: "${LLM_MODEL:-}"
+  LLM_TOKENIZER_FAMILY: "${LLM_TOKENIZER_FAMILY:-}"
+  # AES key for encrypted config writes (ConfigCipher). The startup seed needs
+  # it to register the default chat-model row with an encrypted API key;
+  # without it the seed honestly skips and the LLM config page guides manual
+  # entry (r4 live evidence: core logged the refusal inside the container).
+  # Default mirrors the Java @Value("${CONFIG_AES_KEY:}") shipped default; the
+  # real value comes from the install .env (R1: no secret inside compose).
+  CONFIG_AES_KEY: "${CONFIG_AES_KEY:-}"
+  # Seed-admin credential (UserSeedInitializer, core). Clean-machine r46
+  # evidence: without this pass-through a fresh install boots an empty
+  # tp_user, the initializer honestly skips, and the first login hits 401.
+  # Ships empty by design; the real value comes from the install .env (R1).
+  ADMIN_INIT_PASSWORD: "${ADMIN_INIT_PASSWORD:-}"
+  CORE_BASE_URL: "http://${TP_CONTAINER_PREFIX:-testpike}-core:8083"
+  AISERVICE_BASE_URL: "http://${TP_CONTAINER_PREFIX:-testpike}-ai-service:8084"
+  TZ: Asia/Shanghai
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-postgres
+    environment:
+      POSTGRES_USER: testpike
+      POSTGRES_PASSWORD: testpike_dev
+      POSTGRES_DB: testpike
+      TZ: Asia/Shanghai
+    ports:
+      - "${PG_HOST_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema-init.sql:/docker-entrypoint-initdb.d/10-schema-init.sql:ro
+    command: >
+      -c shared_preload_libraries=vector,pg_stat_statements
+      -c search_path=public,vector
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testpike -d testpike"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-redis
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: testpike
+      RABBITMQ_DEFAULT_PASS: testpike_dev
+      TZ: Asia/Shanghai
+    ports:
+      - "${MQ_AMQP_HOST_PORT:-5672}:5672"    # AMQP
+      - "${MQ_MGMT_HOST_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  seaweedfs-dbinit:
+    # Creates the SeaweedFS metadata database inside the same PostgreSQL instance the
+    # application uses (different database, same instance; per-chain slots point this at
+    # seaweedfs_slotN). Idempotent; exits 0 so `up -d` waits for completion.
+    image: pgvector/pgvector:pg16
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-seaweedfs-dbinit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: ${TP_CONTAINER_PREFIX:-testpike}-postgres
+      PGUSER: ${DB_USERNAME:-testpike}
+      PGPASSWORD: ${DB_PASSWORD:-testpike_dev}
+      SWF_META_DB_NAME: ${SWF_META_DB_NAME:-seaweedfs}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        until psql -U "$$PGUSER" -d postgres -c 'select 1' >/dev/null 2>&1; do sleep 1; done
+        if ! psql -U "$$PGUSER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$SWF_META_DB_NAME'" | grep -q 1; then
+          psql -U "$$PGUSER" -d postgres -c "CREATE DATABASE \"$$SWF_META_DB_NAME\" OWNER \"$$PGUSER\" TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C' ENCODING 'UTF8'"
+          echo "swf-dbinit: created $$SWF_META_DB_NAME"
+        else
+          echo "swf-dbinit: $$SWF_META_DB_NAME already present"
+        fi
+    restart: "no"
+
+  seaweedfs:
+    # Object storage: SeaweedFS S3 gateway (industry-standard SigV4 S3 API; the same
+    # client also targets cloud-hosted S3 endpoints via .env S3_* keys). Metadata lives
+    # in PostgreSQL (service seaweedfs-dbinit provisions the database).
+    image: ${SWF_IMAGE:-chrislusf/seaweedfs:4.53}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-seaweedfs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs-dbinit:
+        condition: service_completed_successfully
+    environment:
+      SWF_META_DB_HOST: ${TP_CONTAINER_PREFIX:-testpike}-postgres
+      SWF_META_DB_PORT: "5432"
+      SWF_META_DB_NAME: ${SWF_META_DB_NAME:-seaweedfs}
+      SWF_META_DB_USER: ${DB_USERNAME:-testpike}
+      SWF_META_DB_PASSWORD: ${DB_PASSWORD:-testpike_dev}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-testpike}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-testpike_dev}
+      TZ: Asia/Shanghai
+    entrypoint: ["/bin/sh", "/swf-entrypoint.sh"]
+    volumes:
+      - ./tools/ops/swf-entrypoint.sh:/swf-entrypoint.sh:ro
+      - swf_data:/data
+    restart: unless-stopped
+    ports:
+      - "${SWF_S3_HOST_PORT:-8333}:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  seaweedfs-ui-auth:
+    image: "${SWF_UI_PROXY_IMAGE:-nginx:1.27-alpine}"
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-seaweedfs-ui-auth
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      SWF_UI_USER: "${SWF_UI_USER:?missing in .env}"
+      SWF_UI_PASSWORD: "${SWF_UI_PASSWORD:?missing in .env}"
+      TZ: Asia/Shanghai
+    entrypoint: ["/bin/sh", "/swf-ui-entrypoint.sh"]
+    volumes:
+      - ./deploy/swf-ui-auth/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/swf-ui-auth/entrypoint.sh:/swf-ui-entrypoint.sh:ro
+    ports:
+      - "${SWF_UI_FILER_PROXY_HOST_PORT:-9000}:9100"
+      - "${SWF_UI_MASTER_PROXY_HOST_PORT:-9001}:9101"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "code=$$(wget -q -O /dev/null -S http://127.0.0.1:9100/ 2>&1 | grep -c '401'); [ \"$$code\" != \"0\" ] || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+
+  # ---- application tier (opt-in: docker compose --profile app up -d) ----
+  # The middleware above stays the default `up -d` surface the development
+  # chains depend on. The services below are the product itself, built from
+  # the deploy/docker recipes. In-network addressing uses service names
+  # (localhost inside a container is the container itself); every host-facing
+  # port is an env key with a shipped default so installs can remap freely.
+  tp-core:
+    profiles: ["app"]
+    image: testpike/core:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-core
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      args:
+        SERVICE: core
+    environment:
+      <<: *app-env
+      CORE_PORT: "8083"
+    ports:
+      - "${APP_CORE_HOST_PORT:-18083}:8083"    # shipped default host mapping; 8083 = in-container port
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+
+  tp-admin:
+    profiles: ["app"]
+    image: testpike/admin:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-admin
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      args:
+        SERVICE: admin
+    environment:
+      <<: *app-env
+      ADMIN_PORT: "8081"
+    ports:
+      - "${APP_ADMIN_HOST_PORT:-18081}:8081"    # shipped default host mapping; 8081 = in-container port
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tp-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+
+  tp-api:
+    profiles: ["app"]
+    image: testpike/api:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-api
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      args:
+        SERVICE: api
+    environment:
+      <<: *app-env
+      API_PORT: "8082"
+    ports:
+      - "${APP_API_HOST_PORT:-18082}:8082"    # shipped default host mapping; 8082 = in-container port
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tp-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+
+  tp-ai-service:
+    profiles: ["app"]
+    image: testpike/ai-service:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-ai-service
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      args:
+        SERVICE: ai-service
+    environment:
+      <<: *app-env
+      AISERVICE_PORT: "8084"    # in-container port is free; the 18084 host workaround does not apply here
+    ports:
+      - "${APP_AISERVICE_HOST_PORT:-18084}:8084"    # shipped default host mapping
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+
+  tp-web:
+    profiles: ["app"]
+    image: testpike/web:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-web
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+    environment:
+      TP_ADMIN_UPSTREAM: "${TP_ADMIN_UPSTREAM:-testpike-admin}"
+      TP_API_UPSTREAM: "${TP_API_UPSTREAM:-testpike-api}"
+      TP_ADMIN_PORT: "8081"    # in-container admin port (nginx upstream template input)
+      TP_API_PORT: "8082"      # in-container api port
+      TZ: Asia/Shanghai
+    ports:
+      - "${TP_WEB_HOST_PORT:-18080}:80"    # user-facing web door; remap at install time if held
+    depends_on:
+      tp-admin:
+        condition: service_healthy
+      tp-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  # ---- observability tier (opt-in: docker compose --profile observability up -d) ----
+  # Prometheus scrapes the four backend actuators over the compose network and
+  # Grafana mounts the provisioned datasource directory, so the tier is usable
+  # on first start with zero hand-editing. Host-facing ports are env keys with
+  # shipped defaults; the admin credential is env-indirected like every other.
+  tp-prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.53.2
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-19090}:9090"    # shipped default host mapping
+    restart: unless-stopped
+
+  tp-grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.2.0
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-testpike_dev}"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "${GRAFANA_HOST_PORT:-13000}:3000"    # shipped default host mapping
+    depends_on:
+      tp-prometheus:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---- executor tier (opt-in: docker compose --profile executor up -d) ----
+  # The executor is the single execution channel (docs/03 protocol): it
+  # registers through the api service only, heartbeats, and claims cases.
+  # The fixture target serves the demo-seeded API cases so a fresh install
+  # can prove a real green light end to end. No credentials bake in: every
+  # value below is env-key indirection resolved from the install .env.
+  tp-executor:
+    profiles: ["executor"]
+    image: testpike/executor:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-executor
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.executor
+    environment:
+      EXECUTOR_API_URL: "http://${TP_CONTAINER_PREFIX:-testpike}-api:8082"
+      EXECUTOR_NAME: "${EXECUTOR_NAME:-executor-openstack-01}"
+      EXECUTOR_CAPACITY: "${EXECUTOR_CAPACITY:-2}"
+      EXECUTOR_END_TYPES: "${EXECUTOR_END_TYPES:-web,api}"
+      TZ: Asia/Shanghai
+    extra_hosts:
+      # Seeded case URLs address the host-published fixture port; the
+      # host gateway mapping keeps those URLs reachable from inside.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      tp-api:
+        condition: service_started
+    restart: unless-stopped
+
+  tp-fixtures:
+    profiles: ["executor"]
+    image: testpike/executor:${TP_IMAGE_TAG:-local}
+    container_name: ${TP_CONTAINER_PREFIX:-testpike}-fixtures
+    # Override the image entrypoint: the shared executor image boots the
+    # runner by default; an un-overridden fixture container would register
+    # as an executor against the wrong api and never serve the target app.
+    entrypoint: ["python3", "/opt/testpike/executor/serve_fixtures.py"]
+    environment:
+      FIXTURE_PORT: "8899"
+      TZ: Asia/Shanghai
+    ports:
+      - "${TP_FIXTURE_HOST_PORT:-8899}:8899"    # shipped default host mapping; 8899 = in-container port
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  swf_data:

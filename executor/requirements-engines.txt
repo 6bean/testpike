@@ -1,0 +1,23 @@
+# Device/mini-program engine clients for the testPike Python executor.
+#
+# Why a separate install surface: minium pins websocket-client<1.4 while
+# selenium>=4.27 requires websocket-client>=1.8.0 — the two ranges are
+# mutually exclusive, so one flat `pip install` of the union is
+# structurally impossible (proven by the executor image build failure on
+# 2026-11-21: pip ResolutionImpossible between line 16 and line 20 of the
+# old combined list).
+#
+# Production layout (installkit): each engine runs in its own venv with
+# this overlay installed; the shared host venv and the delivered compose
+# image install executor/requirements.txt only. API cases therefore run
+# out of the box, while web/device engines report a clear runtime error
+# until their engine overlay plus browser/device binaries are provisioned.
+# Adapters import these lazily, so absent packages degrade honestly.
+#
+# Licenses: minium=MIT; selenium and Appium-Python-Client=Apache-2.0
+# (dependency ledger: open-source license doc). iOS real-device extras for
+# minium stay optional and are not pinned here. appium server is a Node
+# process the user installs, same shipped decision as k6/maestro.
+minium==1.6.1
+selenium>=4.27,<5
+Appium-Python-Client>=4.0,<5

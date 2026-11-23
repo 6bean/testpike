@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- WE batch T652 slice-3 local target page: the three-spectrum live window
+     (first-anchor hit / stale-first degrade / all-anchor miss) resolves the
+     ledger placeholders against these three buttons. Anchors deliberately
+     mix stable testids with a stale css selector so the degrade spectrum has
+     a real miss-then-hit ordering. -->
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>元素引用三谱靶页</title></head>
+<body>
+  <h2 id="title">页面元素库三谱靶页</h2>
+  <form onsubmit="return false">
+    <button type="button" data-testid="we-anchor-hit" id="ok-btn">直达命中</button>
+    <button type="button" data-testid="we-anchor-degrade" id="deg-btn">降级救回</button>
+    <span id="log"></span>
+  </form>
+  <script>
+    // Both clickable buttons append to the log so the run outcome is observable.
+    document.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.getElementById('log').textContent = 'clicked:' + b.dataset.testid;
+      });
+    });
+  </script>
+</body>
+</html>

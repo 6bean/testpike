@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# testPike Python executor image for the open-source delivery stack.
+#
+# What it does: ships the claim-loop worker (runner.py) that registers with
+# the api service over /internal/executors/*, heartbeats, and executes
+# claimed cases. Built self-contained so a `docker compose --profile
+# executor up` host needs nothing but Docker itself.
+#
+# Boundaries (honest degradation, documented in the install guide):
+#   - API cases run out of the box (requests/httpx/jsonschema only).
+#   - Web/device engines need browser binaries or device access (and their
+#     engine clients, which conflict with the core set's websocket-client
+#     range and ship as a separate overlay list); this image installs the
+#     resolvable core only, so those cases fail with a clear runtime error
+#     rather than pretending to work.
+#   - Credentials NEVER bake into this image: the runtime receives
+#     EXECUTOR_* values from the install .env at compose-up time.
+#
+# Layering: dependency layer keyed on requirements.txt only, source layer
+# copies last so day-to-day executor edits rebuild in seconds.
+
+FROM python:3.11-slim AS builder
+WORKDIR /build
+COPY executor/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM python:3.11-slim
+# Non-runtime uid 10001: no root in the container, artifact scratch lives
+# under a directory the service user owns.
+RUN groupadd --gid 10001 testpike \
+    && useradd --uid 10001 --gid 10001 --create-home testpike \
+    && mkdir -p /var/lib/testpike-executor \
+    && chown -R testpike:testpike /var/lib/testpike-executor
+COPY --from=builder /install /usr/local
+WORKDIR /opt/testpike
+COPY --chown=testpike:testpike executor/ ./executor/
+USER testpike
+ENV PYTHONUNBUFFERED=1 \
+    EXECUTOR_WORK_DIR=/var/lib/testpike-executor
+ENTRYPOINT ["python3", "/opt/testpike/executor/runner.py"]

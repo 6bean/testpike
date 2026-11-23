@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.sixbean.testpike</groupId>
+        <artifactId>testpike-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>testpike-ai-service</artifactId>
+    <name>testPike ai-service</name>
+    <description>AI 编排（单 Agent 三阶段，密钥集中，仅内部）</description>
+
+    <dependencies>
+        <!-- 跨模块共享（统一错误码/全局异常处理/幂等） -->
+        <dependency>
+            <groupId>com.sixbean.testpike</groupId>
+            <artifactId>testpike-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+ <!-- E8 /：jTokkit token 精确计数（事前预算判定/封组/摘要 clamp 单一计数源；
+             坐标勘误=PRD E8 原文 jTokkit 实为 com.knuddels，公司 Nexus maven-public 已代理） -->
+        <dependency>
+            <groupId>com.knuddels</groupId>
+            <artifactId>jtokkit</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+ <!-- MQ 消费骨架（E6：生成请求消费/状态回写；testpike.events 交换机） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <!-- 经 core Feign 落库（服务分层：ai-service 仅内部，RestClientInvoker 复用 common） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+ <!-- G1/ 向量基座：Spring AI PgVectorStore（显式钉版不进父 BOM， 裁定
+ 表创建权收归 迁移件 迁移 initializeSchema=false）；传递依赖 pgvector-java 0.1.6 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-pgvector-store</artifactId>
+            <version>1.1.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <!-- 分布式调度锁（与 core 同库同表 shedlock；ai-service 两处调度器多实例互斥） -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+            <directory>${project.basedir}/src/main/resources</directory>
+            </resource>
+            <!-- HF BPE vocab tables ship inside the jar (design: TokenEstimatorRegistry
+                 javadoc — classpath /tokenizers/*.json). Single git-managed source is
+                 the repo-root assets/tokenizers/ directory; the build copies it into
+                 classes instead of committing a second 19MB copy under src/. -->
+            <resource>
+            <directory>${project.basedir}/../assets/tokenizers</directory>
+            <targetPath>tokenizers</targetPath>
+            <includes>
+                <include>*.json</include>
+            </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- java -jar hosting requires the executable fat jar:
+                             repackage binds to the default package lifecycle
+                             (the previously staged ai-service jar was built
+                             by a manual repackage invocation, never wired). -->
+                        <id>repackage-fat-jar</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

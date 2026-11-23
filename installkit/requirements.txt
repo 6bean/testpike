@@ -1,0 +1,7 @@
+# installkit runtime requirements — third-party imports used by the installer's
+# own modules (installkit/*.py). Kept separate from executor/requirements.txt:
+# the installer must work on a clean host with no executor checkout side-effects.
+# Single source; install.sh bootstraps this file before the first step that
+# imports these packages, and pkg_probe's apk/apt/dnf python3 lines cover it at
+# the OS level as the documented prerequisite one-liner.
+httpx>=0.27

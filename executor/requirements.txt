@@ -1,0 +1,18 @@
+# testPike Python 执行器
+# 运行：python3 runner.py（配置经环境变量，禁内联）
+playwright>=1.40
+requests>=2.31
+pytest>=7.4
+pillow>=10,<13
+httpx>=0.28
+websockets>=15
+# JSON Schema validation kernel for the api-test 'schema' assertion type
+# (license=MIT, see the open-source ledger doc; pure-Python, safe to pin in
+# the shared host venv — no websocket/darabonba conflict like minium).
+jsonschema>=4.21,<5
+# Device/mini-program engine clients (minium, selenium, Appium-Python-Client)
+# are NOT listed here: minium pins websocket-client<1.4 while selenium>=4.27
+# requires websocket-client>=1.8.0, so the union can never resolve in one
+# flat environment. They ship in executor/requirements-engines.txt and
+# install into a per-engine venv (adapters load them lazily; L2 injects fake
+# modules and never imports them).

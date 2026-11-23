@@ -1,0 +1,25 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: tp-executor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  scaleTargetRef:
+    name: {{ .Release.Name }}
+  minReplicaCount: {{ .Values.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount }}
+  pollingInterval: {{ .Values.keda.pollIntervalSeconds }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriodSeconds }}
+  triggers:
+    - type: external
+      metadata:
+        # Queue-depth per executorType is served by the platform autoscaler
+        # decision core (pending dispatch depth), never by CPU utilization:
+        # a claim-polling runner reads busy at zero load and idle under a
+        # deep queue. Scaler host empty = trigger inert by design.
+        scalerHost: {{ required "keda.scalerService.host must name the platform scaler service" .Values.keda.scalerService.host }}
+        port: {{ .Values.keda.scalerService.port }}
+{{- end }}

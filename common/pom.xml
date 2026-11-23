@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.sixbean.testpike</groupId>
+        <artifactId>testpike-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>testpike-common</artifactId>
+    <name>testPike common</name>
+    <description>跨模块共享：统一错误码/全局异常处理（core/admin/api 复用，禁重复逻辑红线）</description>
+
+    <dependencies>
+        <!-- common/exception、common/clientobject。
+             spring-web（GlobalExceptionHandler @RestControllerAdvice/ResponseEntity + RestClientInvoker RestClient）
+             与 slf4j-api -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- NoResourceFoundException（spring-webmvc）+ BindException/BindingResult（spring-context，传递） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+ <!-- M2-β：Redis 可重入锁 + @Idempotent AOP（D2 锁件新建）。
+             装配守卫=common 不做组件扫描，宿主经 @Import 显式装配（AdminApplication 既有模式），
+             无 redis 配置的宿主不 Import 即零影响；Lettuce 惰性连接，Bean 存在不建连接。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+ <!-- 幂等结果回放序列化（IdempotentAspect；原仅 test scope） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+ <!-- AJ T385: dead-letter failure capture recoverer implements the spring-rabbit
+       MessageRecoverer contract. optional=true keeps it off the admin/api/classpath
+       (their consumers do not see rabbit types through common). -->
+        <dependency>
+            <groupId>org.springframework.amqp</groupId>
+            <artifactId>spring-rabbit</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 测试序列化断言（ResponseTest/GlobalExceptionHandlerTest 用 JsonNode）：
+ 起 jackson-databind 升 compile（IdempotentAspect 回放序列化），此处 test 声明去重 -->
+        <!-- 编译期需要（NoResourceFoundException 继承链含 ServletException）；运行期由 web 容器提供 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

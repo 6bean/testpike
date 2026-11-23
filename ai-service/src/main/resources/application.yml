@@ -1,0 +1,72 @@
+server:
+  port: ${AISERVICE_PORT:18084}
+
+spring:
+  application:
+    name: testpike-ai-service
+  profiles:
+    active: dev
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    virtual-host: ${MQ_VHOST:/}
+    username: ${RABBITMQ_USERNAME:testpike}
+    password: ${RABBITMQ_PASSWORD:}
+    listener:
+      simple:
+        default-requeue-rejected: false
+        concurrency: 4
+        prefetch: 1
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000
+          multiplier: 2
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+  autoconfigure:
+    exclude:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:15432/testpike}
+    username: ${DB_USERNAME:testpike}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    metrics:
+      enabled: true
+
+llm:
+  mock-enabled: ${LLM_MOCK_ENABLED:true}
+  provider: ${LLM_PROVIDER:openai}
+  base-url: ${LLM_BASE_URL:http://localhost:18080/v1}
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:gpt-4o-mini}
+  timeout-seconds: ${LLM_TIMEOUT_SECONDS:800}
+  embedding:
+    provider: ${LLM_EMBEDDING_PROVIDER:dashscope-compatible}
+    base-url: ${LLM_EMBEDDING_BASE_URL:}
+    api-key: ${LLM_EMBEDDING_API_KEY:}
+    model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
+    dimension: ${LLM_EMBEDDING_DIMENSION:1536}
+    batch-size: ${LLM_EMBEDDING_BATCH_SIZE:128}
+
+logging:
+  level:
+    com.sixbean.testpike: INFO
+
+core:
+  base-url: ${CORE_BASE_URL:http://localhost:8083}

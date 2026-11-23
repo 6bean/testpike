@@ -1,0 +1,21 @@
+-- Migration: drop the retired repair-draft table .
+--
+-- Why this table goes away:
+--   tp_ai_chat_repair_draft (V301) welded one object type into the schema —
+--   script-shaped columns and a confirmation chain that could only ever land
+--   a repaired script. V302 replaced it with the generic ledger
+--   tp_ai_chat_draft (object_type routes SCRIPT_REPAIR / CASE_WRITE through
+--   one confirmation chain and one landing door), the code was rewired to
+--   read and write ONLY the generic table, and the V302 backfill copied the
+--   live rows across. Red line 6 forbids a second confirmation ledger per
+--   object type, so the old table must not linger as a shadow source.
+--
+-- Close-out evidence (2026-10-28, live dev database):
+--   * zero Java references to tp_ai_chat_repair_draft (grep over src/ = 0);
+--   * 20 rows remained, 16 mirrored 1:1 into tp_ai_chat_draft (object_type
+--     SCRIPT_REPAIR, same message_id), the other 4 belonged to scratch
+--     sessions whose dialog rows the capture/E2E tail sweeps had already
+--     purged — an orphaned probe frame, not a confirmable proposal;
+--   * no draft row in the old table sat in status pending with a live
+--     session, so nothing confirmable is lost by this drop.
+DROP TABLE IF EXISTS tp_ai_chat_repair_draft;

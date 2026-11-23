@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: tp-executor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    testpike.io/component: executor-pool
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never drop an old runner before its replacement registered: the
+      # platform keeps dispatching while the ledger shows the node online.
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tp-executor
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tp-executor
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "tp-executor.serviceAccountName" . }}
+      # Least privilege: the runner only talks to the platform api service,
+      # so no Kubernetes credentials are mounted into the pod.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.drain.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+        - name: executor
+          {{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ required "image.tag or image.digest must be pinned by the delivery scripts" .Values.image.tag }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: EXECUTOR_API_URL
+              value: {{ .Values.platform.apiUrl | quote }}
+            - name: EXECUTOR_NAME
+              value: "{{ .Values.pool.namePrefix }}-$(POD_NAME)"
+            - name: EXECUTOR_END_TYPES
+              value: {{ .Values.pool.endTypes | quote }}
+            - name: EXECUTOR_BROWSERS
+              value: {{ .Values.pool.browsers | quote }}
+            - name: EXECUTOR_CAPACITY
+              value: {{ .Values.pool.capacity | quote }}
+            - name: EXECUTOR_GROUP_IDS
+              value: {{ .Values.pool.groupIds | quote }}
+            - name: EXECUTOR_ENV_IDS
+              value: {{ .Values.pool.envIds | quote }}
+            - name: EXECUTOR_VERSION
+              value: {{ .Values.pool.version | quote }}
+            - name: EXECUTOR_HEARTBEAT_INTERVAL
+              value: {{ .Values.timing.heartbeatIntervalSeconds | quote }}
+            - name: EXECUTOR_CLAIM_INTERVAL
+              value: {{ .Values.timing.claimIntervalSeconds | quote }}
+            - name: EXECUTOR_REQUEST_TIMEOUT
+              value: {{ .Values.timing.requestTimeoutSeconds | quote }}
+            - name: EXECUTOR_TASK_TIMEOUT_MS
+              value: {{ .Values.timing.taskTimeoutMs | quote }}
+            - name: EXECUTOR_SCREENSHOTS_DIR
+              value: /tmp/testpike-executor/shots
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # No readiness/liveness probes on purpose: the runner listens on no
+          # port. Fleet liveness is judged platform-side by heartbeat age and
+          # lease reclaim, the authoritative view for an outbound-only worker.
+          lifecycle:
+            preStop:
+              exec:
+                # Scale-in marks this node draining before the replica patch
+                # lands; the sleep covers flag propagation so the runner stops
+                # claiming, then in-flight work runs out within the grace.
+                command: ["sleep", "{{ .Values.drain.preStopSleepSeconds }}"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.tmpVolume.enabled }}
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp/testpike-executor
+          {{- end }}
+      {{- if .Values.tmpVolume.enabled }}
+      volumes:
+        - name: scratch
+          emptyDir:
+            {{- with .Values.tmpVolume.sizeLimit }}
+            sizeLimit: {{ . }}
+            {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

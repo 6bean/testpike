@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.sixbean.testpike</groupId>
+        <artifactId>testpike-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>testpike-admin</artifactId>
+    <name>testPike admin</name>
+    <description>面向用户管理（评审工作台/用例/批次/分配，对外接口 /api/v1/**）</description>
+
+    <dependencies>
+        <!-- 跨模块共享（统一错误码/全局异常处理） -->
+        <dependency>
+            <groupId>com.sixbean.testpike</groupId>
+            <artifactId>testpike-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- RestClient MultipartBodyBuilder 运行时依赖（org.reactivestreams.Publisher），
+             spring-boot-starter-web 不含 reactive-streams，缺失会 NoClassDefFoundError -->
+        <dependency>
+            <groupId>org.reactivestreams</groupId>
+            <artifactId>reactive-streams</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId> <!-- T119 R2/R6：登出黑名单+refresh 会话存储（R6/D0） -->
+        </dependency>
+
+        <!-- fastjson2（JSONField/JSON.parseObject 等； -->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>2.0.51</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- java -jar hosting requires the executable fat jar:
+                             repackage binds to the default package lifecycle. -->
+                        <id>repackage-fat-jar</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

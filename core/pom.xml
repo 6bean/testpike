@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.sixbean.testpike</groupId>
+        <artifactId>testpike-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>testpike-core</artifactId>
+    <name>testPike core</name>
+    <description>服务层（权限/审计/配置/调度基础服务，admin/api 经 Feign 调用）</description>
+
+    <dependencies>
+        <!-- Cross-module sharing (unified error codes and global exception handling). -->
+        <dependency>
+            <groupId>com.sixbean.testpike</groupId>
+            <artifactId>testpike-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+ <!-- Distributed scheduling lock (mutual exclusion for @Scheduled across multiple instances with skip rather than wait; the lock table is a PostgreSQL ShedLock table, and migration artifacts are manually persisted to the database). -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+        </dependency>
+ <!-- RabbitMQ event publishing (review side-effect scaffolding: emit events for status changes and assignments, with notification-center design; consumer-side integration). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+ <!-- BCrypt password hashing (local authentication; credentials must not be plaintext; the Boot 3.5.3 BOM does not lock this standalone library, so version 6.4.4 is explicitly specified and already exists in the local m2 repository). -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+            <version>6.4.4</version>
+        </dependency>
+ <!-- Default load-testing engine Gatling (decision option b: embedded in the same JVM still goes through the GatlingAdapter adaptation layer; direct calls are prohibited).
+gatling-bom 3.13.5 does not exist, so the three artifacts are directly declared in the root pom with fixed versions; coexistence arbitration with Boot 3.5.3 is conducted through dependency:tree inspection.
+Actual dependency:tree inspection (netty/jackson drift); if conflicts are red, the independent-process shaded-jar approach will be re-adjudicated. -->
+        <dependency>
+            <groupId>io.gatling</groupId>
+            <artifactId>gatling-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatling</groupId>
+            <artifactId>gatling-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatling</groupId>
+            <artifactId>gatling-app</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+ <!-- AWS SDK v2 S3 client: standard SigV4 wire protocol for SeaweedFS S3 gateway and any
+              cloud S3-compatible endpoint (credentials/endpoint in .env S3_*; docker compose
+              service testpike-seaweedfs). Replaces the retired io.minio client. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.31.66</version>
+        </dependency>
+
+ <!-- Alibaba Cloud OSS SDK (one of three cloud storage implementations; credentials use encrypted keys storage.oss.*, inline credentials are prohibited, and dependency:get has empirically shown that it can be pulled). -->
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+            <version>3.17.4</version>
+            <exclusions>
+                <!-- Same conflict as pdfbox: httpclient drags a second commons-logging copy while
+                     spring-jcl already provides the API; keep one implementation on the classpath. -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+ <!-- EasyExcel (existing data import: Excel parsing and template are unified with the export template; version 4.0.3 is already available in the local m2 repository, as specified in requirements 4.2.5). -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+            <version>4.0.3</version>
+        </dependency>
+ <!-- openhtmltopdf (summary report: export the report as PDF, pure Java HTML-to-PDF with no native dependencies). -->
+        <dependency>
+            <groupId>com.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.0.10</version>
+            <exclusions>
+                <!-- Exclude commons-logging: spring-jcl (via spring-core) already provides the
+                     org.apache.commons.logging API. A second copy on the classpath triggers the
+                     "Standard Commons Logging discovery" conflict and made the
+                     SpringApplicationShutdownHook die with NoClassDefFoundError while logging
+                     during context close (lost shutdown diagnostics). -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+ <!-- PDFBox (direct dependency for PDF text extraction—not relying on openhtmltopdf's transitive dependency; version aligned with its transitive 2.0.24 to prevent version split). -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.24</version>
+            <exclusions>
+                <!-- Same as above: keep a single commons-logging implementation (spring-jcl). -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- snakeyaml (OpenAPI YAML contract parsing; version follows the spring-boot BOM, explicitly declared to prevent transitive dependency drift). -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
+        <!-- fastjson2 (JSONField, JSON.parseObject, and related APIs). -->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>2.0.51</version>
+        </dependency>
+ <!-- networknt JSON Schema validation (ToolSchemaValidator).
+Explicitly pinned to 1.5.7, the same-source version of the API-side MCP SDK transitive dependency; empirically offline-compilable in .m2. -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- java -jar hosting requires the executable fat jar:
+                             repackage binds to the default package lifecycle. -->
+                        <id>repackage-fat-jar</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
