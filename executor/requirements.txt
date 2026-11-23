@@ -3,7 +3,7 @@
 playwright>=1.40
 requests>=2.31
 pytest>=7.4
-pillow>=10,<13
+pillow>=13.0.0,<14
 httpx>=0.28
 websockets>=15
 # JSON Schema validation kernel for the api-test 'schema' assertion type
