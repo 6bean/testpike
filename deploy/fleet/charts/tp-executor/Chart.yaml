@@ -1,0 +1,15 @@
+apiVersion: v2
+name: tp-executor
+description: >-
+  Executor pool chart for testPike. Runners are outbound-only workers: they
+  register, heartbeat and claim tasks through the platform api service and
+  never listen for inbound traffic, so this chart exposes no Service and
+  mounts no Kubernetes credentials.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - testpike
+  - test-executor
+maintainers:
+  - name: testPike contributors

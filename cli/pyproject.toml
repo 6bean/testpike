@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "testpike-cli"
+version = "0.1.0"
+description = "testPike CI/CD 触发命令行（02 §I8 /open/ci + G6 API Token scope=ci）"
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27"]
+
+[project.scripts]
+testpike = "testpike_cli.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["testpike_cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

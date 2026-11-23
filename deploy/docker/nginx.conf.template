@@ -1,0 +1,48 @@
+# Rendered by the nginx official image entrypoint before start-up. Upstream
+# hosts and ports are environment values injected by compose (defaults are the
+# in-network service names), so the web image holds no host-specific literals.
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Hashed vite assets are content-addressed: safe to cache hard.
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Browser API door -> admin service (auth.mode=local routes live there).
+    # No trailing path on proxy_pass keeps /api/** un-rewritten end to end.
+    location /api/ {
+        proxy_pass http://${TP_ADMIN_UPSTREAM}:${TP_ADMIN_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 900s;
+    }
+
+    # Public share-link / badge doors -> api service (same-origin /open path).
+    location /open/ {
+        proxy_pass http://${TP_API_UPSTREAM}:${TP_API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SPA deep links resolve client-side; unknown paths fall back to the shell.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

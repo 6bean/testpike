@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>B11 三层联合下单夹具页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; background: #f5f7fa; }
+    input { padding: 6px; margin-right: 12px; }
+    button { padding: 6px 16px; }
+  </style>
+</head>
+<body>
+<h2>B11 下单夹具（T194 三层联合：UI + 接口 + 落库）</h2>
+<label for="order-no">单号</label>
+<input id="order-no" type="text" placeholder="订单号">
+<button id="submit">下单</button>
+<p id="result">空闲</p>
+<script>
+  // 三层联合链路：点下单 → 真实 POST /api/order（同域相对地址，端口随桩动态）
+  // → 结果回填 #result（UI 层可观测）；服务端同事务写 tp_b11_target.t_order（落库层）。
+  document.getElementById('submit').addEventListener('click', function () {
+    var orderNo = document.getElementById('order-no').value.trim();
+    if (!orderNo) {
+      document.getElementById('result').textContent = '缺少单号';
+      return;
+    }
+    document.getElementById('result').textContent = '提交中';
+    fetch('/api/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNo: orderNo, userId: 1001 })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      document.getElementById('result').textContent =
+          '下单成功-' + d.data.orderNo + '-' + d.data.status;
+    }).catch(function () {
+      document.getElementById('result').textContent = '下单失败';
+    });
+  });
+</script>
+</body>
+</html>

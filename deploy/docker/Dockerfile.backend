@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# Backend image recipe for the Spring Boot services (core / admin / api /
+# ai-service). One parameterized file instead of four near-copies: the modules
+# differ only by name and in-container port, and a duplicated recipe drifts
+# the moment one copy gets a fix (single-source rule for shared logic).
+#
+# Build (run from the repo root, which is the context):
+#   docker build -f deploy/docker/Dockerfile.backend --build-arg SERVICE=admin -t testpike/admin:local .
+#
+# No credentials are baked in, ever: Spring reads DB_URL, *_PASSWORD and the
+# rest from the process environment, which compose injects at run time. The
+# install-time .env is excluded by .dockerignore.
+
+# ---- stage 1: compile on JDK 21 + Maven ----
+FROM maven:3.9-eclipse-temurin-21 AS builder
+ARG SERVICE
+RUN test -n "$SERVICE" || { echo "build-arg SERVICE is required (core|admin|api|ai-service)"; exit 2; }
+WORKDIR /src
+COPY . .
+# Cache mount keeps ~/.m2 warm across rebuilds so only changed modules recompile.
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -q -DskipTests -pl "$SERVICE" -am package
+# Every service binds the Spring Boot repackage goal, so the packaged jar is
+# self-contained (launcher and dependencies nested). Stage it under a stable
+# name so the runtime ENTRYPOINT never depends on the version string.
+RUN set -eu; \
+    jar="$(find "$SERVICE/target" -maxdepth 1 -name '*.jar' ! -name 'original*' | head -1)"; \
+    test -n "$jar"; \
+    mkdir -p /staged && cp "$jar" /staged/app.jar
+
+# ---- stage 2: JRE-only runtime, non-root ----
+FROM eclipse-temurin:21-jre AS runtime
+COPY --from=builder /staged/app.jar /app/app.jar
+RUN useradd --system --uid 10001 --create-home appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+WORKDIR /app
+EXPOSE 8081 8082 8083 8084
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

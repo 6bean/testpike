@@ -1,0 +1,941 @@
+/* ============================================================
+ ============================================================ */
+
+:root {
+  /* Vertical band gap single source (R21 family): any content band facing an
+ interactive band (composer, footer actions, dialog body blocks) keeps at
+ least this gap so a dynamically growing band never crowds the input.
+ Theme-neutral by nature — a dark-scoped copy left every fallback-less
+ consumer at gap 0 in the light palette (11-11 dialog capture proof).
+ 11-03 close-out. */
+  --tp-band-gap: 16px;
+  /* Composer capsule-band clearance : every band stacked
+ above the composer input (mention chips, image queue, suggestion chips,
+ context hint) keeps this much space above and below, so a growing band
+ never reads as glued to the input box. Layout-neutral, single source
+ here — pages must not hardcode their own band clearance. */
+  --tp-composer-band-gap: 6px;
+  /* Content-band height single source: a full-height page inside .layout-main
+     subtracts the header band + .page-root vertical padding from 100vh
+     (live-measured at 1440x900: header 56px + padding 12px x2 = 80px).
+     Pages consume this token instead of page-level magic numbers. */
+  --tp-layout-content-offset: 80px;
+  /* Skeleton reveal delay : a shared table skeleton
+ stays undrawn until the request has been in flight this many ms, so a
+ fast response paints zero intermediate frames. Override here (or at
+ runtime via documentElement inline style) — never per page. */
+  --ds-skeleton-reveal-delay-ms: 250;
+  /* Chat-dock reservation : the
+ dock is a non-modal overlay, so while it is open the content band pads its
+ right edge by exactly the live dock width and the drawer floats over empty
+ space instead of covering the page's own controls. The dock owns the value
+ (ChatDock publishes it); pages never read the dock, only this token. */
+  --tp-chat-dock-reserve: 0px;
+  /* Resident dock squeeze : fixed layers
+ whose box is the whole viewport (element-plus overlay containers —
+ centered dialogs among them) must stay clear of the reserved gutter
+ while the dock is pinned. Zero by default; the root class and the
+ offset value are published by ChatDock through the chatDockLayout
+ judge — pages and dialogs never read the dock themselves. */
+  --tp-chat-dock-overlay-offset: 0px;
+  
+  --tp-bg: #f0f2f7;
+  --tp-bg-card: #ffffff;
+  --tp-bg-header: rgba(255, 255, 255, 0.85);
+  --tp-text-primary: #1f2937;
+  
+  --tp-text-secondary: #5b6472;  /* worst 5.34 */
+  --tp-border: #e5e7eb;
+  /* fold line inside tinted surfaces (draft card zones): --tp-border is
+     tuned for page cards on the plain background and disappears on the
+     primary-weak halo; this level stays legible on both (vision T430s3:
+     measured 1.08:1 hairline against the card tint = invisible) */
+  --tp-border-on-tint: #6d86a6;
+  --tp-primary: #0369a1;         
+  --tp-primary-weak: rgba(14, 165, 233, 0.12);
+  
+  --tp-primary-weak-solid: #e2f4fc;
+  --tp-success: #3d7a1f;         /* 4.68 / 5.25 */
+  --tp-warning: #9a5009;         /* 5.32 / 5.96 */
+  --tp-danger: #b91c1c;          /* 5.78 / 6.47 */
+  
+  --tp-danger-weak: rgba(185, 28, 28, .07);
+  --tp-danger-weak-solid: #fbecec;
+  --tp-danger-weak-emph: rgba(185, 28, 28, .14);
+  --tp-danger-weak-emph-solid: #f6dcdc;
+  /* AI-fallback provenance family (batch report llm badge / inspector purple tag):
+     violet-700 on light passes AA, weak = tinted halo background (no side bar, no dialog) */
+  --tp-llm: #6d28d9;
+  --tp-llm-weak: rgba(109, 40, 217, 0.08);
+  --tp-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  --tp-radius: 10px;
+  --tp-radius-sm: 6px;   
+
+  
+  --el-border-radius-base: var(--tp-radius-sm);
+  --el-border-radius-small: 4px;
+
+  
+  --ds-table-row-height: 40px;
+
+  
+  --tp-bg-sidebar: #fafbfe;
+  --tp-sidebar-border: #e6e9f0;
+  --tp-sidebar-text: #475569;            
+  --tp-sidebar-text-dim: #64748b;        
+  --tp-sidebar-text-active: #0369a1;     
+  --tp-sidebar-brand: #0f172a;           
+  --tp-sidebar-hover-bg: rgba(15, 23, 42, 0.045);
+  --tp-sidebar-active-bg: rgba(14, 165, 233, 0.10);
+  --tp-sidebar-submenu-bg: rgba(15, 23, 42, 0.02);
+  --tp-sidebar-shadow: inset -1px 0 0 #e6e9f0;
+}
+
+html.dark {
+  
+  --tp-bg: #0b1220;
+  --tp-bg-card: #111a2c;
+  --tp-bg-header: rgba(13, 21, 38, 0.85);
+  --tp-text-primary: #e5eaf3;
+  --tp-text-secondary: #8b94a7;
+  --tp-border: #1e293b;
+  /* dark-theme fold line on tinted card surfaces (3.0:1 vs the draft-card
+     halo, measured) — same purpose as the light token above */
+  --tp-border-on-tint: #66799a;
+  --tp-primary: #38bdf8;
+  --tp-primary-weak: rgba(56, 189, 248, 0.14);
+  
+  --tp-primary-weak-solid: #162f47;
+  
+  --tp-success: #10b981;
+  --tp-warning: #f59e0b;
+  --tp-danger: #ef4444;
+  
+  --tp-danger-weak: rgba(239, 68, 68, .10);
+  --tp-danger-weak-solid: #3a2325;
+  --tp-danger-weak-emph: rgba(239, 68, 68, .18);
+  --tp-danger-weak-emph-solid: #4d2a2d;
+  /* AI-fallback provenance dark tier: violet-400 bright text on tinted halo (AA on #111a2c) */
+  --tp-llm: #a78bfa;
+  --tp-llm-weak: rgba(167, 139, 250, 0.14);
+  --tp-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+  /* --tp-band-gap lives in :root — layout gaps do not change with the palette. */
+
+  
+  --tp-bg-sidebar: #0d1526;
+  --tp-sidebar-border: #1c2a44;
+  --tp-sidebar-text: #c9d4e8;            /* 12.21:1 */
+  --tp-sidebar-text-dim: #9fb0cb;        
+  --tp-sidebar-text-active: #7dd3fc;     /* 10.93:1 */
+  --tp-sidebar-brand: #f1f5fb;           /* 16.66:1 */
+  --tp-sidebar-hover-bg: rgba(148, 180, 226, 0.09);
+  --tp-sidebar-active-bg: rgba(56, 189, 248, 0.15);
+  --tp-sidebar-submenu-bg: rgba(255, 255, 255, 0.025);
+  --tp-sidebar-shadow: inset -1px 0 0 #1c2a44;
+}
+
+
+html.dark {
+  --el-bg-color: #111a2c;
+  --el-bg-color-overlay: #1a2440;
+  --el-bg-color-page: #0b1220;
+  --el-fill-color-blank: #111a2c;
+  --el-border-color: #26324a;
+  --el-border-color-light: #1e293b;
+  --el-text-color-primary: #e5eaf3;
+  --el-text-color-regular: #c3cad9;
+  --el-color-primary: #38bdf8;
+}
+
+
+html:not(.dark) {
+  --el-text-color-secondary: var(--tp-text-secondary);   /* #909399→#5b6472 */
+  --el-text-color-placeholder: #6b7280;                  
+  --el-color-primary: #0369a1;                           
+  --el-color-primary-dark-2: #075985;
+  --el-color-success: var(--tp-success);
+  --el-color-success-dark-2: #2f5f18;
+  --el-color-warning: var(--tp-warning);
+  --el-color-warning-dark-2: #7c3f07;
+  --el-color-danger: var(--tp-danger);
+  --el-color-error: var(--tp-danger);
+  --el-color-danger-dark-2: #991b1b;
+  --el-color-info: var(--tp-text-secondary);             
+  
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--tp-bg);
+  color: var(--tp-text-primary);
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', Arial, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+.page-root {
+  
+  padding: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.page-card {
+  background: var(--tp-bg-card);
+  border: 1px solid var(--tp-border);
+  border-radius: var(--tp-radius);
+  box-shadow: var(--tp-shadow);
+  padding: 20px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Working-area fill height (user report 2026-11-20: the blank band below
+   short tables/cards wasted viewport space). The page tree always occupies
+   at least the full working-area height and the last card stretches to the
+   bottom, so the outer gutter is a constant 12px — the same padding token as
+   the side gutters (B5 ratio rule) — independent of window size or row
+   count. Pure flex math, no per-page vh magic numbers.
+   - Only the LAST card stretches; stacked stat cards keep content height.
+   - Cards carrying a table/pager push the slack into the table band (see
+     absorber rules below) so the pager reads as the card's bottom row.
+   - Teleported el-overlay children are position:fixed and never take part
+     in the flex flow.
+   - Exempt (tp-fill-off): pages that still own a hard height through
+     --tp-layout-content-offset (AiChatView only since 11-20 — AiGenerateView
+     adopted this block and its internal flex chain fills through the page's
+     own row/col rules). Forced re-flex of a pane-splitting page stacks the
+     panes (pinned by tests/e2e/test_edge_gap_pages).
+   Pages with a private root (no .page-root) or deeper fixed-height boards
+   keep their shape and are ledgered for per-page adoption. */
+.layout-main .page-root:not(.tp-fill-off) {
+  display: flex;
+  flex-direction: column;
+}
+.layout-main > .page-root:not(.tp-fill-off) {
+  min-height: 100%;
+}
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+/* Table band absorbs the slack so the pagination bar reads as the card's
+   bottom row instead of floating mid-card. The current Chromium build parses
+   `:has()` but rejects nested relative forms (`:has(~ :has(...))` throws at
+   querySelectorAll and the whole rule drops), so keep every guard shallow:
+   - baseline markup (CaseList family): direct child .el-table absorbs;
+   - tab-host cards (tag list): when the tabs band IS the last child it
+     absorbs, and its content pane (not the tab header) takes the height;
+   - wrapper pages (report export-tasks, host pages embedding a whole view):
+     a last child that contains a table absorbs as well.
+   When a card has both a direct table and a trailing table wrapper the slack
+   is shared — intended (both bands grow). Deeper private layouts keep the
+   card-level stretch (border reaches the gutter, inner slack below) and are
+   ledgered for per-page adoption. */
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)):has(.el-table, .pagination-bar) > .el-table,
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)):has(.el-table, .pagination-bar) > :last-child:has(.el-table) {
+  flex: 1 0 auto;
+}
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)):has(.el-table, .pagination-bar) > .el-tabs:last-child {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)):has(.el-table, .pagination-bar) > .el-tabs:last-child > .el-tabs__content {
+  flex: 1 0 auto;
+}
+/* Detail pages that render their tabs directly under the page root (project
+   detail: back-bar + tabs, no card) reach the bottom through the same chain;
+   guard keeps it to the last content block so trailing cards win. */
+.layout-main .page-root:not(.tp-fill-off) > .el-tabs:not(:has(~ .el-tabs)):not(:has(~ .page-card)) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.layout-main .page-root:not(.tp-fill-off) > .el-tabs:not(:has(~ .el-tabs)):not(:has(~ .page-card)) > .el-tabs__content {
+  flex: 1 0 auto;
+}
+/* Flex siblings do not collapse margins; normalize the only double-declared
+   band pair (header/toolbar bottom 16 + filter-bar top 16) to a single side
+   inside STRETCHED cards only, so band spacing stays the FB ruling's 16px in
+   both layouts (A2 rule). Scoped to the flex context on purpose: plain block
+   pages keep margin-collapse semantics untouched (a v-show-hidden preceding
+   band would otherwise glue the filter bar to the card padding). */
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)) > .toolbar + .filter-bar,
+.layout-main .page-root:not(.tp-fill-off) > .page-card:not(:has(~ .page-card)) > .page-title + .filter-bar {
+  margin-top: 0;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--tp-primary), #6366f1);
+}
+
+.text-secondary {
+  color: var(--tp-text-secondary);
+}
+
+/* ============================================================
+ ============================================================ */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0; 
+
+  .page-title {
+    margin-bottom: 0; 
+  }
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+/* Filter-band control sizing — theme single source : Element Plus
+ defaults .el-input/.el-select to width:100%, so any page that references
+ .filter-bar without giving its own width renders a vertical stack (user
+ report on the element ledger). Pages that need a different width keep
+ overriding locally; this fallback only prevents the full-row collapse. */
+.filter-bar .el-input,
+.filter-bar .el-select {
+  width: 220px;
+}
+/* Trailing slot for secondary filter-bar actions (refresh etc.) — pinned to the
+   row end by this single global definition; per-page scoped copies are banned. */
+.filter-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+/* Title-side help "?" — the platform-wide form for page/section help
+ (help never occupies an action slot, IA fix). Use this class;
+ per-page scoped copies are banned. */
+.title-help-icon {
+  cursor: pointer;
+  color: var(--tp-primary);
+  vertical-align: -2px;
+  margin-left: 4px;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.75;
+  }
+}
+/* Header action band: page-level variant actions only (create / import /
+   approve). View-state actions (refresh, column settings, density, export)
+   belong in the .filter-bar-actions trailing slot; query submit stays inline
+   at the end of the filter group. Enforced by the S6 scanner FB-1/FB-2. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Batch selection bar: the single definition shared by every list page that
+   offers row picking (requirement / case lists). Pages reference the class
+   name only; per-page scoped copies are debt tracked separately and must not
+   be treated as the source of truth. */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: var(--tp-primary-weak);
+  border: 1px solid var(--tp-primary);
+  font-size: 13px;
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+/* Two-column row inside create/edit dialogs — the single definition behind the
+   dialog ratio iron law (1.2–1.8:1): pairing short fields halves the stack
+   height so dialogs stop being narrow stripes. Per-page scoped copies banned. */
+.dialog-form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+/* Action-cell links must never wrap mid-token (vision gate 6b: the
+ the column's class-name; per-page scoped copies banned. */
+.actions-cell-nowrap .cell { white-space: nowrap; }
+
+
+.login-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(56, 189, 248, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.16) 0%, transparent 55%),
+    var(--tp-bg);
+}
+
+/* tp-popper-z-single-source — dialog popper layering single source.
+   Element Plus teleports every dropdown / date / cascader popper (.el-popper)
+   to <body> with an inline z-index from the popup manager; that inline value
+   can land at or below the open dialog's .el-overlay layer, so options render
+   hidden behind the dialog (reported 2026-11-09 as "clipped" dropdowns).
+   One generic rule keeps all poppers above the overlay band: z-index 3100 is
+   the shipped ceiling over the popup-manager base (2000). Page-scoped popper
+   z-index patches are banned from here on — the shrinking ratchet
+   tests/ui/dialogPopperMountSingleSource.test.ts enforces this site as the
+   only one (former per-page classes tp-member-user-popper / tp-member-role-
+   popper / tp-assign-popper absorbed; the class attributes stay as E2E
+   locator hooks only). */
+.el-popper {
+  z-index: 3100 !important;
+}
+
+
+.el-table .low-confidence-row > td.el-table__cell {
+  background: var(--tp-danger-weak);
+}
+
+
+.el-table .low-confidence-row > td.el-table__cell.el-table-fixed-column--left,
+.el-table .low-confidence-row > td.el-table__cell.el-table-fixed-column--right {
+  background: var(--tp-danger-weak-solid);
+}
+
+/* Evidence-weak + low-confidence escalation tier (review-queue rule joined into
+   this red-tint mechanism, same language one step deeper; :where keeps the
+   specificity equal to the two rules above and the declaration order stays
+   before quick-active-row, so focus blue still outranks the reminder red). */
+.el-table .low-confidence-row:where(.low-evidence-row) > td.el-table__cell {
+  background: var(--tp-danger-weak-emph);
+}
+
+.el-table .low-confidence-row:where(.low-evidence-row) > td.el-table__cell.el-table-fixed-column--left,
+.el-table .low-confidence-row:where(.low-evidence-row) > td.el-table__cell.el-table-fixed-column--right {
+  background: var(--tp-danger-weak-emph-solid);
+}
+
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--tp-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.el-table .quick-active-row > td.el-table__cell {
+  background: var(--tp-primary-weak) !important;
+}
+
+html.dark .el-table .quick-active-row > td.el-table__cell {
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+
+.el-table .quick-active-row > td.el-table__cell.el-table-fixed-column--left,
+.el-table .quick-active-row > td.el-table__cell.el-table-fixed-column--right {
+  background: var(--tp-primary-weak-solid) !important;
+}
+
+html.dark .el-table .quick-active-row > td.el-table__cell.el-table-fixed-column--left,
+html.dark .el-table .quick-active-row > td.el-table__cell.el-table-fixed-column--right {
+  background: #14273c !important; 
+}
+
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--tp-bg-card, #fff);
+  border: 1px solid var(--tp-border, #e4e7ed);
+  border-radius: var(--tp-radius);
+  padding: 16px;
+  text-align: center;
+}
+.stat-num {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--tp-primary, #409eff);
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--tp-text-secondary, #909399);
+  margin-top: 4px;
+}
+
+
+.el-table .matrix-row-uncovered > td.el-table__cell {
+  background: rgba(245, 158, 11, 0.14) !important;
+  box-shadow: inset 3px 0 0 var(--tp-warning);
+}
+html.dark .el-table .matrix-row-uncovered > td.el-table__cell {
+  background: rgba(245, 158, 11, 0.18) !important;
+}
+.el-table .matrix-cell-check {
+  color: var(--tp-success);
+  font-weight: 700;
+  text-decoration: none;
+}
+.el-table .matrix-cell-check:hover {
+  filter: brightness(1.3);
+}
+
+.el-table .matrix-cell-generate {
+  color: var(--tp-warning);
+  opacity: 0.35;
+  font-weight: 700;
+  text-decoration: none;
+}
+.el-table .matrix-cell-generate:hover {
+  opacity: 1;
+  filter: brightness(1.3);
+}
+
+
+.el-table .virtual-spacer-row {
+  pointer-events: none;
+}
+.el-table .virtual-spacer-row > td.el-table__cell {
+  padding: 0 !important;
+  border-right: none;
+}
+.el-table .virtual-spacer-row:hover > td.el-table__cell {
+  background: transparent !important;
+}
+
+/* ============================================================
+ ============================================================ */
+
+
+.page-card {
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    box-shadow 0.25s ease, transform 0.25s ease;
+}
+.clickable:hover,
+.stat-card.clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--tp-primary);
+  box-shadow: 0 6px 24px rgba(14, 165, 233, 0.15);
+}
+html.dark .clickable:hover,
+html.dark .stat-card.clickable:hover {
+  box-shadow: 0 6px 24px rgba(56, 189, 248, 0.18);
+}
+
+
+
+.el-table td.el-table__cell,
+.el-table th.el-table__cell {
+  padding: calc((var(--ds-table-row-height) - 23px - 1px) / 2) 0 !important;
+}
+.el-table th.el-table__cell {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+html:not(.dark) .el-table th.el-table__cell {
+  background: #f4f6fa;
+  color: #374151;
+}
+.el-table .el-table__row:hover > td.el-table__cell {
+  background: var(--tp-primary-weak) !important;
+}
+
+
+.el-table .el-table__row:hover > td.el-table__cell.el-table-fixed-column--left,
+.el-table .el-table__row:hover > td.el-table__cell.el-table-fixed-column--right {
+  background: var(--tp-primary-weak-solid) !important;
+}
+
+
+.el-button {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease,
+    border-color 0.2s ease, color 0.2s ease;
+}
+/* Pointer hit-area single source (WCAG 2.5.8 / X-1): text-link buttons in
+   dense table action columns render ~20px tall, under the 24px floor. The
+   min-height lives in the theme once, so every action column clears the
+   target-size gate without page-level patches. */
+.el-button.is-link {
+  min-height: 24px;
+}
+.el-button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--tp-primary-weak);
+}
+.el-button--primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2b3a55;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3b4f70;
+}
+
+
+.el-tag--small {
+  font-weight: 600;
+}
+/* Closable chips need a real pointer target (ux gate X-1 / WCAG 2.5.8): the
+   element-plus close button is 12x12 CSS px by default, which fails the 24x24
+   minimum as soon as chips sit side by side (composer reference chips, tag
+   pickers). Grown on the closable variant only, so non-interactive status
+   tags keep their compact rhythm; the negative margins keep the chip's drawn
+   width unchanged while the hit box reaches 24x24. Theme single source —
+   no page-level or component-level patch. */
+.el-tag.is-closable .el-tag__close {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -6px;
+  margin-right: -6px;
+}
+/* Table header sort trigger needs the same 24x24 floor (ux gate X-1 /
+   WCAG 2.5.8): element-plus 2.14 ships the caret-wrapper button at 24x14,
+   which measures under the line. Grown to 24 tall with the drawn height
+   kept via negative block margins (the th keeps its old content flow),
+   and the carets are re-anchored so the arrows stay at the same visual
+   baseline. Theme single source — applies to every sortable column on
+   every table, no page-level patch. */
+.el-table .caret-wrapper {
+  height: 24px;
+  margin-block: -5px;
+}
+.el-table .sort-caret.ascending {
+  top: 0;
+}
+.el-table .sort-caret.descending {
+  bottom: -2px;
+}
+html.dark .el-tag--info {
+  --el-tag-bg-color: #22304a;
+  --el-tag-text-color: #aeb9cc;
+  --el-tag-border-color: #2e4062;
+}
+/* Light theme: element-plus default info tag (#909399 on #f4f4f5) measures
+   2.80:1, under the 4.5:1 WCAG AA floor. Same fix shape as the dark override
+   above — deepen the text to the standard regular-text tone (≈5.8:1). */
+html:not(.dark) .el-tag--info {
+  --el-tag-text-color: #606266;
+}
+/* Dark-theme status tags: Element Plus derives light-effect tags from the
+   base hue, which lands the danger variant at 3.86:1 on its own tinted fill
+   (under the 4.5:1 AA floor for small bold text). Fix the whole family in one
+   place with measured pairs — success #4ade80/#133b30 = 7.11:1,
+   warning #fbbf24/#3a2c12 = 8.12:1, danger #f87171/#3a2325 = 5.25:1.
+   Per-page scoped tag-color copies are banned; this is the single source. */
+html.dark .el-tag--success {
+  --el-tag-bg-color: #133b30;
+  --el-tag-text-color: #4ade80;
+  --el-tag-border-color: #1f5344;
+}
+html.dark .el-tag--warning {
+  --el-tag-bg-color: #3a2c12;
+  --el-tag-text-color: #fbbf24;
+  --el-tag-border-color: #5a4419;
+}
+html.dark .el-tag--danger {
+  --el-tag-bg-color: #3a2325;
+  --el-tag-text-color: #f87171;
+  --el-tag-border-color: #5a3336;
+}
+
+/* Dark-theme select caret: the inherited placeholder tone measured low against
+   both the input surface and the popper overlay in the vision review. One
+   global tone #aeb9cc = 8.78:1 on the card surface and 7.74:1 on the popper,
+   comfortably above the 3:1 non-text floor for UI indicators (WCAG 1.4.11). */
+html.dark .el-select__caret,
+html.dark .el-input__suffix .el-icon,
+html.dark .el-select__suffix .el-icon {
+  color: #aeb9cc;
+}
+
+
+html:not(.dark) {
+  .el-input__inner::placeholder,
+  .el-textarea__inner::placeholder {
+    /* Route through the single-source token instead of a local literal: the
+       old #8a94a6 measured 3.06:1 on white, below the AA text tier; the
+       token (#6b7280) is 4.83:1 and stays aligned with EP select placeholders. */
+    color: var(--el-text-color-placeholder);
+  }
+
+  .el-input__prefix,
+  .el-input__suffix {
+    color: #7c8798;
+  }
+}
+
+
+html:not(.dark) .brand-subtitle {
+  color: #5b6472;
+}
+
+
+.el-empty__description p {
+  color: var(--tp-text-secondary);
+  line-height: 1.7;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+
+.el-table .cell a,
+.link-action:hover {
+  text-decoration: underline;
+}
+
+
+:focus-visible {
+  outline: 2px solid var(--tp-primary);
+  outline-offset: 1px;
+}
+
+
+.el-select__input:focus-visible,
+.el-select--filterable .el-select__inner:focus-visible,
+.el-input .el-input__inner:focus-visible,
+.el-input__inner:focus-visible {
+  outline: none;
+}
+
+
+.el-menu--inline.el-collapse-transition-enter-active,
+.el-menu--inline.el-collapse-transition-leave-active,
+.el-sub-menu__icon-arrow {
+  transition-duration: 0.01ms !important;
+}
+
+
+.page-card,
+.el-table,
+.el-table__cell {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+    box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+
+.el-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  border-radius: var(--tp-radius, 12px);
+}
+.el-dialog .el-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.el-dialog .el-dialog__body .el-table {
+  overflow-x: auto;
+}
+.el-dialog.is-fullscreen {
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+/* Dialog scale tiers (user order 2026-11-09, theme single source): a dialog
+   picks one of four tiers through these classes instead of a page-level
+   width prop — sm=480, md=720, lg=1080, xl=min(1440,92vw). xl is capped at
+   92% of the viewport so even the widest dialog keeps edge gaps on smaller
+   screens. Table/form mixed dialogs use lg or above; case/step editors use
+   xl. Anchored on .el-dialog so the rule beats the component default width. */
+.el-dialog.tp-dialog--sm { width: 480px; }
+.el-dialog.tp-dialog--md { width: 720px; }
+.el-dialog.tp-dialog--lg { width: 1080px; }
+.el-dialog.tp-dialog--xl { width: min(1440px, 92vw); }
+.el-dialog__header {
+  flex-shrink: 0;
+  cursor: move; 
+}
+.el-dialog__footer {
+  flex-shrink: 0;
+}
+
+/* Empty-flash suppression, site-wide single source (user order 2026-11-02):
+   while a v-loading mask covers a table, its empty-state block must not paint
+   through the translucent mask (the mask background is semi-transparent, so
+   "no data" copy leaked as an intermediate screen before first data arrived).
+   :has() covers both table-root masks and wrapper masks around the table.
+   Pages must NOT add local copies of this rule. */
+.el-table:has(> .el-loading-mask) .el-table__empty-block,
+.el-loading-parent--relative:has(> .el-loading-mask) .el-table__empty-block {
+  visibility: hidden;
+}
+
+/* Single-source rule: a sticky right-fixed cell paints over the scrollport and
+   the browser's minimal scrollIntoView on focus does not stop short of that
+   overlay, so header/body controls underneath keep their focus ring fully
+   hidden (WCAG 2.4.11). Pages with a fixed column declare its width through
+   --tp-table-pin-overlay (same source as the column width) so every
+   programmatic or keyboard scroll-into-view reveals focus beside the overlay.
+   Pages must NOT add local copies of this rule. */
+.el-table .el-table__header-wrapper,
+.el-table .el-scrollbar__wrap {
+  scroll-padding-inline-end: var(--tp-table-pin-overlay, 0px);
+}
+
+/* Viewport-resident horizontal scrollbar (user order 2026-11-09): while a
+ wide table overflows horizontally and its body's lower edge is off-screen,
+ the shared enhancer (src/utils/tableViewportHScrollbar.ts) floats a proxy
+ bar at the viewport's lower edge, so dragging sideways never requires
+ scrolling to the page bottom first. The proxy renders ONLY on real
+ horizontal overflow. extends the same proxy to tables inside
+ dialogs/drawers: pinned to the body's lower inner edge, with its own
+ stacking level (dialog overlays paint above page-layer z) and inset.
+ Height, stacking and inset live here (single source, hot tunable).
+ Pages must NOT add local scrollbar patches
+ (guard: frontend/tests/ui/tableViewportHScrollbar.test.ts). */
+:root {
+  --tp-hviewport-bar-height: 12px;
+  --tp-hviewport-bar-z: 120;
+  --tp-hviewport-bar-dialog-z: 2200;
+  --tp-hviewport-bar-dialog-inset: 6px;
+}
+.tp-hviewport-bar {
+  position: fixed;
+  bottom: 0;
+  height: var(--tp-hviewport-bar-height);
+  border-radius: calc(var(--tp-hviewport-bar-height) / 2);
+  background: rgb(144 147 153 / 12%);
+  z-index: var(--tp-hviewport-bar-z);
+}
+.tp-hviewport-bar--dialog {
+  z-index: var(--tp-hviewport-bar-dialog-z);
+}
+.tp-hviewport-bar[hidden] {
+  display: none;
+}
+.tp-hviewport-bar__thumb {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(144 147 153 / 45%);
+  cursor: pointer;
+}
+.tp-hviewport-bar__thumb:hover {
+  background: rgb(144 147 153 / 65%);
+}
+html.dark .tp-hviewport-bar {
+  background: rgb(255 255 255 / 8%);
+}
+html.dark .tp-hviewport-bar__thumb {
+  background: rgb(255 255 255 / 28%);
+}
+html.dark .tp-hviewport-bar__thumb:hover {
+  background: rgb(255 255 255 / 42%);
+}
+
+/* ---- Resident chat dock squeeze , adjudication §two.2;
+ S6 collision criteria S-16, pinned form only).
+ Criterion 1 (wide tables / sticky bands): the content band already yields
+ the gutter through --tp-chat-dock-reserve, and the viewport-resident
+ horizontal scrollbar tracks the table box, so both live inside the visible
+ page — a NEW hand-rolled full-bleed fixed strip must ride the same offset
+ token or carry tp-dock-reserve-exempt + reason (scanner S-16.1).
+ Criterion 2 (dialog tier): element-plus dialogs center inside
+ .el-overlay-dialog, a box pinned to the WHOLE viewport, so without an
+ offset the resident dock would cover their right edge. The root class and
+ the offset value are published by ChatDock through the chatDockLayout
+ judge; dialogs read only the token, never the dock. The dock's own drawer
+ overlay (.el-modal-drawer) is excluded: it IS the gutter's occupant. ---- */
+html.dock-resident .el-overlay-dialog {
+  right: var(--tp-chat-dock-overlay-offset, 0px);
+}
+
+/* ---- Light action-row contrast : the composer action row's
+ plain doors sat at ~1.05:1 against the input field, so the row read as part
+ of the box. Outlined on the card color with a slate edge (measured 4.55:1
+ vs the #F9FAFB composer field = WCAG 2.2 SC 1.4.11 non-text ≥3:1). Primary
+ and danger doors keep their palette; only plain attach/resume doors ride
+ this rule. Single source here — pages must not patch it per-view. ---- */
+html:not(.dark) .chat-composer-actions .el-button:not(.el-button--primary):not(.el-button--danger) {
+  background: var(--tp-bg-card);
+  border-color: #64748b;
+  color: var(--tp-text-primary);
+}
+
+/* ---- R62 shared auto-follow badge (single source): every list panel riding
+   the platform useListAutoFollow beat shows the same neutral "statuses
+   update on their own" hint next to its section title. Pages must not copy
+   this rule into scoped styles. ---- */
+.follow-badge {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}

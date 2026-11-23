@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>B10 断言匹配夹具页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; background: #f5f7fa; }
+    table { border-collapse: collapse; }
+    td { border: 1px solid #dcdfe6; padding: 6px 12px; }
+  </style>
+</head>
+<body>
+<h2>B10 区间/正则断言夹具（TC-B10-01/04）</h2>
+<table>
+  <tr><td>应付金额（区间内）</td><td class="amount" id="amt-pass">¥150.00</td></tr>
+  <tr><td>应付金额（低于下界）</td><td class="amount" id="amt-low">¥96.00</td></tr>
+  <tr><td>应付金额（开边界上界）</td><td class="amount" id="amt-bound">¥200.00</td></tr>
+  <tr><td>合计（非数值）</td><td class="amount" id="amt-nonnum">￥1,2O元</td></tr>
+  <tr><td>单号（命中）</td><td id="code-ok">ORD-123456</td></tr>
+  <tr><td>单号（不命中）</td><td id="code-bad">ORD-12a456</td></tr>
+</table>
+<!-- 不轮询语义样本：t=0 可见值 96，1.5s 后异步刷成 150。
+     range(100,200) 若「元素出现即判一次」必须 FAIL（读到 96）；
+     若实现错误地轮询重试到超时前，会误判 PASS——本元素即回归钉。 -->
+<div id="late-amt" class="amount">96</div>
+<script>
+  setTimeout(function () {
+    document.getElementById('late-amt').textContent = '150';
+  }, 1500);
+</script>
+</body>
+</html>

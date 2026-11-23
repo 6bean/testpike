@@ -1,0 +1,58 @@
+{
+  "_comment": "T414 slice 2 both-ends shared fixture for request orchestration rows (precondition + loop). Authority = common ApiOrchestrationContract (Java, core save gate); mirrors = executor/api_runner.py fail-closed guard and front-end utils/orchestrationForm.ts UX pre-gate. Rows reuse the vocabulary of the 04 action contract; errorIncludes anchors pin plain-language verdicts.",
+  "precondition": {
+    "positives": [
+      { "row": null },
+      { "row": {} },
+      { "row": { "field": "status", "op": "eq", "expect": 200 } },
+      { "row": { "field": "status", "op": "ne", "expect": 404 } },
+      { "row": { "field": "status", "op": "in", "expect": [200, 201] } },
+      { "row": { "field": "var", "op": "exists", "name": "token" } },
+      { "row": { "field": "var", "op": "absent", "name": "order.state" } },
+      { "row": { "field": "var", "op": "eq", "name": "state", "expect": "PAID" } },
+      { "row": { "field": "var", "op": "ne", "name": "state", "expect": "CLOSED" } },
+      { "row": { "field": "var", "op": "matches", "name": "token", "expect": "abc" } },
+      { "row": { "field": "var", "op": "matches", "name": "code", "expect": "x", "matchType": "regex", "pattern": "^ok$" } }
+    ],
+    "negatives": [
+      { "row": "status==200", "why": "非对象形状", "errorIncludes": ["前置条件必须是一个表单对象"] },
+      { "row": { "field": "code", "op": "eq", "expect": 200 }, "why": "field 域外", "errorIncludes": ["前置条件字段仅支持 status / var", "code"] },
+      { "row": { "field": "status", "op": "gt", "expect": 200 }, "why": "status op 域外", "errorIncludes": ["状态码前置条件仅支持 eq / ne / in", "gt"] },
+      { "row": { "field": "status", "op": "eq", "expect": 99 }, "why": "状态码越下界", "errorIncludes": ["状态码前置条件 expect 必须是 100–599 的整数"] },
+      { "row": { "field": "status", "op": "eq", "expect": "200" }, "why": "状态码非整数", "errorIncludes": ["状态码前置条件 expect 必须是 100–599 的整数"] },
+      { "row": { "field": "status", "op": "in", "expect": [] }, "why": "in 空数组", "errorIncludes": ["状态码 in 前置条件的 expect 必须是非空整数数组"] },
+      { "row": { "field": "status", "op": "in", "expect": [200, 999] }, "why": "in 元素越界", "errorIncludes": ["状态码前置条件 expect 必须是 100–599 的整数"] },
+      { "row": { "field": "var", "op": "exists", "name": "" }, "why": "name 缺失", "errorIncludes": ["变量前置条件的 name 必须是点分标识符"] },
+      { "row": { "field": "var", "op": "exists", "name": "1abc" }, "why": "name 非法形状", "errorIncludes": ["变量前置条件的 name 必须是点分标识符", "1abc"] },
+      { "row": { "field": "var", "op": "eq", "name": "state" }, "why": "eq 缺 expect", "errorIncludes": ["变量 eq 前置条件必须给出 expect 比较值"] },
+      { "row": { "field": "var", "op": "matches", "name": "state" }, "why": "matches 缺 expect", "errorIncludes": ["变量 matches 前置条件的 expect 必须是字符串模式值"] },
+      { "row": { "field": "var", "op": "gt", "name": "state", "expect": 1 }, "why": "var op 域外", "errorIncludes": ["变量前置条件仅支持 exists / absent / eq / ne / matches", "gt"] },
+      { "row": { "field": "var", "op": "matches", "name": "state", "expect": "x", "matchType": "fuzzy" }, "why": "matchType 域外委托报错", "errorIncludes": ["matchType 仅支持"] }
+    ]
+  },
+  "loop": {
+    "positives": [
+      { "row": null },
+      { "row": {} },
+      { "row": { "mode": "count", "times": 5 } },
+      { "row": { "mode": "count", "times": 100, "delayMs": 0 } },
+      { "row": { "mode": "count", "times": 3, "delayMs": 1500 } },
+      { "row": { "mode": "until", "maxTimes": 10, "until": { "field": "status", "op": "eq", "expect": 200 } } },
+      { "row": { "mode": "until", "maxTimes": 2, "delayMs": 100, "until": { "field": "var", "op": "exists", "name": "ready" } } }
+    ],
+    "negatives": [
+      { "row": "loop x3", "why": "非对象形状", "errorIncludes": ["循环配置必须是一个表单对象"] },
+      { "row": { "mode": "while", "times": 3 }, "why": "mode 域外", "errorIncludes": ["循环模式仅支持 count / until", "while"] },
+      { "row": { "mode": "count" }, "why": "count 缺 times", "errorIncludes": ["固定次数循环必须给出整数 times（1~100）"] },
+      { "row": { "mode": "count", "times": 0 }, "why": "times 下界", "errorIncludes": ["固定次数循环 times 必须在 1~100 之间", "0"] },
+      { "row": { "mode": "count", "times": 101 }, "why": "times 上界（失控重复保存期即拒）", "errorIncludes": ["固定次数循环 times 必须在 1~100 之间", "101"] },
+      { "row": { "mode": "count", "times": 2.5 }, "why": "times 非整数", "errorIncludes": ["固定次数循环必须给出整数 times（1~100）"] },
+      { "row": { "mode": "count", "times": 2, "delayMs": 4000000 }, "why": "delayMs 超上限", "errorIncludes": ["循环间隔 delayMs 必须是 0~3600000 的整数毫秒"] },
+      { "row": { "mode": "until", "until": { "field": "status", "op": "eq", "expect": 200 } }, "why": "until 缺 maxTimes 保护", "errorIncludes": ["条件停止循环必须给出整数 maxTimes 保护上限（1~100）"] },
+      { "row": { "mode": "until", "maxTimes": 0, "until": { "field": "status", "op": "eq", "expect": 200 } }, "why": "maxTimes 下界", "errorIncludes": ["条件停止循环必须给出整数 maxTimes 保护上限（1~100）"] },
+      { "row": { "mode": "until", "maxTimes": 5 }, "why": "until 缺停止条件行（保存闸须与执行器 fail-closed 同谱）", "errorIncludes": ["条件停止循环必须给出 until 停止条件行"] },
+      { "row": { "mode": "until", "maxTimes": 5, "until": {} }, "why": "until 空对象=没有停止条件", "errorIncludes": ["条件停止循环必须给出 until 停止条件行"] },
+      { "row": { "mode": "until", "maxTimes": 5, "until": { "field": "nope", "op": "eq", "expect": 1 } }, "why": "until 子行委托前置判定", "errorIncludes": ["前置条件字段仅支持 status / var", "nope"] }
+    ]
+  }
+}

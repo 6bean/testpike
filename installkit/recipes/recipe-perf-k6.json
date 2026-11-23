@@ -1,0 +1,40 @@
+{
+  "engine": "K6",
+  "purpose": "load engine runtime for perf executors (GA-4 capability face: k6 on PATH)",
+  "version_pin": "v2.3.0",
+  "source": "https://github.com/grafana/k6/releases/tag/v2.3.0 (official grafana/k6 releases, asset names probed live 2026-10-25)",
+  "hosts": {
+    "linux": {
+      "probe": ["command -v k6 && k6 version"],
+      "install": [
+        {"cmd": "curl -fsSL -o /tmp/k6.tar.gz https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz"},
+        {"cmd": "tar -xzf /tmp/k6.tar.gz -C /tmp k6"},
+        {"cmd": "install -m 0755 /tmp/k6 /usr/local/bin/k6"}
+      ],
+      "uninstall": [{"cmd": "rm -f /usr/local/bin/k6"}]
+    },
+    "macos": {
+      "probe": ["command -v k6 && k6 version"],
+      "install": [
+        {"cmd": "curl -fsSL -o /tmp/k6.zip https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-macos-amd64.zip"},
+        {"cmd": "unzip -o /tmp/k6.zip -d /tmp/k6pkg"},
+        {"cmd": "install -m 0755 /tmp/k6pkg/k6 /usr/local/bin/k6"}
+      ],
+      "uninstall": [{"cmd": "rm -f /usr/local/bin/k6"}]
+    },
+    "windows": {
+      "probe": ["where k6"],
+      "install": [
+        {"cmd": "powershell -Command \"Invoke-WebRequest -Uri https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-windows-amd64.zip -OutFile $env:TEMP\\k6.zip; Expand-Archive -Force $env:TEMP\\k6.zip C:\\tools\\k6\""}
+      ],
+      "uninstall": [{"cmd": "powershell -Command \"Remove-Item -Recurse -Force C:\\tools\\k6\""}],
+      "manual_steps": [
+        "把 C:\\tools\\k6 加入系统 PATH 后重启执行器服务：执行器启动时按 PATH 上的 k6 二进制登记 K6 能力"
+      ]
+    }
+  },
+  "manual_steps": [
+    "安装完成后重启执行器服务：执行器启动时重新探测并上报引擎能力，k6 不在 PATH 上时该机器不会被登记为具备 K6 能力",
+    "arm64 Linux 机器把安装命令里的 linux-amd64 资产换成 linux-arm64（同一发布页的官方资产）"
+  ]
+}

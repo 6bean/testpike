@@ -1,0 +1,26 @@
+# Credentials and personal machine state must never ride into an image build
+# context. .env holds install-time DB passwords and API keys (R: install
+# config is env single-source; images take values at run time instead).
+.env
+**/.env
+.env.*
+*.pem
+*.key
+
+# VCS and logs
+.git
+**/*.log
+
+# Host build leftovers: images compile from source, never from local state.
+**/target
+node_modules
+**/node_modules
+frontend/dist
+**/__pycache__
+**/.pytest_cache
+.venv
+**/.venv
+
+# Docs and runtime data keep the context small (not read by any image).
+docs/
+data/

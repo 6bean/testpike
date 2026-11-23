@@ -1,0 +1,8 @@
+# Grafana datasource provisioning: first start already queries Prometheus.
+apiVersion: 1
+datasources:
+  - name: TestPike Prometheus
+    type: prometheus
+    access: proxy
+    url: http://tp-prometheus:9090
+    isDefault: true

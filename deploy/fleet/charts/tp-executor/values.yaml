@@ -1,0 +1,93 @@
+# Full configuration surface for one executor pool.
+# Every key maps to an EXECUTOR_* environment variable consumed by the runner
+# (executor/config.py is the single source for those names). Values here are
+# delivery defaults; the per-chain installer environment stays the authority
+# for anything host-specific, and the fleet values generator endpoint feeds
+# pool sizing from the platform ledger instead of hand-written copies.
+
+image:
+  # Pin one of the two ways: digest (preferred) or an immutable tag.
+  # "latest" is rejected by the delivery scripts, not by the chart.
+  repository: testpike/executor
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 1
+
+platform:
+  # In-cluster address of the api service (the only entrypoint executors are
+  # allowed to reach; direct connections to core are forbidden by the
+  # service-layer rules).
+  apiUrl: http://tp-api:8082
+
+pool:
+  # Identity and capability match set for this pool.
+  namePrefix: executor-k8s
+  endTypes: web          # comma separated, e.g. "web" or "app"
+  browsers: chromium     # comma separated
+  capacity: 2            # concurrent tasks per runner
+  groupIds: ""           # comma separated executor group ids
+  envIds: ""             # comma separated environment ids
+  version: 1.0.0         # reported capability version; keep aligned with the pinned image
+
+timing:
+  heartbeatIntervalSeconds: 15
+  claimIntervalSeconds: 2
+  requestTimeoutSeconds: 30
+  taskTimeoutMs: 600000
+
+drain:
+  # Graceful scale-in contract: the platform marks the node draining before
+  # the replica patch lands, the runner stops claiming, in-flight work runs
+  # out, and the pod exits. preStopSleepSeconds covers the flag propagation;
+  # terminationGracePeriodSeconds must exceed the longest expected task
+  # (taskTimeoutMs plus margin). Lease reclaim is the platform-side timeout
+  # fallback when a pod misbehaves.
+  preStopSleepSeconds: 20
+  terminationGracePeriodSeconds: 660
+
+# Scale-to-zero and queue-depth autoscaling. Disabled by default: the
+# production scaler is the platform autoscaler decision core patching
+# replicas (drain-aware). The KEDA block below is the declarative delivery
+# form for sites that run the KEDA operator; HPA on CPU is deliberately not
+# shipped — a claim-polling runner looks busy at near-zero load and idle
+# under deep queues, so CPU is a false signal for this workload.
+keda:
+  enabled: false
+  minReplicaCount: 0
+  maxReplicaCount: 8
+  pollIntervalSeconds: 15
+  cooldownPeriodSeconds: 120
+  # External scaler service exposing pending-depth per executorType, served
+  # by the platform (autoscaler decision core); empty disables the trigger.
+  scalerService:
+    host: ""
+    port: 9092
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+# Browser runners need a writable scratch for screenshots and profiles.
+tmpVolume:
+  enabled: true
+  sizeLimit: 8Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+priorityClassName: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+extraEnv: []

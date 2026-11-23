@@ -1,0 +1,57 @@
+# Mock-server traffic shell. Two ports on one process by design:
+#   server.port          = management plane (actuator health, load-state later)
+#   testpike.mock.traffic-port = extra connector serving /mocks/**
+# The service plane never touches PostgreSQL directly; rules arrive only via
+# the polled core snapshot (pull model, version-pinned).
+server:
+  port: ${MOCK_SERVER_MANAGEMENT_PORT:18085}
+
+spring:
+  application:
+    name: testpike-mock-server
+  # event bus (hit ledger batches to core; same testpike.events exchange;
+  # credentials from environment only — never inline). This block must sit
+  # under `spring.` — Boot binds spring.rabbitmq.*, nothing else.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:testpike}
+    password: ${RABBITMQ_PASSWORD:}
+  # Scenario lane state store : keys tp:mock:scen:* hold the
+  # current state per lane; values are short labels, TTL is the idle sweep.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+testpike:
+  mock:
+    traffic-port: ${MOCK_SERVER_TRAFFIC_PORT:18086}
+    load:
+      # core base url reuses the existing CORE_BASE_URL convention (admin/ai-service alike)
+      core-base-url: ${CORE_BASE_URL:http://localhost:8083}
+      # routing handle to poll; blank = stay idle and fail-closed (no pin, no serving)
+      space-key: ${MOCK_SERVER_LOAD_SPACE_KEY:}
+      interval-milliseconds: 3000
+      staleness-warn-seconds: 30
+    hit:
+      # ledger staging buffer: thresholds mirror the K8 governance keys
+      # (mock.hit.batch-size / mock.hit.flush-seconds) shipped as env-overridable
+      # startup config here; the sweeper/retention side is core's job
+      batch-size: ${MOCK_SERVER_HIT_BATCH_SIZE:200}
+      flush-milliseconds: ${MOCK_SERVER_HIT_FLUSH_MILLISECONDS:5000}
+      buffer-capacity: ${MOCK_SERVER_HIT_BUFFER_CAPACITY:5000}
+    scenario:
+      # idle lane state expiry mirrors the K8 governance key mock.scenario.ttl-minutes
+      # (V228 seed); env-overridable startup config, same shape as mock.hit.* above
+      ttl-minutes: ${MOCK_SERVER_SCENARIO_TTL_MINUTES:120}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

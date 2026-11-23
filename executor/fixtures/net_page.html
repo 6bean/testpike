@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>B11 网络观测夹具页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; background: #f5f7fa; }
+    button { padding: 6px 16px; margin-right: 12px; }
+  </style>
+</head>
+<body>
+<h2>B11 net.assert 观测夹具（TC-B11-02）</h2>
+<button id="btn-export">导出</button>
+<button id="btn-forbidden">未登录导出</button>
+<p id="result">空闲</p>
+<script>
+  // 正向链路：点击导出 → 真实发出 GET /api/order（同域相对地址，端口随桩动态）
+  document.getElementById('btn-export').addEventListener('click', function () {
+    fetch('/api/order').then(function (r) { return r.json(); }).then(function (d) {
+      document.getElementById('result').textContent = '已导出-' + d.data.id;
+    });
+  });
+  // 负向链路样本：不该发的请求（absent=true 断言对象）
+  document.getElementById('btn-forbidden').addEventListener('click', function () {
+    fetch('/api/forbidden').then(function (r) {
+      document.getElementById('result').textContent = '误发-' + r.status;
+    });
+  });
+</script>
+</body>
+</html>

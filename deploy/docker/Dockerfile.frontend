@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# SPA image: build the Vue bundle in a node stage, serve it with nginx and
+# reverse-proxy the two browser entry paths (/api -> admin, /open -> api)
+# inside the compose network, mirroring the vite dev/preview proxy map.
+# The runtime keeps only static assets + nginx; no node toolchain ships.
+
+# ---- stage 1: install from the lockfile and build ----
+FROM node:22-alpine AS build
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ---- stage 2: nginx serving the bundle + same-origin proxy doors ----
+FROM nginx:1.27-alpine AS runtime
+# The official image renders /etc/nginx/templates/*.template through envsubst
+# (only variables defined in the environment are substituted) at start-up.
+COPY deploy/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /fe/dist /usr/share/nginx/html
+EXPOSE 80

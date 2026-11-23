@@ -1,0 +1,22 @@
+# testPike host service-agent unit (AF T354; systemd relaunch is the upgrade
+# mechanism — the agent never replaces its own process).
+# Install-time placeholders substituted by installkit (base-url/token/root/state
+# come from the host env file only, red line: no inline credentials).
+[Unit]
+Description=testPike host service-agent (platform service upgrade/rollback + version heartbeat)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# ExecStart prefers the staged package once an agent-upgrade landed it;
+# the install script writes this line pointing at either path.
+ExecStart=__PYTHON__ __AGENT_ENTRY__ run
+EnvironmentFile=__ENV_FILE__
+Restart=always
+RestartSec=5
+# agent only needs read access to service release dirs + systemctl on tp-* units
+Delegate=no
+
+[Install]
+WantedBy=multi-user.target

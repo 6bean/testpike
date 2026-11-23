@@ -1,0 +1,16 @@
+# Scrape surface for the opt-in observability tier (compose profile
+# "observability"). Targets are compose service names on the shared network;
+# metrics_path matches the Spring Boot actuator endpoint each backend exposes.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: testpike-actuators
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - tp-core:8083
+          - tp-admin:8081
+          - tp-api:8082
+          - tp-ai-service:8084

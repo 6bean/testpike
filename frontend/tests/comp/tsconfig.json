@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "types": ["node", "vite/client", "@vitest/browser/providers/playwright"],
+    "baseUrl": "../..",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["./**/*.ts", "../../src/**/*.vue", "../../src/**/*.ts", "../../src/**/*.d.ts"]
+}

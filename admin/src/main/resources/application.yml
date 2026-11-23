@@ -1,0 +1,54 @@
+server:
+  port: ${ADMIN_PORT:8081}
+
+spring:
+  application:
+    name: testpike-admin
+  profiles:
+    active: dev
+  autoconfigure:
+    exclude:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 101MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+auth:
+  mode: ${AUTH_MODE:local}
+
+sso:
+  mode: ${SSO_MODE:mock}
+  gateway:
+    base-url: ${SSO_GATEWAY_BASE_URL:}
+    authorize-path: /auth/ssoLogin/v1/getOauth2loginUrl
+    login-path: /auth/ssoLogin/v1/login
+    userinfo-path: /auth/ssoLogin/v1/getUserInfo
+    logout-path: /auth/ssoLogin/v1/logout
+  jwt:
+    secret: ${SSO_JWT_SECRET:}
+    ttl-seconds: ${SSO_JWT_TTL:7200}
+  mock:
+    frontend-base: ${SSO_MOCK_FRONTEND_BASE:http://localhost:8081}
+
+core:
+  base-url: ${CORE_BASE_URL:http://localhost:8083}
+
+aiservice:
+  base-url: ${AISERVICE_BASE_URL:http://localhost:18084}
+
+# mock-server management connector (inspector health-bar bridge: GET /load-state self-check face; R-3 port-key convention)
+mockserver:
+  management-url: ${MOCK_SERVER_MANAGEMENT_URL:http://localhost:18085}

@@ -1,0 +1,40 @@
+{
+  "note": "W1c auth-editor auth-form two-ends fixture (T372): core AuthFormContract (Java, save-gate authority) and frontend src/utils/authForm.ts (TS, UX pre-gate mirror) both consume this case set — no verdict drift (assertion_form_cases.json precedent). errorIncludes pins the plain-language anchors so wording repairs stay honest on both ends.",
+  "positives": [
+    { "auth": {} },
+    { "auth": [] },
+    { "auth": { "type": "bearer", "token": "@cred/prod/api-token" } },
+    { "auth": { "type": "bearer", "token": "{{CRED:API_TOKEN}}" } },
+    { "auth": { "type": "bearer", "token": "pre-{{CRED:API_TOKEN}}-post" } },
+    { "auth": { "type": "header", "name": "X-API-KEY", "value": "{{CRED:KEY}}" } },
+    { "auth": { "type": "basic", "username": "svc-account", "password": "@cred/sso/basic-pw" } },
+    { "auth": { "type": "api-key", "name": "apiKey", "value": "@cred/a/k", "placement": "query" } },
+    { "auth": { "type": "api-key", "name": "apiKey", "value": "@cred/a/k" } },
+    { "auth": { "type": "SIGNATURE", "assemblies": [ { "into": "header", "name": "X-Timestamp", "value": "${gen.timestamp()}" } ] } },
+    { "auth": { "type": "signature", "assemblies": [ { "name": "X-Nonce", "value": "${gen.nonce()}" } ] } },
+    { "auth": { "type": "signature", "assemblies": [ { "into": "query", "name": "sign", "value": "${gen.hmacSha256(data=${gen.sortConcat(a=1)},key={{CRED:SK}})}" } ] } }
+  ],
+  "negatives": [
+    { "auth": "not-an-object", "why": "scalar row is not an object", "errorIncludes": ["认证配置必须是对象"] },
+    { "auth": ["bearer"], "why": "non-empty array", "errorIncludes": ["认证配置必须是对象"] },
+    { "auth": { "foo": "bar" }, "why": "object without type", "errorIncludes": ["缺少 type", "api-key / basic / bearer / header / signature"] },
+    { "auth": { "type": "oauth" }, "why": "unsupported type", "errorIncludes": ["未支持", "勿假装无认证执行"] },
+    { "auth": { "type": "bearer" }, "why": "bearer without token", "errorIncludes": ["bearer 认证缺少 token"] },
+    { "auth": { "type": "bearer", "token": 12345 }, "why": "numeric token is plaintext", "errorIncludes": ["必须是凭据引用"] },
+    { "auth": { "type": "bearer", "token": "Sup3rSecret" }, "why": "plaintext secret", "errorIncludes": ["必须是凭据引用", "明文密钥禁入请求定义"] },
+    { "auth": { "type": "header", "value": "@cred/x" }, "why": "header without name", "errorIncludes": ["缺少头名"] },
+    { "auth": { "type": "header", "name": "X" }, "why": "header without value", "errorIncludes": ["缺少头值"] },
+    { "auth": { "type": "basic", "password": "@cred/x" }, "why": "basic without username", "errorIncludes": ["缺少用户名"] },
+    { "auth": { "type": "basic", "username": "u" }, "why": "basic without password", "errorIncludes": ["缺少口令"] },
+    { "auth": { "type": "api-key", "value": "{{CRED:K}}" }, "why": "api-key without name", "errorIncludes": ["缺少键名"] },
+    { "auth": { "type": "api-key", "name": "k", "value": "plaintext" }, "why": "api-key plaintext", "errorIncludes": ["必须是凭据引用"] },
+    { "auth": { "type": "api-key", "name": "k", "value": "@cred/a", "placement": "cookie" }, "why": "bad placement", "errorIncludes": ["api-key 注入位置「cookie」不支持"] },
+    { "auth": { "type": "signature" }, "why": "signature without assemblies", "errorIncludes": ["缺少装配行"] },
+    { "auth": { "type": "signature", "assemblies": [] }, "why": "empty assemblies", "errorIncludes": ["缺少装配行"] },
+    { "auth": { "type": "signature", "assemblies": ["row-string"] }, "why": "row not object", "errorIncludes": ["装配行必须是对象"] },
+    { "auth": { "type": "signature", "assemblies": [{ "into": "header", "value": "${gen.timestamp()}" }] }, "why": "row without name", "errorIncludes": ["缺少注入键名"] },
+    { "auth": { "type": "signature", "assemblies": [{ "into": "header", "name": "X" }] }, "why": "row without value", "errorIncludes": ["缺少 value"] },
+    { "auth": { "type": "signature", "assemblies": [{ "into": "path", "name": "X", "value": "v" }] }, "why": "bad assembly slot", "errorIncludes": ["signature 装配位置「path」不支持"] },
+    { "auth": { "type": "signature", "assemblies": [{ "into": "header", "name": "X", "value": "{{gen.timestamp()}}" }] }, "why": "wrong template dialect", "errorIncludes": ["{{gen.}} 形态会原文发出导致假通过"] }
+  ]
+}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>B11 console 断言夹具页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; background: #f5f7fa; }
+    button { padding: 6px 16px; margin-right: 12px; }
+  </style>
+</head>
+<body>
+<h2>B11 console.assert 观测夹具（TC-B11-01）</h2>
+<button id="btn-error">触发运行时错误</button>
+<button id="btn-noise">触发第三方噪音</button>
+<button id="btn-warn">触发告警</button>
+<p id="result">空闲</p>
+<script>
+  // 真缺陷样本：error 级（默认 level=[error] 判定对象）
+  document.getElementById('btn-error').addEventListener('click', function () {
+    console.error('Uncaught TypeError: orderTotal is not a function');
+    document.getElementById('result').textContent = '已触发错误';
+  });
+  // 第三方噪音样本：同为 error 级，靠 ignorePatterns 白名单豁免
+  document.getElementById('btn-noise').addEventListener('click', function () {
+    console.error('analytics.com beacon failed: network timeout');
+    document.getElementById('result').textContent = '已触发噪音';
+  });
+  // 告警样本：warning 级（显式 level=[warning] 才判定）
+  document.getElementById('btn-warn').addEventListener('click', function () {
+    console.warn('deprecated API used, migrate to v2');
+    document.getElementById('result').textContent = '已触发告警';
+  });
+</script>
+</body>
+</html>
