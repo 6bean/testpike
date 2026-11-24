@@ -8,6 +8,7 @@ import com.sixbean.testpike.core.cluster.api.dto.ExecutorCompatView;
 import com.sixbean.testpike.core.cluster.api.dto.ReleaseManifestInfo;
 import com.sixbean.testpike.core.cluster.api.dto.ReleaseRegisterInput;
 import com.sixbean.testpike.core.cluster.domain.component.ArtifactHostPolicy;
+import com.sixbean.testpike.core.cluster.domain.component.ReleaseManifestRefusals;
 import com.sixbean.testpike.core.cluster.domain.component.ReleaseArtifactRules;
 import com.sixbean.testpike.core.cluster.domain.component.ReleaseRangeRules;
 import com.sixbean.testpike.core.cluster.domain.service.ReleaseManifestService;
@@ -53,10 +54,12 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
     public ReleaseManifestInfo register(ReleaseRegisterInput input) {
         String version = trimToNull(input.version());
         if (version == null) {
-            throw new ServiceException("发布清单登记必须提供版本号（version）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.versionMissing(input.version()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (version.length() > 60) {
-            throw new ServiceException("版本号超长（上限 60 字符）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.versionTooLong(version.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String matrix = normalizeJsonArray(input.componentMatrixJson(), "部件矩阵", true);
         String changes = normalizeJsonArray(input.breakingChangesJson(), "破坏性变更清单", false);
@@ -65,17 +68,18 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
         if (min != null && max != null
                 && VersionCompare.compare(VersionCompare.firstVersionOf(min),
                         VersionCompare.firstVersionOf(max)) > 0) {
-            throw new ServiceException("执行器协议兼容区间不合法：下界 " + min + " 大于上界 " + max
-                    + "——请核对发版件兼容声明后重登", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.compatRangeInvalid(min, max),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String src = trimToNull(input.source()) == null ? "manual" : input.source().trim();
         if (!SOURCES.contains(src)) {
-            throw new ServiceException("发布清单登记来源必须是 " + String.join(" / ", SOURCES)
-                    + " 之一（当前：" + input.source() + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.sourceInvalid(input.source()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String path = trimToNull(input.suggestedPath());
         if (path != null && path.length() > 500) {
-            throw new ServiceException("建议升级路径超长（上限 500 字符）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.suggestedPathTooLong(path.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         // Artifact supply-chain gates (shape -> pinned coverage -> host whitelist;
         // verdict spectrum single-sourced in ReleaseArtifactRules).
@@ -163,8 +167,8 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
         if (min != null && max != null
                 && VersionCompare.compare(VersionCompare.firstVersionOf(min),
                         VersionCompare.firstVersionOf(max)) > 0) {
-            throw new ServiceException("假想兼容区间不合法：下界 " + min + " 大于上界 " + max
-                    + "——请核对候选发版件的兼容声明后重填", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ReleaseManifestRefusals.hypotheticalRangeInvalid(min, max),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         // Synthetic one-column manifest: the pre-check reuses the exact scoring row of
         // compatDiff() (same rangeText wording, same ReleaseRangeRules verdict) without
@@ -203,11 +207,12 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
         try {
             node = objectMapper.readTree(text);
         } catch (Exception e) {
-            throw new ServiceException(fieldLabel + "必须是合法 JSON 数组（解析失败：" + e.getMessage() + "）",
+            throw new ServiceException(
+                    ReleaseManifestRefusals.jsonParseFailed(fieldLabel, e.getMessage()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!node.isArray()) {
-            throw new ServiceException(fieldLabel + "必须是 JSON 数组（如 [\"...\"]），当前不是数组形态",
+            throw new ServiceException(ReleaseManifestRefusals.jsonNotArray(fieldLabel),
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<String> hints = new ArrayList<>();
@@ -238,11 +243,11 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
         try {
             node = objectMapper.readTree(text == null ? "[]" : text);
         } catch (Exception e) {
-            throw new ServiceException("下载工件清单必须是合法 JSON 数组（解析失败：" + e.getMessage() + "）",
+            throw new ServiceException(ReleaseManifestRefusals.artifactsParseFailed(e.getMessage()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!node.isArray()) {
-            throw new ServiceException("下载工件清单必须是 JSON 数组（[{component_family,url,sha256,size}]），当前不是数组形态",
+            throw new ServiceException(ReleaseManifestRefusals.artifactsNotArray(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         for (JsonNode item : node) {
@@ -254,17 +259,15 @@ public class ReleaseManifestServiceImpl implements ReleaseManifestService {
         JsonNode matrix = readMatrixForGate(matrixJson);
         java.util.Set<String> missing = ReleaseArtifactRules.pinnedFamiliesWithoutArtifact(matrix, node);
         if (!missing.isEmpty()) {
-            throw new ServiceException("部件 " + String.join("、", missing)
-                    + " 声明了钉版但未提供下载件——补齐工件后重登，或去掉钉版改为仅宣告",
+            throw new ServiceException(ReleaseManifestRefusals.pinnedWithoutArtifact(missing),
                     BizErrorCode.VALIDATION_ERROR);
         }
         java.util.Set<String> allowed = allowedHosts();
         for (JsonNode item : node) {
             if (!ReleaseArtifactRules.hostAllowed(item, allowed)) {
-                throw new ServiceException("工件 " + item.path("component_family").asText("")
-                        + " 的下载域不在白名单内（当前键 " + ALLOWED_HOSTS_KEY
-                        + "，镜像源域自动并入）——禁止跟随白名单外 URL 防 SSRF/供应链替换："
-                        + item.path("url").asText(""), BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(ReleaseManifestRefusals.hostNotAllowed(
+                        item.path("component_family").asText(""), ALLOWED_HOSTS_KEY,
+                        item.path("url").asText("")), BizErrorCode.VALIDATION_ERROR);
             }
         }
         return node.toString();

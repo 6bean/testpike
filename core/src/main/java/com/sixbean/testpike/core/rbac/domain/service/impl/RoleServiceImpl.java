@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Set;
 import com.sixbean.testpike.core.audit.domain.component.AuditLogContext;
 import com.sixbean.testpike.core.audit.domain.component.AuditSnapshot;
+import com.sixbean.testpike.core.rbac.domain.component.RoleRefusals;
 
 /**
  * <ul>
@@ -70,7 +71,7 @@ public class RoleServiceImpl implements RoleService {
         List<RoleInfo> rows = jdbcTemplate.query(
                 "SELECT * FROM tp_role WHERE id = ?", this::mapRow, roleId);
         if (rows.isEmpty()) {
-            throw new ServiceException("角色不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(RoleRefusals.roleNotFound(roleId), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -87,8 +88,8 @@ public class RoleServiceImpl implements RoleService {
                     """, Long.class, trimToNull(input.name()), trimToNull(input.code()),
                     trimToNull(input.description()), input.dataScope(), input.status()));
         } catch (DuplicateKeyException e) {
-            throw new ServiceException("角色编码 %s 已存在，请更换",
-                    BizErrorCode.RESOURCE_CONFLICT, trimToNull(input.code()));
+            throw new ServiceException(RoleRefusals.codeExists(trimToNull(input.code())),
+                    BizErrorCode.RESOURCE_CONFLICT);
         }
     }
 
@@ -100,8 +101,8 @@ public class RoleServiceImpl implements RoleService {
         validateSaveInput(input);
         String code = trimToNull(input.code());
         if (current.builtin() == 1 && code != null && !code.equals(current.code())) {
-            throw new ServiceException("内置角色不可修改角色编码（%s）",
-                    BizErrorCode.VALIDATION_ERROR, current.code());
+            throw new ServiceException(RoleRefusals.builtinCodeLocked(current.code()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String name = trimToNull(input.name());
         jdbcTemplate.update("""
@@ -117,7 +118,8 @@ public class RoleServiceImpl implements RoleService {
     public void delete(long roleId) {
         RoleInfo current = get(roleId);
         if (current.builtin() == 1) {
-            throw new ServiceException("内置角色（%s）不可删除", BizErrorCode.RESOURCE_CONFLICT, current.name());
+            throw new ServiceException(RoleRefusals.builtinDeleteBlocked(current.name()),
+                    BizErrorCode.RESOURCE_CONFLICT);
         }
         Long refCount = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_user_role WHERE role_id = ?", Long.class, roleId);
@@ -150,8 +152,8 @@ public class RoleServiceImpl implements RoleService {
         List<String> codes = permCodes == null ? List.of() : permCodes;
         for (String code : codes) {
             if (!PermCatalog.exists(code)) {
-                throw new ServiceException("权限点编码 %s 不存在，请从权限点目录中选择",
-                        BizErrorCode.VALIDATION_ERROR, code);
+                throw new ServiceException(RoleRefusals.permCodeUnknown(code),
+                        BizErrorCode.VALIDATION_ERROR);
             }
         }
         Set<String> unique = new HashSet<>(codes);
@@ -295,15 +297,15 @@ public class RoleServiceImpl implements RoleService {
         get(roleId);
         List<RolePermOverrideInput> items = input.items() == null ? List.of() : input.items();
         if (items.isEmpty() && !input.confirm()) {
-            throw new ServiceException("空覆写集=清空该角色全部覆写并回退模板基线，请携带 confirm=true 确认此操作",
+            throw new ServiceException(RoleRefusals.emptyOverridesNeedConfirm(roleId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         Set<String> allow = new HashSet<>();
         Set<String> deny = new HashSet<>();
         for (RolePermOverrideInput item : items) {
             if (item.effect() != 1 && item.effect() != 2) {
-                throw new ServiceException("权限覆写 effect 仅支持 1=allow / 2=deny（收到 %s，键 %s）",
-                        BizErrorCode.VALIDATION_ERROR, item.effect(), item.permKey());
+                throw new ServiceException(RoleRefusals.effectOutOfRange(item.effect(), item.permKey()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             Set<String> target = item.effect() == 1 ? allow : deny;
             if (!target.add(item.permKey())) {
@@ -311,8 +313,8 @@ public class RoleServiceImpl implements RoleService {
             }
             Set<String> opposite = item.effect() == 1 ? deny : allow;
             if (opposite.contains(item.permKey())) {
-                throw new ServiceException("权限键 %s 同时出现 allow 与 deny 覆写，请二选一",
-                        BizErrorCode.VALIDATION_ERROR, item.permKey());
+                throw new ServiceException(RoleRefusals.allowDenyConflict(item.permKey()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
         }
         PermissionResolver.resolve(Set.<String>of(), allow, deny);
@@ -355,17 +357,17 @@ public class RoleServiceImpl implements RoleService {
 
     private static void validateSaveInput(RoleSaveInput input) {
         if (trimToNull(input.name()) == null) {
-            throw new ServiceException("角色名不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RoleRefusals.roleNameMissing(input.name()), BizErrorCode.VALIDATION_ERROR);
         }
         if (trimToNull(input.code()) == null || trimToNull(input.code()).length() > 50) {
-            throw new ServiceException("角色编码不能为空且不超过 50 字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RoleRefusals.roleCodeInvalid(input.code()), BizErrorCode.VALIDATION_ERROR);
         }
         if (input.dataScope() < 1 || input.dataScope() > 3) {
-            throw new ServiceException("数据范围仅支持 1=全部项目 2=项目内 3=仅本人",
+            throw new ServiceException(RoleRefusals.dataScopeInvalid(input.dataScope()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.status() != 0 && input.status() != 1) {
-            throw new ServiceException("状态仅支持 1=启用 / 0=停用", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RoleRefusals.statusInvalid(input.status()), BizErrorCode.VALIDATION_ERROR);
         }
     }
 

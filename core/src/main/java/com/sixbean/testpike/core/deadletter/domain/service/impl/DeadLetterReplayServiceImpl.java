@@ -6,6 +6,7 @@ import com.sixbean.testpike.core.deadletter.api.dto.DeadLetterReplayReceipt;
 import com.sixbean.testpike.core.deadletter.domain.component.DeadLetterFailureClass;
 import com.sixbean.testpike.core.deadletter.domain.component.DeadLetterLedgerStatus;
 import com.sixbean.testpike.core.deadletter.domain.service.DeadLetterReplayService;
+import com.sixbean.testpike.core.deadletter.domain.component.DeadLetterReplayRefusals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -57,29 +58,27 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
         Map<String, Object> row = loadRow(ledgerId);
         String failureClass = (String) row.get("failure_class");
         if (DeadLetterFailureClass.ENTITY_GONE.name().equals(failureClass)) {
-            throw new ServiceException("该消息关联的业务实体已删除，补投会再次进入死信，已禁止补投；"
-                    + "如需处理请先修复实体引用或作废该记录");
+            throw new ServiceException(DeadLetterReplayRefusals.entityGone(ledgerId,
+                    (String) row.get("queue_name")));
         }
         String status = (String) row.get("status");
         if (DeadLetterLedgerStatus.VOIDED.dbValue().equals(status)) {
-            throw new ServiceException("该记录已作废，不能补投；作废记录保留全部留痕，如需重放请先由维护方核实");
+            throw new ServiceException(DeadLetterReplayRefusals.voidedCannotReplay(ledgerId));
         }
         if (!DeadLetterLedgerStatus.PENDING.dbValue().equals(status)) {
-            throw new ServiceException("该消息已补投（状态=" + status + "），同一条账目不重复补投；"
-                    + "如需再次发送请由维护方核实后另案处理");
+            throw new ServiceException(DeadLetterReplayRefusals.alreadyReplayed(status, ledgerId));
         }
         Boolean isStale = namedJdbc.queryForObject(
                 "SELECT created_at < now() - make_interval(hours => :hours) FROM tp_mq_dead_letter WHERE id = :id",
                 new MapSqlParameterSource("hours", IDEMPOTENT_WINDOW_HOURS).addValue("id", ledgerId),
                 Boolean.class);
         if (Boolean.TRUE.equals(isStale) && !confirmReexecute) {
-            throw new ServiceException("该消息已超过 " + IDEMPOTENT_WINDOW_HOURS
-                    + " 小时，下游幂等保护已过期，补投将作为全新消息重新执行业务动作；"
-                    + "确认接受重新执行语义后再次提交即可");
+            throw new ServiceException(DeadLetterReplayRefusals.staleNeedsConfirm(
+                    ledgerId, IDEMPOTENT_WINDOW_HOURS));
         }
 
         String exchange = (String) row.get("orig_exchange");
-        String routingKey = resolveRoutingKey(row);
+        String routingKey = resolveRoutingKey(row, ledgerId);
         String repostExchange = exchange == null ? "" : exchange;
 
         // DB-side second-layer dedup: flip pending→replayed atomically; the winner owns the only repost.
@@ -91,7 +90,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
                         .addValue("id", ledgerId)
                         .addValue("pending", DeadLetterLedgerStatus.PENDING.dbValue()));
         if (claimed == 0) {
-            throw new ServiceException("该消息已补投（同一行并发仅放行一次补投），本次请求未执行");
+            throw new ServiceException(DeadLetterReplayRefusals.claimLost(ledgerId));
         }
 
         String payload = (String) row.get("payload_json");
@@ -109,8 +108,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
                             .addValue("id", ledgerId));
             log.warn("Dead-letter repost failed, claim restored: ledgerId={} exchange={} rk={} cause={}",
                     ledgerId, repostExchange, routingKey, ex.getMessage());
-            throw new ServiceException("补投发送失败，该记录已退回待处理状态，未消耗补投轮次；原因："
-                    + ex.getMessage());
+            throw new ServiceException(DeadLetterReplayRefusals.sendFailed(ex.getMessage(), ledgerId));
         }
 
         int round = currentRound(ledgerId);
@@ -127,8 +125,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
             throw new ValidationException("补投必须指定失败分型（pending 行按分型圈定范围）");
         }
         if (failureClass == DeadLetterFailureClass.ENTITY_GONE) {
-            throw new ServiceException("实体已删除类消息禁止补投（补投必然再次死信，只消耗重试额度）；"
-                    + "请逐条核实实体引用后作废，或先修复数据再按其它分型补投");
+            throw new ServiceException(DeadLetterReplayRefusals.batchBannedClass(deadLetterQueueName));
         }
         String sql = "SELECT id FROM tp_mq_dead_letter WHERE queue_name = :queue AND status = :pending"
                 + " AND failure_class = :failureClass" + replayableAgeClause(confirmReexecute);
@@ -177,12 +174,12 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
         Map<String, Object> row = loadRow(ledgerId);
         String status = (String) row.get("status");
         if (DeadLetterLedgerStatus.REPLAYED.dbValue().equals(status)) {
-            throw new ServiceException("该消息已补投，不能再作废；如需终止其后续影响请按补投结果处理");
+            throw new ServiceException(DeadLetterReplayRefusals.replayedCannotVoid(ledgerId));
         }
         if (DeadLetterLedgerStatus.VOIDED.dbValue().equals(status)) {
-            throw new ServiceException("该记录已作废，不重复执行；作废原因和操作人已保留在账面上");
+            throw new ServiceException(DeadLetterReplayRefusals.alreadyVoided(ledgerId));
         }
-        throw new ServiceException("该记录当前状态（" + status + "）不支持作废操作");
+        throw new ServiceException(DeadLetterReplayRefusals.voidUnsupportedStatus(status, ledgerId));
     }
 
     /**
@@ -214,7 +211,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
                             + " payload_json, failure_class, status FROM tp_mq_dead_letter WHERE id = :id",
                     new MapSqlParameterSource("id", ledgerId));
         } catch (EmptyResultDataAccessException ex) {
-            throw new ServiceException("死信账目不存在（id=" + ledgerId + "），请刷新列表后重试");
+            throw new ServiceException(DeadLetterReplayRefusals.ledgerNotFound(ledgerId));
         }
     }
 
@@ -223,7 +220,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
  * were lost (manual moves, pre-V395 rows) fall back to the default exchange plus the
  * declarations pin the routing key to the queue name).
  */
-    private static String resolveRoutingKey(Map<String, Object> row) {
+    private static String resolveRoutingKey(Map<String, Object> row, long ledgerId) {
         String recorded = (String) row.get("orig_routing_key");
         if (recorded != null && !recorded.isBlank()) {
             return recorded;
@@ -232,8 +229,7 @@ public class DeadLetterReplayServiceImpl implements DeadLetterReplayService {
         if (queue != null && queue.endsWith(DLQ_SUFFIX)) {
             return queue.substring(0, queue.length() - DLQ_SUFFIX.length());
         }
-        throw new ServiceException("该记录缺少原始投递路由信息且队列名不符合 .dlq 命名约定，无法确定补投目标；"
-                + "请人工核实后作废");
+        throw new ServiceException(DeadLetterReplayRefusals.routingUnresolvable(queue, ledgerId));
     }
 
     private static Message buildReplayMessage(String payloadJson) {

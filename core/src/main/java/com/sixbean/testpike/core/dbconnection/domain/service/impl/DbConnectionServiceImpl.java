@@ -9,6 +9,7 @@ import com.sixbean.testpike.core.dbconnection.api.dto.ConnectivityTestInfo;
 import com.sixbean.testpike.core.dbconnection.api.dto.DbConnectionInfo;
 import com.sixbean.testpike.core.dbconnection.api.dto.DbConnectionInput;
 import com.sixbean.testpike.core.dbconnection.domain.component.ConnectivityProbe;
+import com.sixbean.testpike.core.dbconnection.domain.component.DbConnectionRefusals;
 import com.sixbean.testpike.core.dbconnection.domain.component.DialectRegistry;
 import com.sixbean.testpike.core.dbconnection.domain.service.DbConnectionService;
 import com.sixbean.testpike.core.dbconnection.infrastructure.dataobject.DbConnection;
@@ -63,7 +64,8 @@ public class DbConnectionServiceImpl implements DbConnectionService {
     public long create(long projectId, DbConnectionInput input) {
         validateChain(projectId, input);
         if (ConfigCipher.MASK.equals(input.password())) {
-            throw new ServiceException("密码不能提交打码占位值，请输入真实密码后保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.maskedPasswordSubmitted(input.password()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         requireCipherEnabled();
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -116,7 +118,8 @@ public class DbConnectionServiceImpl implements DbConnectionService {
                     + "readonly = :readonly, max_pool = :pool, updated_at = now() "
                     + "WHERE id = :id AND project_id = :pid", params);
             if (updated == 0) {
-                throw new ServiceException("连接不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+                throw new ServiceException(DbConnectionRefusals.connectionNotFound(id, projectId),
+                        BizErrorCode.NOT_FOUND);
             }
         } catch (DuplicateKeyException e) {
             throw conflict(input.name().trim());
@@ -149,26 +152,28 @@ public class DbConnectionServiceImpl implements DbConnectionService {
                 new MapSqlParameterSource("eid", input.envId()).addValue("pid", projectId),
                 Integer.class);
         if (envTypes.isEmpty()) {
-            throw new ServiceException("所选环境不存在或不属于该项目", BizErrorCode.FORBIDDEN);
+            throw new ServiceException(DbConnectionRefusals.envMissing(input.envId(), projectId),
+                    BizErrorCode.FORBIDDEN);
         }
         if (envTypes.get(0) == 4) {
-            throw new ServiceException("禁止为生产环境配置数据库连接（生产防护），请在测试/预发环境配置",
+            throw new ServiceException(DbConnectionRefusals.prodEnvForbidden(input.envId()),
                     BizErrorCode.FORBIDDEN);
         }
         dialectRegistry.require(input.dialect());
         dialectRegistry.assertUrlMatches(input.dialect(), input.jdbcUrl());
         if (prodBlacklistGuard.matches(withoutJdbcPrefix(input.jdbcUrl()))) {
-            throw new ServiceException("JDBC 主机命中生产域名黑名单，拒绝保存；黑名单配置项=TESTPIKE_PROD_BLACKLIST",
+            throw new ServiceException(DbConnectionRefusals.prodHostBlacklisted(input.jdbcUrl()),
                     BizErrorCode.FORBIDDEN);
         }
         if (input.name() == null || input.name().isBlank() || input.name().trim().length() > 100) {
-            throw new ServiceException("连接名不能为空且不超过 100 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.nameInvalid(
+                    input.name() == null ? 0 : input.name().trim().length()), BizErrorCode.VALIDATION_ERROR);
         }
         if (input.username() == null || input.username().isBlank()) {
-            throw new ServiceException("数据库账号不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.usernameMissing(), BizErrorCode.VALIDATION_ERROR);
         }
         if (input.password() == null || (input.password().isBlank() && !ConfigCipher.MASK.equals(input.password()))) {
-            throw new ServiceException("数据库密码不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.passwordMissing(), BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -181,20 +186,19 @@ public class DbConnectionServiceImpl implements DbConnectionService {
     
     private void requireCipherEnabled() {
         if (!configCipher.isEnabled()) {
-            throw new ServiceException("系统未配置 CONFIG_AES_KEY，无法加密保存连接密码，"
-                    + "请先在部署环境配置该密钥后重试", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.cipherDisabled(), BizErrorCode.VALIDATION_ERROR);
         }
     }
 
     private static ServiceException conflict(String name) {
-        return new ServiceException("该项目已存在同名连接「" + name + "」，请更换连接名",
+        return new ServiceException(DbConnectionRefusals.duplicateName(name),
                 BizErrorCode.RESOURCE_CONFLICT);
     }
 
     private static int normalizePool(Integer maxPool) {
         int pool = maxPool == null ? 2 : maxPool;
         if (pool < 1 || pool > 5) {
-            throw new ServiceException("连接池上限仅支持 1-5", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(DbConnectionRefusals.poolOutOfRange(pool), BizErrorCode.VALIDATION_ERROR);
         }
         return pool;
     }
@@ -211,7 +215,8 @@ public class DbConnectionServiceImpl implements DbConnectionService {
                 new MapSqlParameterSource("id", id).addValue("pid", projectId),
                 new BeanPropertyRowMapper<>(DbConnection.class));
         if (rows.isEmpty()) {
-            throw new ServiceException("连接不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(DbConnectionRefusals.connectionNotFound(id, projectId),
+                    BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

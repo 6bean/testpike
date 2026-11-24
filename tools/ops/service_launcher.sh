@@ -324,6 +324,27 @@ tp_start_vite_unit() { # port logfile
         || { echo "LAUNCH_ABORT unit $unit not active (see $log)" >&2; return 1; }
 }
 
+# Wait (bounded) for one pid to truly disappear before its jar may be touched.
+# Returns 0 when gone (or when there was no pid), 1 when the process is still
+# alive after the bound. A JVM that survived the stop signal lazy-loads classes
+# from the jar replaced under it and dies with NoClassDefFoundError, so every
+# stop-then-rebuild recipe must gate on this before touching the artifact.
+# Bound key SLOT_RESTART_EXIT_WAIT_S, shipped default 60s, hot-reloadable
+# through the environment (no hardcoded budgets). A zombie counts as gone: its
+# address space is already released, only the entry waits for the parent.
+tp_wait_pid_gone() { # pid -> 0 gone within the bound, 1 still alive
+    local pid="$1" waited=0 bound="${SLOT_RESTART_EXIT_WAIT_S:-60}" state
+    case "$pid" in ""|0) return 0 ;; esac
+    while [ -d "/proc/$pid" ]; do
+        state="$(awk '{print $3}' "/proc/$pid/stat" 2>/dev/null || echo gone)"
+        [ "$state" = "Z" ] && return 0
+        if [ "$waited" -ge "$bound" ]; then return 1; fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    return 0
+}
+
 stop_port_by_owner() { # port [grace_seconds] -> graceful then force kill of the socket owner(s) THIS repo started
     local port="$1" grace="${2:-5}" pid cwd own
     # Remember the original owners: a JVM that has unbound its listening socket
