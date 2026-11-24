@@ -4,6 +4,7 @@ import com.sixbean.testpike.admin.auth.app.component.UserContext;
 import com.sixbean.testpike.admin.project.api.dto.PageView;
 import com.sixbean.testpike.admin.project.api.dto.ProbeOutcomeView;
 import com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView;
+import com.sixbean.testpike.admin.session.api.dto.LoginStateKeepAliveRequest;
 import com.sixbean.testpike.admin.session.api.dto.LoginStateProbeRunRequest;
 import com.sixbean.testpike.admin.session.api.dto.LoginStateRegisterRequest;
 import com.sixbean.testpike.admin.session.api.dto.LoginStateView;
@@ -109,6 +110,13 @@ public class RestCoreLoginStateClient implements CoreLoginStateClient {
     public void setEnabled(long id, boolean enabled) {
         RestClientInvoker.call(rest, HttpMethod.PUT, BASE + "/" + id + "/enabled?enabled=" + enabled,
                 null, new ParameterizedTypeReference<Response<Void>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
+    public void setKeepAlive(long id, LoginStateKeepAliveRequest request) {
+        RestClientInvoker.call(rest, HttpMethod.PATCH, BASE + "/" + id + "/keepalive",
+                request, new ParameterizedTypeReference<Response<Void>>() {
                 }, UserContext.currentUserId());
     }
 

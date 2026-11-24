@@ -1,5 +1,6 @@
 package com.sixbean.testpike.admin.session.infrastructure.remote.client;
 
+import com.sixbean.testpike.admin.session.api.dto.LoginStateKeepAliveRequest;
 import com.sixbean.testpike.admin.session.api.dto.LoginStateProbeRunRequest;
 import com.sixbean.testpike.admin.session.api.dto.LoginStateRegisterRequest;
 import com.sixbean.testpike.admin.project.api.dto.PageView;
@@ -44,6 +45,13 @@ public interface CoreLoginStateClient {
 
     /** Enable/disable (disable takes effect from the next session). */
     void setEnabled(long id, boolean enabled);
+
+    /**
+     * Keep-alive switch for one row: enabling runs the synchronous double
+     * pre-check server-side in core; refusals surface with the core wording
+     * unchanged. Carries the optional probe url and per-row interval minutes.
+     */
+    void setKeepAlive(long id, LoginStateKeepAliveRequest request);
 
     /** Remove the ledger row (the vault row remains for audit). */
     void delete(long id);

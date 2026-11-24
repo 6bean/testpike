@@ -43,6 +43,32 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: testpike
+          POSTGRES_USER: testpike
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U testpike -d testpike"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: testpike
+          RABBITMQ_DEFAULT_PASS: testpike
+          RABBITMQ_DEFAULT_VHOST: /
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -50,8 +76,20 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Load fresh-install schema into CI postgres
+        run: |
+          CID=$(docker ps --format '{{.ID}} {{.Image}}' | awk '/pgvector/ {print $1; exit}')
+          until docker exec "$CID" pg_isready -U testpike -d testpike >/dev/null 2>&1; do sleep 2; done
+          cat db/schema-init.sql | docker exec -i "$CID" psql -U testpike -d testpike -q -v ON_ERROR_STOP=1
+          echo "schema-init loaded: $(docker exec "$CID" psql -U testpike -d testpike -At -c 'select count(*) from information_schema.tables where table_schema=$$public$$') tables"
       - name: Compile and test
-        run: mvn -B -pl common,${{ matrix.module }} -am test
+        env:
+          # Throwaway credentials for the ephemeral CI broker above - not a secret.
+          RABBITMQ_PASSWORD: testpike
+        run: mvn -B -pl common,${{ matrix.module }} -am
+             -Daether.connector.http.retryHandler.count=5
+             -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504
+             test
 
   frontend:
     name: Web console

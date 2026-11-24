@@ -131,6 +131,22 @@ public class LoginStateController {
         return Response.builderSuccess(null);
     }
 
+    /**
+     * Keep-alive switch (manage door): ownership is read from the core echo
+     * before forwarding, never from the caller. The synchronous double
+     * pre-check lives in core; its refusal wording reaches the UI verbatim.
+     */
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/keepalive")
+    @RequirePermission("perm:session:manage")
+    public Response<Void> setKeepAlive(
+            @PathVariable long id,
+            @RequestBody com.sixbean.testpike.admin.session.api.dto.LoginStateKeepAliveRequest request) {
+        LoginStateView state = coreLoginStateClient.findState(id);
+        guard.assertCanManage(UserContext.current(), state.projectId());
+        coreLoginStateClient.setKeepAlive(id, request);
+        return Response.builderSuccess(null);
+    }
+
     /** Remove the ledger row (manage door; vault row stays for audit). */
     @DeleteMapping("/{id}")
     @RequirePermission("perm:session:manage")

@@ -61,7 +61,8 @@ public class LoginExemptServiceImpl implements LoginExemptService {
                 && !keyRegisteredInProject(projectId, input.credKey().trim())) {
             throw new ServiceException(
                     "凭据键「" + input.credKey().trim() + "」在本项目尚未建档——"
-                            + "请到「凭据管理」页建档万能码凭据后再登记豁免声明。",
+                            + "请先到「凭据保险箱」页登记该键名的凭据，再回到「登录豁免声明」弹窗的"
+                            + "「万能验证码凭据键」重新引用后保存。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         jdbc.update("UPDATE tp_project_env SET login_exempt_json = CAST(:j AS jsonb),"
@@ -95,9 +96,7 @@ public class LoginExemptServiceImpl implements LoginExemptService {
                         + " FROM tp_project_env WHERE id = :id",
                 new MapSqlParameterSource("id", envId));
         if (rows.isEmpty()) {
-            throw new ServiceException(
-                    "环境档案 #" + envId + " 不存在——请刷新环境页确认对象。",
-                    BizErrorCode.NOT_FOUND);
+            throw envNotFound(envId);
         }
         Map<String, Object> row = rows.get(0);
         return support.viewOf(((Number) row.get("id")).longValue(),
@@ -110,9 +109,7 @@ public class LoginExemptServiceImpl implements LoginExemptService {
                 "SELECT project_id FROM tp_project_env WHERE id = :id",
                 new MapSqlParameterSource("id", envId));
         if (rows.isEmpty()) {
-            throw new ServiceException(
-                    "环境档案 #" + envId + " 不存在——请刷新环境页确认对象。",
-                    BizErrorCode.NOT_FOUND);
+            throw envNotFound(envId);
         }
         return ((Number) rows.get(0).get("project_id")).longValue();
     }
@@ -120,5 +117,16 @@ public class LoginExemptServiceImpl implements LoginExemptService {
     private boolean keyRegisteredInProject(long projectId, String credKey) {
         return credentialService.list(projectId, null).stream()
                 .anyMatch(info -> credKey.equals(info.credKey()));
+    }
+
+    /**
+     * One wording for both lookups of this class: names the row that is gone
+     * and the on-screen door that can recreate it (R63 three elements).
+     */
+    private static ServiceException envNotFound(long envId) {
+        return new ServiceException(
+                "环境档案 #" + envId + " 不存在——请到项目详情「环境配置」列表核对该行是否已被删除；"
+                        + "如需继续登记登录豁免，请先点「新增环境」重新建档。",
+                BizErrorCode.NOT_FOUND);
     }
 }

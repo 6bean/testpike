@@ -48,17 +48,32 @@ public class LoginStateInternalController {
     private final LoginStateProbeService loginStateProbeService;
     private final TaskEventWindowReader taskEvents;
     private final com.sixbean.testpike.core.events.domain.component.ExchangeTrailQuery exchangeTrails;
+    private final com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveEnableGate keepAliveEnableGate;
 
     public LoginStateInternalController(LoginStateService loginStateService,
                                         SessionStateSupport sessionStateSupport,
                                         LoginStateProbeService loginStateProbeService,
                                         TaskEventWindowReader taskEvents,
-                                        com.sixbean.testpike.core.events.domain.component.ExchangeTrailQuery exchangeTrails) {
+                                        com.sixbean.testpike.core.events.domain.component.ExchangeTrailQuery exchangeTrails,
+                                        com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveEnableGate keepAliveEnableGate) {
         this.loginStateService = loginStateService;
         this.sessionStateSupport = sessionStateSupport;
         this.loginStateProbeService = loginStateProbeService;
         this.taskEvents = taskEvents;
         this.exchangeTrails = exchangeTrails;
+        this.keepAliveEnableGate = keepAliveEnableGate;
+    }
+
+    /**
+     * Keep-alive enable door: flips the per-row switch only after the
+     * synchronous double pre-check passes (design ruling section 5). The
+     * pre-check refusals reach callers as the core wording, verbatim.
+     */
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/keepalive")
+    public Response<Void> setKeepAlive(@PathVariable long id,
+                                       @RequestBody com.sixbean.testpike.core.session.api.dto.LoginStateKeepAliveUpdate update) {
+        keepAliveEnableGate.apply(id, update.enabled(), update.url(), update.intervalMinutes());
+        return Response.builderSuccess(null);
     }
 
     /**

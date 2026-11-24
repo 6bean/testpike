@@ -135,7 +135,12 @@ class LoginExemptDeclarationTest {
         ServiceException ex = assertThrows(ServiceException.class, () -> loginExemptService.declare(
                 envId, new LoginExemptInput(
                         "master_code", "lmex_ghost_key", null, "trial_login")));
-        assertTrue(ex.getMessage().contains("凭据管理"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("「凭据保险箱」"),
+                "the repair door is the literal menu name: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("「万能验证码凭据键」"),
+                "the repair door names the field to refill: " + ex.getMessage());
+        assertFalse(ex.getMessage().contains("凭据管理"),
+                "no wording may point at a page the menu does not show: " + ex.getMessage());
     }
 
     @Test
@@ -153,5 +158,9 @@ class LoginExemptDeclarationTest {
                 () -> loginExemptService.declare(999_999_999L,
                         new LoginExemptInput("none", null, null, "manual")));
         assertTrue(ex.getMessage().contains("环境"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("「环境配置」"),
+                "the repair door names the literal tab: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("「新增环境」"),
+                "the repair door names the literal action that can recreate the row: " + ex.getMessage());
     }
 }

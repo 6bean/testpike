@@ -44,10 +44,13 @@ public class LoginExemptSupport {
     /** Same length ceiling the credential vault pins for cred_key. */
     public static final int MAX_CRED_KEY_LEN = 64;
 
+    // Labels mirror the option words the declaration dialog renders
+    // (frontend zh-CN exemptKind), so a refusal listing options always reads
+    // with the same words the user sees on screen (single wording source).
     private static final Map<String, String> KIND_LABELS = new TreeMap<>(Map.of(
-            KIND_NONE, "无验证码",
-            KIND_MASTER_CODE, "万能码固定值",
-            KIND_WHITELIST_ACCOUNTS, "白名单账号免码"));
+            KIND_NONE, "需要验证码（不豁免）",
+            KIND_MASTER_CODE, "万能验证码",
+            KIND_WHITELIST_ACCOUNTS, "白名单账号免验证码"));
 
     private final ObjectMapper objectMapper;
 
@@ -62,12 +65,15 @@ public class LoginExemptSupport {
     public String toStorageJson(LoginExemptInput input) {
         if (input == null || input.kind() == null || input.kind().isBlank()) {
             throw new ServiceException(
-                    "登录豁免形态未填写——可选：" + kindOptions() + "。", BizErrorCode.VALIDATION_ERROR);
+                    "登录豁免形态未填写——请在项目详情「环境配置」该行点「登录豁免」，"
+                            + "在弹窗「豁免方式」中选择，可选：" + kindOptions() + "。",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String kind = input.kind().trim();
         if (!KIND_LABELS.containsKey(kind)) {
             throw new ServiceException(
-                    "登录豁免形态「" + kind + "」不在登记范围——可选：" + kindOptions() + "。",
+                    "登录豁免形态「" + kind + "」不在登记范围——请在「登录豁免声明」弹窗"
+                            + "把「豁免方式」改为以下之一，可选：" + kindOptions() + "。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String reviewMethod = requireReviewMethod(input.reviewMethod());
@@ -137,12 +143,14 @@ public class LoginExemptSupport {
     private String requireReviewMethod(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new ServiceException(
-                    "复核方式未填写——可选：试登录复核 / 人工复核。", BizErrorCode.VALIDATION_ERROR);
+                    "复核方式未填写——请在「登录豁免声明」弹窗的「复核方式」中选择，"
+                            + "可选：试登录观察 / 人工复核。", BizErrorCode.VALIDATION_ERROR);
         }
         String method = raw.trim();
         if (!REVIEW_TRIAL_LOGIN.equals(method) && !REVIEW_MANUAL.equals(method)) {
             throw new ServiceException(
-                    "复核方式「" + method + "」不被支持——可选：试登录复核 / 人工复核。",
+                    "复核方式「" + method + "」不被支持——请在「登录豁免声明」弹窗"
+                            + "把「复核方式」改为：试登录观察 / 人工复核。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return method;
@@ -151,16 +159,18 @@ public class LoginExemptSupport {
     private String requireCredKey(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new ServiceException(
-                    "豁免形态为万能码固定值时必须填写凭据键——请先在「凭据管理」页建档万能码凭据，"
-                            + "登记时引用键名（口令值不填在这里，只保存在凭据库中打码留存）。",
+                    "豁免形态为「万能验证码」时必须填写凭据键——请先在「凭据保险箱」页建档万能码凭据，"
+                            + "再到「登录豁免声明」弹窗的「万能验证码凭据键」引用键名"
+                            + "（口令值不填在这里，只保存在凭据库中打码留存）。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String key = raw.trim();
         if (key.length() > MAX_CRED_KEY_LEN
                 || !EnvParamCipherSupport.KEY_PATTERN.matcher(key).matches()) {
             throw new ServiceException(
-                    "凭据键「" + key + "」格式不合规——需与凭据建档同一规则："
-                            + "字母或下划线开头，仅字母、数字、下划线，不超过 64 位。",
+                    "凭据键「" + key + "」格式不合规——需与「凭据保险箱」建档同一规则："
+                            + "字母或下划线开头，仅字母、数字、下划线，不超过 64 位；"
+                            + "请在「登录豁免声明」弹窗的「万能验证码凭据键」改填已建档的键名。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return key;
@@ -177,11 +187,15 @@ public class LoginExemptSupport {
         }
         if (cleaned.isEmpty()) {
             throw new ServiceException(
-                    "豁免形态为白名单账号免码时请至少填写一个免码账号。", BizErrorCode.VALIDATION_ERROR);
+                    "豁免形态为「白名单账号免验证码」时至少要有一个免验证码账号——"
+                            + "请在「登录豁免声明」弹窗的「免验证码账号」输入账号后回车添加。",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (cleaned.size() > MAX_ACCOUNTS) {
             throw new ServiceException(
-                    "免码账号清单超过上限 " + MAX_ACCOUNTS + " 个——请按被测环境实际白名单收窄登记。",
+                    "免验证码账号清单超过上限 " + MAX_ACCOUNTS + " 个——"
+                            + "请在「登录豁免声明」弹窗的「免验证码账号」删除多余项，"
+                            + "按被测环境实际白名单收窄登记。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return List.copyOf(cleaned);
@@ -219,7 +233,7 @@ public class LoginExemptSupport {
         }
     }
 
-    private String kindOptions() {
+    static String kindOptions() {
         return String.join(" / ", KIND_LABELS.values());
     }
 }

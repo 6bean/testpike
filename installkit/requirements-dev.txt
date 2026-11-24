@@ -3,3 +3,4 @@
 # CI installs requirements.txt + this file; see .github/workflows/ci.yml.
 pytest>=8.0
 pyyaml>=6.0
+requests>=2.32

@@ -13,8 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +60,6 @@ public class LoginStateKeepAliveRunner {
     private static final Logger log = LoggerFactory.getLogger(LoginStateKeepAliveRunner.class);
 
     /** Shell of the body text inspected for login-shell markers. */
-    private static final int SHELL_SCAN_BYTES = 65536;
 
     /**
      * Due rows: enabled and verified, not absolutely expired, and past
@@ -155,7 +152,7 @@ public class LoginStateKeepAliveRunner {
             ProbeExchangeRunner.ExchangeResult result = runner.run(
                     "GET", url, headers, null, governanceKeys.validateTimeoutMs());
             verdict = ProbeExchangeRunner.verdictOf(result.statusCode(), result.firstHeader("Location"));
-            if (verdict == Verdict.VALID && ProbeExchangeRunner.looksLikeLoginShell(bodyShell(result))) {
+            if (verdict == Verdict.VALID && ProbeExchangeRunner.looksLikeLoginShell(LoginStateBodyShellWindow.text(result))) {
                 // 2xx that is really a sign-in page: false green - the
                 // same EXPIRED evidence family as 401/403 (ruling section 3).
                 verdict = Verdict.EXPIRED;
@@ -226,7 +223,7 @@ public class LoginStateKeepAliveRunner {
      * story here and fail into the counting channel with the remedy
      * wording, matching the enable-time pre-check promise of the ruling.
      */
-    private Map<String, String> replayHeaders(LoginStateInfo info) {
+    public Map<String, String> replayHeaders(LoginStateInfo info) {
         Map<String, String> headers = new LinkedHashMap<>();
         if (info.credentialId() != null) {
             String revealed = sessionStateSupport.revealStateValue(info.projectId(), info.stateName());
@@ -246,15 +243,5 @@ public class LoginStateKeepAliveRunner {
                     info.projectId(), info.kind(), info.extraAuthRefs()));
         }
         return headers;
-    }
-
-    /** Leading window of the response text inspected for login-shell markers. */
-    private static String bodyShell(ProbeExchangeRunner.ExchangeResult result) {
-        byte[] raw = result.bodyBytes();
-        if (raw == null || raw.length == 0) {
-            return "";
-        }
-        return new String(Arrays.copyOf(raw, Math.min(raw.length, SHELL_SCAN_BYTES)),
-                StandardCharsets.UTF_8);
     }
 }

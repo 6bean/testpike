@@ -6,7 +6,9 @@ import com.sixbean.testpike.core.session.api.dto.LoginExemptReviewSignal;
 import com.sixbean.testpike.core.session.api.dto.LoginExemptReviewVerdict;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Single decision point of the login exemption re-check (AV5): turns one
@@ -33,9 +35,24 @@ public class LoginExemptReviewSupport {
     /** Reviewer note length cap: the slot stays bounded (S-group worst scale). */
     public static final int MAX_NOTE_LEN = 300;
 
-    private static final List<String> SIGNALS = List.of(SIGNAL_TRIAL_LOGIN_OK,
-            SIGNAL_CAPTCHA_STILL_REQUIRED, SIGNAL_MASTER_CODE_REJECTED,
-            SIGNAL_UNDETERMINED, SIGNAL_MANUAL_CONFIRMED, SIGNAL_MANUAL_REJECTED);
+    // Signal vocabulary paired with the option words the declaration dialog
+    // shows in its review-conclusion dropdown (frontend zh-CN exemptSignal),
+    // so a refusal listing options always reads with the words on screen while
+    // the machine value stays quotable for tooling callers (single wording
+    // source, same idiom as the exemption-form labels above). Insertion order
+    // is the on-screen option order, hence explicit sequential puts.
+    private static final Map<String, String> SIGNAL_LABELS = new LinkedHashMap<>();
+
+    static {
+        SIGNAL_LABELS.put(SIGNAL_TRIAL_LOGIN_OK, "试登录成功且未出现验证码");
+        SIGNAL_LABELS.put(SIGNAL_CAPTCHA_STILL_REQUIRED, "试登录仍要求验证码");
+        SIGNAL_LABELS.put(SIGNAL_MASTER_CODE_REJECTED, "万能验证码被拒绝");
+        SIGNAL_LABELS.put(SIGNAL_UNDETERMINED, "无法判定");
+        SIGNAL_LABELS.put(SIGNAL_MANUAL_CONFIRMED, "人工确认成立");
+        SIGNAL_LABELS.put(SIGNAL_MANUAL_REJECTED, "人工确认不成立");
+    }
+
+    private static final List<String> SIGNALS = List.copyOf(SIGNAL_LABELS.keySet());
 
     /**
      * Judge one observation against the declared exemption form.
@@ -86,8 +103,8 @@ public class LoginExemptReviewSupport {
                             + "不足以下结论，豁免声明保持待复核。");
         }
         return new LoginExemptReviewVerdict(LoginExemptSupport.STATUS_FAILED,
-                "万能码试登录被拒——豁免声明未通过复核。请到「凭据管理」页核对凭据键对应的万能码"
-                        + "与被测环境约定是否一致；平台不会猜测、穷举或识别验证码。");
+                "万能码试登录被拒——豁免声明未通过复核。请到「凭据保险箱」页核对该键的万能码与被测环境约定是否一致，"
+                        + "确认后在「登录豁免声明」弹窗的「万能验证码凭据键」重新引用并提交复核；平台不会猜测、穷举或识别验证码。");
     }
 
     private String manualWording(String heading, String note) {
@@ -102,7 +119,9 @@ public class LoginExemptReviewSupport {
     private String requireKind(String kind) {
         String form = kind == null ? "" : kind.trim();
         if (!LoginExemptSupport.isKnownKind(form)) {
-            throw new ServiceException("登录豁免形态「" + form + "」不在复核范围——请先登记有效形态。",
+            throw new ServiceException("登录豁免形态「" + form + "」不在复核范围——请在项目详情"
+                    + "「环境配置」该行点「登录豁免」，把弹窗「豁免方式」改为以下之一："
+                    + LoginExemptSupport.kindOptions() + "。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return form;
@@ -112,9 +131,22 @@ public class LoginExemptReviewSupport {
         String observed = signal == null || signal.signal() == null
                 ? "" : signal.signal().trim();
         if (!SIGNALS.contains(observed)) {
-            throw new ServiceException("复核信号「" + observed + "」不被支持——可选："
-                    + String.join(" / ", SIGNALS) + "。", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("复核信号「" + observed + "」不被支持——请在项目详情"
+                    + "「环境配置」该行点「登录豁免」，在弹窗「复核结论」改选以下之一："
+                    + signalOptions() + "。", BizErrorCode.VALIDATION_ERROR);
         }
         return observed;
+    }
+
+    /** Option listing in dialog order: on-screen words with the machine value quoted. */
+    private static String signalOptions() {
+        StringBuilder joined = new StringBuilder();
+        SIGNAL_LABELS.forEach((code, label) -> {
+            if (!joined.isEmpty()) {
+                joined.append(" / ");
+            }
+            joined.append(label).append('(').append(code).append(')');
+        });
+        return joined.toString();
     }
 }

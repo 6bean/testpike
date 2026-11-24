@@ -107,15 +107,12 @@ class LoginStateKeepAliveRunnerL2Test {
             exchange.sendResponseHeaders(500, -1);
             exchange.close();
         });
-        server.start();
-        base = "http://127.0.0.1:" + server.getAddress().getPort();
+        base = KeepAliveFixtureLifecycle.startAndGetBase(server);
     }
 
     @AfterAll
     void tearDown() {
-        if (server != null) {
-            server.stop(0);
-        }
+        KeepAliveFixtureLifecycle.stopQuietly(server);
         jdbc.update("DELETE FROM tp_login_state WHERE project_id = ?", project);
         jdbc.update("DELETE FROM tp_credential WHERE project_id = ?", project);
         jdbc.update("DELETE FROM tp_project WHERE id = ?", project);

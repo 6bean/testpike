@@ -61,7 +61,7 @@ class LoginExemptReviewSupportTest {
         LoginExemptReviewVerdict verdict = support.decide(LoginExemptSupport.KIND_MASTER_CODE,
                 sig(LoginExemptReviewSupport.SIGNAL_MASTER_CODE_REJECTED));
         assertEquals(LoginExemptSupport.STATUS_FAILED, verdict.status());
-        assertTrue(verdict.detail().contains("凭据管理"), verdict.detail());
+        assertTrue(verdict.detail().contains("「凭据保险箱」"), verdict.detail());
         assertTrue(verdict.detail().contains("万能码"), verdict.detail());
     }
 
