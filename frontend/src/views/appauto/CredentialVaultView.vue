@@ -200,7 +200,7 @@
                   @click="testForm.headers.splice(i, 1)"
                 />
               </div>
-              <div class="test-header-actions">
+              <div class="test-header-row-actions">
                 <el-button size="small" :icon="Plus" data-test="credential-test-header-add" @click="addHeaderRow">
                   {{ t('appauto.credential.testHeaderAdd') }}
                 </el-button>
@@ -631,7 +631,7 @@ onMounted(() => {
 .test-header-row .el-input {
   flex: 1;
 }
-.test-header-actions {
+.test-header-row-actions {
   display: flex;
   align-items: center;
   gap: 8px;

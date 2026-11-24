@@ -62,7 +62,7 @@ describe('进行中的判定值面：与 core 写侧终态集互补对账', () =
     expect(viewSrc).toMatch(/isPending: \(row\) => !EXPORT_TERMINAL\.has\(row\.status\)/)
     expect(writerSrc).toContain('SET status = 2')
     expect(writerSrc).toContain('SET status = 3')
-    expect(writerSrc).toContain('status=1')
+    expect(writerSrc).toContain('VALUES (?, ?, ?, 1, ?, ?) RETURNING id')
   })
 })
 

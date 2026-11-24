@@ -31,10 +31,12 @@ export const BATCH_TERMINAL_PREFIX = '批次执行结束' as const
 
 /**
  * Terminal-frame prefixes of the explore tail — emitters are the
- * ExploreLoopKernel loop-exit line and the shaped failure line from
+ * ExploreLoopKernel loop-exit line (business wording since the process-event
+ * rewrite: an auto-browsing-ended frame carrying outcome, step and page
+ * counters, bar-separated) and the shaped failure line from
  * TaskFailureEventFormatter.
  */
-export const EXPLORE_TERMINAL_PREFIXES = ['探索循环出口：', '失败：【'] as const
+export const EXPLORE_TERMINAL_PREFIXES = ['自动浏览结束｜', '失败：【'] as const
 
 /**
  * Terminal-frame prefixes of the channel-B spec-extraction tail — emitter

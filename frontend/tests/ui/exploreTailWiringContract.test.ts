@@ -30,8 +30,8 @@ function event(cursor: number, summary: string, level = 'step'): TestRunEvent {
 
 describe('isExploreTerminalRow：探索尾窗终态帧两族前缀单源命中', () => {
   it('循环出口三型与失败成形线都算终态帧', () => {
-    expect(isExploreTerminalRow(event(1, '探索循环出口：目标达成（步数 12，页数 8，token 90000）'))).toBe(true)
-    expect(isExploreTerminalRow(event(2, '探索循环出口：预算耗尽（部分完成）（步数 40，页数 22，token 300000）'))).toBe(true)
+    expect(isExploreTerminalRow(event(1, '自动浏览结束｜目标达成｜共 12/40 步｜浏览 8 页'))).toBe(true)
+    expect(isExploreTerminalRow(event(2, '自动浏览结束｜预算耗尽（部分完成）｜共 40/40 步｜浏览 22 页'))).toBe(true)
     expect(isExploreTerminalRow(event(3, '失败：【模型服务不可达】上游超时，可在探索会话页重新发起探索'))).toBe(true)
   })
 
@@ -43,7 +43,7 @@ describe('isExploreTerminalRow：探索尾窗终态帧两族前缀单源命中',
   it('前缀值面与后端写侧源码对账（写侧句子漂移即红）', () => {
     const kernel = read('../../../ai-service/src/main/java/com/sixbean/testpike/aiservice/explore/domain/component/ExploreLoopKernel.java')
     const formatter = read('../../../ai-service/src/main/java/com/sixbean/testpike/aiservice/taskstream/domain/component/TaskFailureEventFormatter.java')
-    expect(kernel).toContain('"探索循环出口："')
+    expect(kernel).toContain('"自动浏览结束｜"')
     expect(formatter).toContain('"失败：【"')
   })
 })
@@ -78,7 +78,7 @@ describe('ExploreDetailView 尾窗接线形态（消费共享底座单源）', (
 
 describe('useTestRunTail 探索异步模式行为（游标回放+终态收档+尾剪）', () => {
   it('批次回放到终态帧即收档，游标幂等推进', async () => {
-    const batches = [[event(1, '步骤 1｜打开起点'), event(2, '思考：点击入口')], [event(3, '探索循环出口：目标达成（步数 2，页数 1，token 10）')]]
+    const batches = [[event(1, '步骤 1｜打开起点'), event(2, '思考：点击入口')], [event(3, '自动浏览结束｜目标达成｜共 2/40 步｜浏览 1 页')]]
     let call = 0
     const fetchEvents = vi.fn(async () => batches[Math.min(call++, batches.length - 1)])
     const tail = useTestRunTail(fetchEvents, {
@@ -106,7 +106,7 @@ describe('useTestRunTail 探索异步模式行为（游标回放+终态收档+�
     const fetchEvents = vi.fn(async () => {
       cursor += 1
       if (cursor <= 2) return [event(cursor, `步骤 ${cursor}｜进行中`)]
-      return [event(cursor, '探索循环出口：目标达成（步数 3，页数 1，token 1）')]
+      return [event(cursor, '自动浏览结束｜目标达成｜共 3/40 步｜浏览 1 页')]
     })
     const tail = useTestRunTail(fetchEvents, {
       terminal: isExploreTerminalRow, emptyGracePolls: 5, maxPolls: 20, closeOnTerminal: true, pollIntervalMs: 1, cap: 2,

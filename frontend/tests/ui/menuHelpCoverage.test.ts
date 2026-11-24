@@ -55,7 +55,7 @@ describe('T343 包④ ? 悬浮说明 100% 覆盖契约', () => {
     // chapter Y|3 in the same batch — live rescan says 62.
     // net +1: /login-states leaf joined the appauto group beside the
     // vault with its help chapter X|93 in the same batch — live rescan says 63.
-    expect(allMenuLeaves.length).toBe(63)
+    expect(allMenuLeaves.length).toBe(64)
     // Y-wave net +1: /programs console leaf in the system group.
     // Y-wave net +1: /program-dashboard leaf (quality dashboard) joined
     // the results group with its help chapter in the same batch — live rescan says 58.
@@ -63,6 +63,8 @@ describe('T343 包④ ? 悬浮说明 100% 覆盖契约', () => {
     // device group with its help chapter in the same batch.
     // W5 app-automation phase 2 net +1: /appauto/flow-canvas leaf joined the
     // same group with its help chapter in the same batch — live rescan says 60.
+    // net +1: /web-elements ledger leaf joined the design group with its help
+    // chapter F in the same batch — live rescan says 64.
     const missing = allMenuLeaves.filter((l) => !l.helpDomain || !l.helpTipKey).map((l) => l.path)
     expect(missing, `漏映射叶子=${JSON.stringify(missing)}`).toEqual([])
   })

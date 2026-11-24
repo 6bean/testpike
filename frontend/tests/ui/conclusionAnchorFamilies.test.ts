@@ -19,6 +19,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import dialogRaw from '@/views/ai/ExtractPreviewDialog.vue?raw'
+import viewerRaw from '@/components/SourceChunkViewerDialog.vue?raw'
 import execViewRaw from '@/components/ExecTaskResultView.vue?raw'
 import panelRaw from '@/components/ExecStepEvidencePanel.vue?raw'
 import doorRaw from '@/composables/sourceAnchorJump.ts?raw'
@@ -29,7 +30,10 @@ describe('ledger evidence anchor (coverage-gap ids become jumpable)', () => {
   it('renders each pending chunk id as an anchor chip on the shared source door', () => {
     expect(dialogRaw).toContain('extract-gap-anchor-')
     expect(dialogRaw).toContain('openSourceById')
-    expect(dialogRaw).toMatch(/getDocumentChunk\(props\.doc\.id, chunkId\)/)
+    // the read moved into the shared viewer component (one door, R40): the
+    // dialog mounts it; the viewer calls the single-source getDocumentChunk.
+    expect(dialogRaw).toContain('SourceChunkViewerDialog')
+    expect(viewerRaw).toMatch(/getDocumentChunk\(props\.documentId, id\)/)
   })
   it('keeps the banner honest: chip hint + count text on both locale tracks', () => {
     expect(zhRaw).toContain('extractGapAnchorHint')

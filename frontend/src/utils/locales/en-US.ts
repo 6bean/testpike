@@ -795,7 +795,7 @@ projects: 'Projects: the entry for multi-project isolation and team collaboratio
       loginStates: '登录态账本',
       popupRules: '弹窗规则',
       elementLibrary: '图像元素库（APP）',
-      webElementLedger: 'Page Element Library',
+      webElementLedger: '页面元素库',
       flowCanvas: '流程画布',
       aiSampleBoard: '定位样本',
       knowledge: '知识库',

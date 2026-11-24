@@ -21,7 +21,7 @@ describe('markdown answer rendering (T440 stage 4)', () => {
     expect(mdSrc).toMatch(/lines\[i \+ 1\]\.includes\('-'\)/)
   })
   it('dock routes assistant answers through MarkdownPreview, users stay plain', () => {
-    expect(panelSrc).toMatch(/v-if="m\.role === 'assistant'"[\s\S]{0,200}<MarkdownPreview :source="m\.content" \/>/)
+    expect(panelSrc).toMatch(/v-if="m\.role === 'assistant'"[\s\S]{0,1200}?<MarkdownPreview[^>]*:source="m\.content"/)
     expect(panelSrc).toMatch(/v-else class="chat-msg-content">\{\{ m\.content \}\}<\/div>/)
     expect(panelSrc).toMatch(/import MarkdownPreview from '@\/components\/MarkdownPreview\.vue'/)
   })

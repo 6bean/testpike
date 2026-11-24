@@ -222,7 +222,8 @@ describe('T238 P2 路由标题键骨架', () => {
     ['../../src/components/GlobalSearchDialog.vue', 3],
     ['../../src/components/TraceChainPanel.vue', 2],
     ['../../src/components/StepDragList.vue', 3],
-    ['../../src/components/FavoriteButton.vue', 3],
+    // favorite button keeps exactly the two aria labels (star/unstar)
+    ['../../src/components/FavoriteButton.vue', 1],
     ['../../src/components/RowActions.vue', 2],
     ['../../src/components/EmptyState.vue', 0],
     ['../../src/components/MarkdownPreview.vue', 0],

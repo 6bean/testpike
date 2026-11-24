@@ -51,7 +51,7 @@ class ExecutorDomainPermissionWiringTest {
                 "用例执行历史=J5 功能点即本端点（02 §2.7 J5 数据源）");
 
         assertTrue(permOf("listTasks", long.class, int.class, int.class,
-                        String.class, String.class) == null,
+                        String.class, String.class, Long.class, String.class) == null,
                 "项目试运行任务列表（F-8）=成员读路径，无贴语义 VIEW 键可借禁挂");
         assertTrue(permOf("getTask", long.class) == null,
                 "试运行任务详情（F-8）=同读路径面禁挂");

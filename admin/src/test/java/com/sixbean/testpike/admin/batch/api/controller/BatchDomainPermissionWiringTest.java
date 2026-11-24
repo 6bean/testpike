@@ -36,7 +36,7 @@ class BatchDomainPermissionWiringTest {
     void 功能点直接实现端点挂目录键零漂移() {
         assertEquals("perm:batch:batch-view",
                 permOf("list", long.class, Integer.class, String.class, int.class, int.class,
-                        String.class, String.class), "I1 批次列表");
+                        String.class, String.class, long.class), "I1 批次列表");
         assertEquals("perm:batch:batch-view", permOf("get", long.class), "I1 批次详情");
         assertEquals("perm:batch:batch-view", permOf("listCases", long.class), "I1 批次明细用例");
         assertEquals("perm:batch:batch-view", permOf("listTemplates", long.class), "I1 模板列表");

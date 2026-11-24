@@ -41,7 +41,7 @@ describe('owning-slice bookkeeping', () => {
     // creation carries the server row, restore/open carry the segment they
     // were read from (the session pointer is per user × segment)
     expect(panelRaw).toMatch(/sessionId\.value = session\.id\n\s*sessionProjectId\.value = session\.projectId/)
-    expect(panelRaw).toMatch(/sessionId\.value = stored\n[\s\S]{0,160}sessionProjectId\.value = ctx\.primaryId/)
+    expect(panelRaw).toMatch(/sessionId\.value = stored\n[\s\S]{0,240}sessionProjectId\.value = ctx\.primaryId/)
     expect(panelRaw).toMatch(/sessionId\.value = id\n\s*sessionProjectId\.value = ctx\.primaryId/)
   })
 

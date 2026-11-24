@@ -59,7 +59,10 @@ class ExtractionEventStreamBridgeTest {
         assertEquals(List.of("step", "thinking", "step"), writer.frameTypes);
         assertEquals(List.of(1L, 2L, 3L), writer.seqs);
         assertEquals("桶1 完成", writer.payloads.get(1));
-        assertEquals("{\"promptTokens\":10}", writer.metas.get(1));
+        // ProcessEventPump meta shape: rows with a landing time ride the
+        // {tpTS, d} envelope (the browser unwraps it back into detail).
+        assertEquals("{\"tpTS\":\"2026-11-09T10:00:00\",\"d\":\"{\\\"promptTokens\\\":10}\"}",
+                writer.metas.get(1));
         assertTrue(writer.completed, "a settled document must seal the stream");
     }
 

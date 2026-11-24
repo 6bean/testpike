@@ -129,10 +129,7 @@ class LoginStateKeepAliveEnableGateL2Test {
 
     @AfterAll
     void tearDown() {
-        KeepAliveFixtureLifecycle.stopQuietly(server);
-        jdbc.update("DELETE FROM tp_login_state WHERE project_id = ?", project);
-        jdbc.update("DELETE FROM tp_credential WHERE project_id = ?", project);
-        jdbc.update("DELETE FROM tp_project WHERE id = ?", project);
+        KeepAliveFixtureLifecycle.teardownFixture(server, jdbc, project);
     }
 
     /** Registers a token row; the keep-alive columns stay factory-off. */

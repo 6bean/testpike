@@ -58,7 +58,7 @@ describe('credential-vault column-config wiring', () => {
     expect(page).toContain("v-else-if=\"col.key === 'status'\"")
     expect(page).toContain("v-else-if=\"col.key === 'updated'\"")
     // the locked action column keeps its own slot outside the loop
-    expect(page).toContain('width="150" fixed="right"')
+    expect(page).toContain('width="310" fixed="right"')
   })
 
   it('keeps the sort-exempt declaration without introducing sortable in the loop', () => {

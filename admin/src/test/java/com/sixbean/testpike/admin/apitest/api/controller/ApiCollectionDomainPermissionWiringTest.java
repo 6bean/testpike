@@ -35,7 +35,7 @@ class ApiCollectionDomainPermissionWiringTest {
 
     @Test
     void apitest集合域五条链路全挂M3键恒放行零漂移() {
-        assertEquals(KEY, permOf("list", long.class),
+        assertEquals(KEY, permOf("list", long.class, long.class),
                 "集合树=K6 成员/H1 隔离链路，挂 M3 键恒放行承 tags 手法");
         assertEquals(KEY, permOf("create", CollectionSaveRequest.class),
                 "新增集合=assertCanWriteCase（成员且非开发），挂恒命中键零漂移、guard 保留");

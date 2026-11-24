@@ -112,10 +112,7 @@ class LoginStateKeepAliveRunnerL2Test {
 
     @AfterAll
     void tearDown() {
-        KeepAliveFixtureLifecycle.stopQuietly(server);
-        jdbc.update("DELETE FROM tp_login_state WHERE project_id = ?", project);
-        jdbc.update("DELETE FROM tp_credential WHERE project_id = ?", project);
-        jdbc.update("DELETE FROM tp_project WHERE id = ?", project);
+        KeepAliveFixtureLifecycle.teardownFixture(server, jdbc, project);
         jdbc.update("UPDATE tp_sys_config SET config_value = '1' WHERE config_key = ?", GLOBAL_ENABLED_KEY);
     }
 

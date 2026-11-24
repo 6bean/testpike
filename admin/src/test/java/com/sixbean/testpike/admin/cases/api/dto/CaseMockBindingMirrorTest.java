@@ -20,27 +20,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class CaseMockBindingMirrorTest {
 
-    private static void assertTrailingMockSpaceId(Class<? extends Record> dto) {
-        RecordComponent[] components = dto.getRecordComponents();
-        RecordComponent last = components[components.length - 1];
-        assertEquals("mockSpaceId", last.getName(),
-                dto.getSimpleName() + " must end with the mockSpaceId mirror component");
-        assertEquals(Long.class, last.getType(),
-                dto.getSimpleName() + ".mockSpaceId must be Long (null-able binding)");
+    private static void assertMockSpaceIdMirror(Class<? extends Record> dto) {
+        // Jackson binds by name, so the mirror is pinned by name (position
+        // carries no contract: fields may be appended after it, e.g. sourceFacet).
+        for (RecordComponent component : dto.getRecordComponents()) {
+            if ("mockSpaceId".equals(component.getName())) {
+                assertEquals(Long.class, component.getType(),
+                        dto.getSimpleName() + ".mockSpaceId must be Long (null-able binding)");
+                return;
+            }
+        }
+        throw new AssertionError(dto.getSimpleName() + " must carry the mockSpaceId mirror component");
     }
 
     @Test
     void createRequestMirrorsMockBinding() {
-        assertTrailingMockSpaceId(CreateCaseRequest.class);
+        assertMockSpaceIdMirror(CreateCaseRequest.class);
     }
 
     @Test
     void updateRequestMirrorsMockBinding() {
-        assertTrailingMockSpaceId(UpdateCaseRequest.class);
+        assertMockSpaceIdMirror(UpdateCaseRequest.class);
     }
 
     @Test
     void caseViewMirrorsMockBinding() {
-        assertTrailingMockSpaceId(CaseView.class);
+        assertMockSpaceIdMirror(CaseView.class);
     }
 }

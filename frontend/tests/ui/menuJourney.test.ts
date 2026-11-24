@@ -61,6 +61,9 @@ const BASELINE_PATHS = [
   // snapshot moves with the leaves, the old addresses still resolve via redirect.
   '/mock/endpoints', '/api-inventory',
   '/api-spec-change-analysis',
+  // Baseline moves with the leaf (same stale-assertion class): the web
+  // element ledger /web-elements joined the design group.
+  '/web-elements',
   '/skills', '/tools', '/extensions',
   // stage 3: the standalone chat page leaf joined the AI group.
   '/ai/chat',
@@ -126,7 +129,7 @@ describe('T343 方案甲（修订二）+R16 两级化（T403=APP 自动化独立
     expect(design).toBeTruthy()
     const paths = design!.items!.map((i) => i.path)
     expect([...paths].sort()).toEqual(
-      ['/ai/generate', '/cases', '/extraction', '/requirements', '/review'].sort())
+      ['/ai/generate', '/cases', '/extraction', '/requirements', '/review', '/web-elements'].sort())
     expect(paths[0]).toBe('/extraction')
   })
 

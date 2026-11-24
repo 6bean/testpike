@@ -42,7 +42,7 @@ class DefectLibraryDomainPermissionWiringTest {
     void 缺陷库六条链路挂L2键恒放行导出链路挂P2键() {
         assertEquals(KEY_L2, permOf("list", long.class, Integer.class, Integer.class,
                         Long.class, Long.class, String.class, int.class, int.class,
-                        String.class, String.class),
+                        String.class, String.class, long.class),
                 "缺陷列表=K6 成员/H1 隔离链路，挂 L2 键恒放行承 coverage 手法");
         assertEquals(KEY_L2, permOf("create", DefectCreateRequest.class),
                 "创建缺陷=assertCanWriteCase（成员且非开发），挂恒命中键零漂移、guard 保留");

@@ -34,7 +34,7 @@ from playwright.sync_api import expect
 
 STEP_FRAMES = 121          # worst-scale fixture (>=30 rows mandated by S-group)
 LIVE_ROAD_MS = 8000        # one cursor poll cycle + margin
-TERMINAL_SUMMARY = "探索循环出口：目标达成（尾窗收档验证）"
+TERMINAL_SUMMARY = "自动浏览结束｜目标达成｜共 1/40 步｜浏览 1 页（尾窗收档验证）"
 
 BANNED_REFRESH_PHRASES = ["点击『刷新』", "请刷新", "手动刷新", "刷新后重试", "稍后刷新", "稍后再刷新"]
 

@@ -103,7 +103,7 @@ class CaseDomainPermissionWiringTest {
     void 挂键会收窄合法用户或角色闸端点保持成员级并登记豁免() {
         assertNull(permOf(CaseController.class, "list", long.class, Integer.class, String.class, Integer.class,
                 Integer.class, Long.class, Integer.class, List.class, String.class, String.class,
-                int.class, int.class, Boolean.class), "列表=H1 成员级");
+                int.class, int.class, Boolean.class, long.class, String.class, Integer.class), "列表=H1 成员级");
         assertNull(permOf(CaseController.class, "get", long.class), "详情=H1 成员级");
         assertNull(permOf(CaseController.class, "checkReferences", long.class),
                 "M2 引用提示（plan-lock 键=MANAGE 族收窄成员=漂移）");

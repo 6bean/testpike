@@ -25,8 +25,11 @@ describe('send-door anchor', () => {
   })
 
   it('the anchor rides the send body ONLY — a resume reconnect carries none', () => {
-    // exactly one wiring point inside the panel (send), never in resume()
-    expect((panelRaw.match(/questionContext/g) ?? []).length).toBe(1)
+    // wiring points inside the panel: the send door builds the anchor, and
+    // the one-click resend door replays the captured anchor verbatim through
+    // the SAME door (builder + replay pass-through = 3 token hits); the
+    // resume() body below is a single-field call and carries none.
+    expect((panelRaw.match(/questionContext/g) ?? []).length).toBe(3)
     expect(panelRaw).toMatch(/startStream\(\{ resumeCursor: handle\?\.cursor\(\) \?\? 0 \}\)/)
   })
 

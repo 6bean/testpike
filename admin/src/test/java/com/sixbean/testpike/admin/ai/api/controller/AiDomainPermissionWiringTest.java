@@ -63,7 +63,7 @@ class AiDomainPermissionWiringTest {
                 "批量预估=生成写路径同律");
         assertNull(permOf(AiController.class, "batchLimit"),
                 "批量上限读取=登录闸展示链路（V8/T225 新端点，非项目资源无键可挂）");
-        assertNull(permOf(AiController.class, "batchGenerate", AiBatchGenerateRequest.class, String.class),
+        assertNull(permOf(AiController.class, "batchGenerate", AiBatchGenerateRequest.class, String.class, String.class),
                 "批量生成=挂 A2 CREATE 致缩");
         assertNull(permOf(AiController.class, "getBatch", long.class), "批量进度=成员只读路径");
         // the two stage0 preview lanes join the same exemption family —
@@ -101,7 +101,7 @@ class AiDomainPermissionWiringTest {
         assertNull(permOf(DocumentController.class, "chunk", long.class, long.class), "原文分块回读=成员只读路径");
         // tail-f observation pair: both legs are read-only assertCanView lanes.
         assertNull(permOf(DocumentController.class, "extractionEvents",
-                        long.class, long.class, Integer.class),
+                        long.class, long.class, Integer.class, String.class),
                 "提取过程事件游标窗=成员只读路径");
         assertNull(permOf(DocumentController.class, "extractionEventStream",
                         long.class, long.class, jakarta.servlet.http.HttpServletResponse.class),

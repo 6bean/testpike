@@ -36,7 +36,13 @@ describe('页面元素库命名统一守卫', () => {
     expect(en).toContain("webElementLedger: 'Page Element Library'")
     // the English track must not ship the Chinese label either (leafHelp tooltip face)
     // only the shipped VALUES are the user surface; the key name (identifier) is exempt
-    const values = [...en.matchAll(/webElementLedger: '([^']*)'/g)].map(m => m[1])
+    // second exemption class: the leafHelpAnchor slot carries the matching
+    // identifier (zh-literal across both locale tracks by the multi-chapter
+    // anchor convention), never display copy — wording rules do not apply to it
+    const anchorVal = block(en, 'leafHelpAnchor: {', '\n  },').match(/webElementLedger: '([^']*)'/)?.[1]
+    const values = [...en.matchAll(/webElementLedger: '([^']*)'/g)]
+      .map((m) => m[1])
+      .filter((v) => v !== anchorVal)
     expect(values.length).toBeGreaterThanOrEqual(2)
     for (const v of values) {
       expect(v).not.toMatch(/页面元素/)
