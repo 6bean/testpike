@@ -1,5 +1,6 @@
 package com.sixbean.testpike.core.mock.domain.service.impl;
 
+import com.sixbean.testpike.core.mock.domain.component.MockRuntimeRefusals;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.common.domain.component.SortColumnPolicy;
@@ -74,19 +75,19 @@ public class MockRecordingServiceImpl implements MockRecordingService {
         Integer status = jdbc.queryForObject("SELECT status FROM tp_mock_space WHERE id = :sid",
                 new MapSqlParameterSource("sid", spaceId), Integer.class);
         if (status == null || status != 1) {
-            throw new ServiceException("仅已发布的 Mock 空间可以开盒录制——草稿空间没有对外流量可录，"
-                    + "请先发布空间", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(MockRuntimeRefusals.recordingSpaceNotPublished(spaceId),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         // Gate 3 — target shape: absolute http(s) URL with a host.
         String target = targetBaseUrl == null ? "" : targetBaseUrl.trim();
         if (target.isBlank()) {
-            throw new ServiceException("录制目标不能为空：请填写要录制/代理的上游基址（如 http://svc.test/api）",
+            throw new ServiceException(MockRuntimeRefusals.recordingTargetBlank(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         URI parsed = parseHttpUri(target);
         String host = ProdBlacklistGuard.hostOf(target);
         if (parsed == null || host == null) {
-            throw new ServiceException("录制目标须为合法的 http/https 地址（含主机名）：" + target,
+            throw new ServiceException(MockRuntimeRefusals.recordingTargetIllegal(target),
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Gate 4 — fail-closed SSRF pre-gate: no allowlist configured = proxy off.
@@ -115,7 +116,7 @@ public class MockRecordingServiceImpl implements MockRecordingService {
                 new MapSqlParameterSource().addValue("sid", spaceId).addValue("st", STATUS_RECORDING),
                 Integer.class);
         if (open != null && open > 0) {
-            throw new ServiceException("该空间已有进行中的录制盒，请先封盒（停止录制）再开新盒",
+            throw new ServiceException(MockRuntimeRefusals.recordingBoxAlreadyOpen(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Gate 7 — persist the open box and bind the space's proxy target.
@@ -141,8 +142,9 @@ public class MockRecordingServiceImpl implements MockRecordingService {
     public MockRecordingInfo stop(long recordingId) {
         MockRecordingDO box = findBox(recordingId);
         if (!STATUS_RECORDING.equals(box.getStatus())) {
-            throw new ServiceException("录制盒已封停（当前状态 " + box.getStatus() + "），不能重复停止；"
-                    + "需要再次录制请开新盒", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(
+                    MockRuntimeRefusals.recordingBoxAlreadySealed(recordingId, box.getStatus()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         LocalDateTime now = LocalDateTime.now();
         jdbc.update("""
@@ -247,7 +249,8 @@ public class MockRecordingServiceImpl implements MockRecordingService {
                 + " FROM tp_mock_recording WHERE id = :id",
                 new MapSqlParameterSource("id", id), BOX_MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("录制盒不存在或已被删除", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(MockRuntimeRefusals.recordingBoxMissing(id),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         return rows.get(0);
     }

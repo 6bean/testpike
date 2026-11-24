@@ -8,6 +8,7 @@ import com.sixbean.testpike.core.perf.domain.component.PerfErrorClassCount;
 import com.sixbean.testpike.core.perf.domain.component.PerfEventRow;
 import com.sixbean.testpike.core.perf.domain.component.PerfMetricFrame;
 import com.sixbean.testpike.core.perf.domain.component.PerfConfigReader;
+import com.sixbean.testpike.core.perf.domain.component.PerfIngestRefusals;
 import com.sixbean.testpike.core.perf.domain.service.PerfMetricService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -69,8 +70,7 @@ public class PerfMetricServiceImpl implements PerfMetricService {
             return 0;
         }
         if (frames.size() > MAX_BATCH_FRAMES) {
-            throw new ServiceException("指标帧单批 " + frames.size() + " 帧超过上限 "
-                    + MAX_BATCH_FRAMES + "（2 小时秒采样），请执行器侧分批回传",
+            throw new ServiceException(PerfIngestRefusals.batchTooLong(frames.size(), MAX_BATCH_FRAMES),
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<PerfMetricFrame> legal = new ArrayList<>(frames.size());
@@ -79,31 +79,29 @@ public class PerfMetricServiceImpl implements PerfMetricService {
             PerfMetricFrame f = frames.get(i);
             int rowNo = i + 1;
             if (f.secondOffset() < 0) {
-                throw new ServiceException("第 " + rowNo + " 帧秒偏移非法（" + f.secondOffset()
-                        + "），秒偏移必须从 0 起计数", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.secondOffsetIllegal(rowNo, f.secondOffset()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (f.errorRate() < 0 || f.errorRate() > 1) {
-                throw new ServiceException("第 " + rowNo + " 帧错误率非法（" + f.errorRate()
-                        + "），错误率取值范围 0 到 1", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.errorRateIllegal(rowNo, f.errorRate()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (f.reqCount() != null && f.reqCount() < 0) {
-                throw new ServiceException("第 " + rowNo + " 帧请求数非法（" + f.reqCount()
-                        + "），请求数不能为负", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.reqCountIllegal(rowNo, f.reqCount()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (f.failCount() != null && f.reqCount() != null && f.failCount() > f.reqCount()) {
-                throw new ServiceException("第 " + rowNo + " 帧失败数 " + f.failCount()
-                        + " 超过请求数 " + f.reqCount() + "，疑似执行器归帧错乱",
+                throw new ServiceException(PerfIngestRefusals.failExceedsRequest(rowNo, f.failCount(), f.reqCount()),
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (f.durationSumMs() != null && f.durationSumMs() < 0) {
-                throw new ServiceException("第 " + rowNo + " 帧耗时合计非法（" + f.durationSumMs()
-                        + "），响应耗时不能为负", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.durationSumIllegal(rowNo, f.durationSumMs()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             String anchor = frameAnchor(f.secondOffset(), f.stepKey());
             if (!anchors.add(anchor)) {
-                throw new ServiceException("第 " + rowNo + " 帧秒偏移 " + f.secondOffset()
-                        + " 步骤「" + displayStep(f.stepKey()) + "」与本批前序帧重复，请每帧按秒与步骤唯一上报",
-                        BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.duplicateAnchorInBatch(
+                        rowNo, f.secondOffset(), displayStep(f.stepKey())), BizErrorCode.VALIDATION_ERROR);
             }
             legal.add(f);
         }
@@ -119,9 +117,8 @@ public class PerfMetricServiceImpl implements PerfMetricService {
             PerfMetricFrame f = legal.get(i);
             Double prev = existing.get(frameAnchor(f.secondOffset(), f.stepKey()));
             if (prev != null && Double.compare(prev, f.rps()) != 0) {
-                throw new ServiceException("第 " + (i + 1) + " 帧秒偏移 " + f.secondOffset()
-                        + " 步骤「" + displayStep(f.stepKey()) + "」已有上报值 " + prev
-                        + "，重放内容不一致（吞吐 " + f.rps() + "），疑似跨运行错投或补报旧秒，拒收",
+                throw new ServiceException(PerfIngestRefusals.replayMismatch(
+                        i + 1, f.secondOffset(), displayStep(f.stepKey()), prev, f.rps()),
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -295,17 +292,16 @@ public class PerfMetricServiceImpl implements PerfMetricService {
             PerfEventRow e = events.get(i);
             int rowNo = i + 1;
             if (e.eventKind() == null || e.eventKind().isBlank()) {
-                throw new ServiceException("第 " + rowNo + " 条事件类型为空，无法入事件流",
+                throw new ServiceException(PerfIngestRefusals.eventKindBlank(rowNo),
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (e.secondOffset() < 0) {
-                throw new ServiceException("第 " + rowNo + " 条事件秒偏移非法（"
-                        + e.secondOffset() + "）", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PerfIngestRefusals.eventOffsetIllegal(rowNo, e.secondOffset()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (e.detail() == null || e.detail().length() > MAX_EVENT_DETAIL_CHARS) {
                 int len = e.detail() == null ? 0 : e.detail().length();
-                throw new ServiceException("第 " + rowNo + " 条事件正文长度 " + len
-                        + " 超过 " + MAX_EVENT_DETAIL_CHARS + " 字符，请执行器侧摘要后回传",
+                throw new ServiceException(PerfIngestRefusals.eventDetailTooLong(rowNo, len, MAX_EVENT_DETAIL_CHARS),
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -369,10 +365,9 @@ public class PerfMetricServiceImpl implements PerfMetricService {
                 new MapSqlParameterSource("id", runId).addValue("p", projectId))
                 .stream().findFirst().map(r -> ((Number) r.get("status")).intValue())
                 .orElseThrow(() -> new ServiceException(
-                        "压测运行不存在或不属于该项目，采集数据无法入库", BizErrorCode.NOT_FOUND));
+                        PerfIngestRefusals.runNotFound(runId, projectId), BizErrorCode.NOT_FOUND));
         if (status != 1) {
-            throw new ServiceException("该压测运行已结束，采集数据拒收（停压后迟到帧不改写曲线口径）",
-                    BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(PerfIngestRefusals.runFinished(runId), BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

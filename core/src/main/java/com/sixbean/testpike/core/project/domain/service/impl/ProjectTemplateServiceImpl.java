@@ -1,5 +1,7 @@
 package com.sixbean.testpike.core.project.domain.service.impl;
 
+import com.sixbean.testpike.core.project.domain.component.ProjectTemplateRefusals;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
@@ -60,11 +62,12 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
     public long create(Long operatorId, ProjectTemplateCreateInput input) {
         String name = trimToNull(input.name());
         if (name == null || name.length() > 100) {
-            throw new ServiceException("模板名称不能为空且不超过 100 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectTemplateRefusals.nameInvalid(input.name()), BizErrorCode.VALIDATION_ERROR);
         }
         String industry = trimToNull(input.industry());
         if (industry != null && industry.length() > 50) {
-            throw new ServiceException("行业标识不能超过 50 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectTemplateRefusals.industryTooLong(industry.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         validateContent(input.content());
         try {
@@ -84,7 +87,7 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
         get(templateId);
         String name = trimToNull(input.name());
         if (name == null || name.length() > 100) {
-            throw new ServiceException("模板名称不能为空且不超过 100 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectTemplateRefusals.nameInvalid(input.name()), BizErrorCode.VALIDATION_ERROR);
         }
         validateContent(input.content());
         String industry = trimToNull(input.industry());
@@ -105,7 +108,7 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
                 "SELECT " + SELECT_COLUMNS + " FROM tp_project_template WHERE id = ?",
                 this::mapRow, templateId);
         if (rows.isEmpty()) {
-            throw new ServiceException("行业模板不存在（id=" + templateId + "），请重新选择",
+            throw new ServiceException(ProjectTemplateRefusals.templateMissing(templateId),
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
@@ -151,38 +154,46 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
     @Override
     public void validateContent(ProjectTemplateContent content) {
         if (content == null) {
-            throw new ServiceException("模板内容不能为空（四件套：SKILL/标签/环境/角色建议，可为空表）",
-                    BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectTemplateRefusals.contentMissing(), BizErrorCode.VALIDATION_ERROR);
         }
         Set<Long> seenSkills = new HashSet<>();
+        int skillPos = 0;
         for (Long skillId : content.skillIdsOrEmpty()) {
+            skillPos++;
             if (skillId == null) {
-                throw new ServiceException("引用的 SKILL id 不能为空", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(ProjectTemplateRefusals.skillIdNull(skillPos),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (!seenSkills.add(skillId)) {
-                throw new ServiceException("引用的 SKILL id " + skillId + " 重复（同一 SKILL 只能引用一次）",
+                throw new ServiceException(ProjectTemplateRefusals.skillIdDuplicated(skillId),
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
         Set<String> seenTags = new HashSet<>();
+        int tagPos = 0;
         for (TemplateTagItem tag : content.tagsOrEmpty()) {
+            tagPos++;
             String name = tag.name() == null ? null : tag.name().trim();
             if (name == null || name.isEmpty()) {
-                throw new ServiceException("预置标签名称不能为空", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(ProjectTemplateRefusals.tagNameBlank(tagPos),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (!seenTags.add(name)) {
-                throw new ServiceException("预置标签「" + name + "」重复（同模板内标签名唯一）",
+                throw new ServiceException(ProjectTemplateRefusals.tagNameDuplicated(name),
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
         Set<String> seenEnvs = new HashSet<>();
+        int envPos = 0;
         for (TemplateEnvItem env : content.envsOrEmpty()) {
+            envPos++;
             String name = env.name() == null ? null : env.name().trim();
             if (name == null || name.isEmpty()) {
-                throw new ServiceException("示例环境名称不能为空", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(ProjectTemplateRefusals.envNameBlank(envPos),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             if (!seenEnvs.add(name)) {
-                throw new ServiceException("示例环境「" + name + "」重复（同模板内环境名唯一）",
+                throw new ServiceException(ProjectTemplateRefusals.envNameDuplicated(name),
                         BizErrorCode.VALIDATION_ERROR);
             }
             int envType = env.envType() == null ? 0 : env.envType();
@@ -200,20 +211,20 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
                 rs.getLong("id"),
                 rs.getString("name"),
                 rs.getString("industry"),
-                parseContent(rs.getString("content")),
+                parseContent(rs.getString("content"), rs.getLong("id")),
                 createdBy,
                 rs.getObject("created_at", java.time.OffsetDateTime.class),
                 rs.getObject("updated_at", java.time.OffsetDateTime.class));
     }
 
-    private ProjectTemplateContent parseContent(String json) {
+    private ProjectTemplateContent parseContent(String json, long templateId) {
         if (json == null || json.isBlank()) {
             return new ProjectTemplateContent(List.of(), List.of(), List.of(), List.of());
         }
         try {
             return objectMapper.readValue(json, ProjectTemplateContent.class);
         } catch (Exception e) {
-            throw new ServiceException("行业模板内容解析失败（id 关联数据损坏，请联系管理员重建）",
+            throw new ServiceException(ProjectTemplateRefusals.contentParseFailed(templateId),
                     BizErrorCode.INTERNAL_ERROR);
         }
     }
@@ -222,7 +233,8 @@ public class ProjectTemplateServiceImpl implements ProjectTemplateService {
         try {
             return objectMapper.writeValueAsString(o);
         } catch (Exception e) {
-            throw new ServiceException("行业模板内容序列化失败", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectTemplateRefusals.contentSerializeFailed(),
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 

@@ -47,6 +47,7 @@ import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.EntityGoneSignals;
 import com.sixbean.testpike.common.mq.AiGenMessage;
 import com.sixbean.testpike.common.exception.ServiceException;
+import com.sixbean.testpike.common.exception.TerminalStateRaceSignals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -2842,6 +2843,20 @@ public class AiGenServiceImpl implements AiGenService {
  
     private void handleFailure(long taskId, long projectId, long operatorId,
                                String requirementText, Exception e) {
+        // A stop through the product door landing mid-flight makes the late
+        // write-back race the terminal state: core's write-back guard
+        // rejects it structurally (state-machine rejection code plus one of
+        // the markStart/markDone/markFailed guard phrases, shared vocabulary
+        // in common TerminalStateRaceSignals — the one source, R40). The
+        // stop is already the user's recorded outcome; writing a failure
+        // over it would rewrite the stop as our error and a retry notice
+        // would point at a task that never failed. Skip honestly with one
+        // WARN naming the race, no notice, no terminal error event.
+        if (TerminalStateRaceSignals.matches(e)) {
+            log.warn("AI 生成结果回写跳过（任务已是终态，停止指令先行） taskId={} reason={}",
+                    taskId, e.getMessage());
+            return;
+        }
         String code;
         String msg;
         if (e instanceof ServiceException se) {
@@ -2879,6 +2894,12 @@ public class AiGenServiceImpl implements AiGenService {
             // as DocExtractServiceImpl.failExtraction).
             if (EntityGoneSignals.matches(notifyEx)) {
                 log.warn("AI 生成失败回写跳过（任务已被删除，失败通知无宿主） taskId={} reason={}",
+                        taskId, notifyEx.getMessage());
+            } else if (TerminalStateRaceSignals.matches(notifyEx)) {
+                // The task stopped while this failure leg was in flight: the
+                // stop is its recorded outcome, the failure write-back
+                // rejection is the expected race (shared vocabulary, R40).
+                log.warn("AI 生成失败回写跳过（任务已是终态，失败通知无落点） taskId={} reason={}",
                         taskId, notifyEx.getMessage());
             } else {
                 log.error("AI 失败通知写入异常 taskId={}", taskId, notifyEx);

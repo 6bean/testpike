@@ -45,22 +45,22 @@ public class MockSpaceBindingGate {
                 SELECT project_id, status FROM tp_mock_space WHERE id = :id
                 """, new MapSqlParameterSource("id", spaceId));
         if (rows.isEmpty()) {
-            throw new ServiceException("挂载的仿真空间不存在（ID=" + spaceId + "），请重新选择",
+            throw new ServiceException(MockRuleRefusals.bindingSpaceMissing(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> row = rows.get(0);
         long ownerId = ((Number) row.get("project_id")).longValue();
         if (ownerId != projectId) {
-            throw new ServiceException("仿真空间不属于当前项目，禁止跨项目挂载",
+            throw new ServiceException(MockRuleRefusals.bindingSpaceOtherProject(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         int status = ((Number) row.get("status")).intValue();
         if (status == 0) {
-            throw new ServiceException("该仿真空间还是草稿（发布后才可被用例/套件挂载运行），请先发布空间",
+            throw new ServiceException(MockRuleRefusals.bindingSpaceDraft(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (status == 2) {
-            throw new ServiceException("该仿真空间已退役（退役不再对外服务），请改挂其他已发布空间或复制新空间",
+            throw new ServiceException(MockRuleRefusals.bindingSpaceRetired(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

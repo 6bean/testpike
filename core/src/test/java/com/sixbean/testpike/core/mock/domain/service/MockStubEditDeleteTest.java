@@ -109,7 +109,8 @@ class MockStubEditDeleteTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> stubService.update(stubId, echo(v, "writer B")));
         assertEquals(BizErrorCode.VERSION_CONFLICT, ex.getCode().intValue());
-        assertTrue(ex.getMessage().contains("刷新"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("「编辑」") && ex.getMessage().contains("仿真文档"),
+                "stale-version refusal must name the re-open entry (R63), got: " + ex.getMessage());
         assertEquals("writer A", stubService.get(stubId).name(),
                 "the racing loser must never overwrite the winner");
     }

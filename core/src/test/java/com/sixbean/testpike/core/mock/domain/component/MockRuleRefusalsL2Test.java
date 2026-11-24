@@ -108,6 +108,58 @@ class MockRuleRefusalsL2Test {
     }
 
     @Test
+    void bindingSpaceMissingEchoesIdAndPointsAtTheSpacePage() {
+        assertThreeElements(MockRuleRefusals.bindingSpaceMissing(417L), "417");
+        assertTrue(MockRuleRefusals.bindingSpaceMissing(417L).contains("仿真空间"));
+    }
+
+    @Test
+    void bindingSpaceOtherProjectNamesTheOwnershipEdge() {
+        assertThreeElements(MockRuleRefusals.bindingSpaceOtherProject(417L), "417");
+        assertTrue(MockRuleRefusals.bindingSpaceOtherProject(417L).contains("不属于当前项目"));
+    }
+
+    @Test
+    void bindingSpaceDraftTeachesThePublishEntry() {
+        assertThreeElements(MockRuleRefusals.bindingSpaceDraft(417L), "417", "发布空间");
+    }
+
+    @Test
+    void bindingSpaceRetiredOffersRebindOrCopy() {
+        assertThreeElements(MockRuleRefusals.bindingSpaceRetired(417L), "417", "仿真空间");
+        assertTrue(MockRuleRefusals.bindingSpaceRetired(417L).contains("退役"));
+    }
+
+    @Test
+    void stubVersionStaleEchoesExpectedVersionAndRefreshEntry() {
+        assertThreeElements(MockRuleRefusals.stubVersionStale(7L, 3), "7", "3");
+        assertTrue(MockRuleRefusals.stubVersionStale(7L, 3).contains("仿真文档"));
+    }
+
+    @Test
+    void stubMissingEchoesRuleIdAndListEntry() {
+        assertThreeElements(MockRuleRefusals.stubMissing(7L), "7");
+        assertTrue(MockRuleRefusals.stubMissing(7L).contains("仿真文档"));
+    }
+
+    @Test
+    void stateColumnsWithoutScenarioQuoteBothFields() {
+        assertThreeElements(MockRuleRefusals.stateColumnsWithoutScenario(), "触发状态", "推进状态");
+        assertTrue(MockRuleRefusals.stateColumnsWithoutScenario().contains("场景名称"));
+    }
+
+    @Test
+    void stubSpaceMissingEchoesSpaceIdAndCreateEntry() {
+        assertThreeElements(MockRuleRefusals.stubSpaceMissing(417L), "417");
+        assertTrue(MockRuleRefusals.stubSpaceMissing(417L).contains("新建空间"));
+    }
+
+    @Test
+    void scenarioGhostEchoesScenarioNameAndQuotesBothEntries() {
+        assertThreeElements(MockRuleRefusals.scenarioGhost("订单状态机"), "订单状态机", "场景名称");
+    }
+
+    @Test
     void noRefusalSentenceEverEndsInADeadEnd() {
         List<String> all = List.of(
                 MockRuleRefusals.spaceKeyIllegal("x"),
@@ -124,7 +176,16 @@ class MockRuleRefusalsL2Test {
                 MockRuleRefusals.jsonMalformed("「响应行为」", "{", "boom"),
                 MockRuleRefusals.blankRequired("「场景名称」", "「新建场景」"),
                 MockRuleRefusals.tooLong("「路径」", 300, 301),
-                MockRuleRefusals.valueNotAllowed("「鉴权模式」", "jwt", List.of("none"), "「新建空间」"));
+                MockRuleRefusals.valueNotAllowed("「鉴权模式」", "jwt", List.of("none"), "「新建空间」"),
+                MockRuleRefusals.bindingSpaceMissing(1L),
+                MockRuleRefusals.bindingSpaceOtherProject(1L),
+                MockRuleRefusals.bindingSpaceDraft(1L),
+                MockRuleRefusals.bindingSpaceRetired(1L),
+                MockRuleRefusals.stubVersionStale(1L, 1),
+                MockRuleRefusals.stubMissing(1L),
+                MockRuleRefusals.stateColumnsWithoutScenario(),
+                MockRuleRefusals.stubSpaceMissing(1L),
+                MockRuleRefusals.scenarioGhost("x"));
         for (String sentence : all) {
             assertTrue(sentence.contains("」") && sentence.contains("请"),
                     "every refusal must quote an entry and tell the next step: [" + sentence + "]");

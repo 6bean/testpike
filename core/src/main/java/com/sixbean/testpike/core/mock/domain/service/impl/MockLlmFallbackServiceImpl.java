@@ -1,5 +1,6 @@
 package com.sixbean.testpike.core.mock.domain.service.impl;
 
+import com.sixbean.testpike.core.mock.domain.component.MockRuntimeRefusals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
@@ -210,17 +211,15 @@ public class MockLlmFallbackServiceImpl implements MockLlmFallbackService {
     /** Payload shape guard: only artifacts that could serve honestly may store. */
     private void validatePayload(MockLlmFallbackStoreRequest request) {
         if (request.spaceId() == null) {
-            throw new ServiceException("入库请求缺少 spaceId：缓存按空间隔离，无空间无从归属",
+            throw new ServiceException(MockRuntimeRefusals.fallbackSpaceIdMissing(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (request.status() < 100 || request.status() > 599) {
-            throw new ServiceException("生成答案的 HTTP 状态 " + request.status()
-                    + " 不在 100..599，拒绝入库（将来也无法诚实应答）",
+            throw new ServiceException(MockRuntimeRefusals.fallbackStatusOutOfRange(request.status()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (request.body() == null) {
-            throw new ServiceException("生成答案的 body 为 null，拒绝入库"
-                    + "（空正文用 \"\" 表达，缺字段=生成链路产物不完整）",
+            throw new ServiceException(MockRuntimeRefusals.fallbackBodyNull(),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -241,7 +240,8 @@ public class MockLlmFallbackServiceImpl implements MockLlmFallbackService {
             snapshot.put("body", request.body());
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception ex) {
-            throw new ServiceException("生成答案快照无法序列化，拒绝入库：" + ex.getMessage(),
+            throw new ServiceException(
+                    MockRuntimeRefusals.fallbackSnapshotUnserializable(ex.getMessage()),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -261,8 +261,7 @@ public class MockLlmFallbackServiceImpl implements MockLlmFallbackService {
     }
 
     private ServiceException gateRefusal(String key, String label) {
-        return new ServiceException("「" + label + "」当前为关闭状态（配置项 " + key
-                + "）：AI 兜底应答默认关，需要请在系统配置页打开该开关",
+        return new ServiceException(MockRuntimeRefusals.fallbackGateClosed(label, key),
                 BizErrorCode.FORBIDDEN);
     }
 

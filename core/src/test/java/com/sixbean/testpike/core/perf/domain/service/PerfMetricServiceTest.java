@@ -167,7 +167,7 @@ class PerfMetricServiceTest {
                         3L, 5L, 300.0, null, null, ""))))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("第 1 帧")
-                .hasMessageContaining("超过请求数");
+                .hasMessageContaining("大于请求数");
     }
 
     /** The O10 v2.0 caliber SQL executes against real ingested frames (the registry is the
@@ -243,7 +243,7 @@ class PerfMetricServiceTest {
                 List.of(frame(3, 99.0, 999.0, 0.5))))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("重放内容不一致")
-                .hasMessageContaining("秒偏移 3");
+                .hasMessageContaining("secondOffset」= 3");
         assertThat(((Number) perfMetricService.listFrames(projectId, runId).get(0)
                 .get("rps")).doubleValue()).isEqualTo(40.0);
     }
@@ -255,7 +255,7 @@ class PerfMetricServiceTest {
                 List.of(frame(0, 1.0, 1.0, 0.0))))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("已结束")
-                .hasMessageContaining("拒收");
+                .hasMessageContaining("不再写入曲线数据");
     }
 
     @Test
@@ -264,7 +264,7 @@ class PerfMetricServiceTest {
         assertThatThrownBy(() -> perfMetricService.recordFrames(other, runId,
                 List.of(frame(0, 1.0, 1.0, 0.0))))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("不存在或不属于该项目");
+                .hasMessageContaining("不存在或不属于项目");
     }
 
     @Test
@@ -278,7 +278,7 @@ class PerfMetricServiceTest {
                 List.of(frame(-3, 10.0, 100.0, 0.0))))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("第 1 帧")
-                .hasMessageContaining("秒偏移");
+                .hasMessageContaining("secondOffset");
     }
 
     @Test
@@ -290,7 +290,7 @@ class PerfMetricServiceTest {
         assertThatThrownBy(() -> perfMetricService.recordFrames(projectId, runId, flood))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("7200")
-                .hasMessageContaining("分批");
+                .hasMessageContaining("拆分");
     }
 
     // ---------- B-6 error-class TopN ----------
@@ -504,7 +504,7 @@ class PerfMetricServiceTest {
         assertThatThrownBy(() -> perfMetricService.recordEvents(projectId, runId,
                 List.of(new PerfEventRow(1, " ", "空类型"))))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("事件类型为空");
+                .hasMessageContaining("「eventKind」为空");
         assertThatThrownBy(() -> perfMetricService.recordEvents(projectId, runId,
                 List.of(new PerfEventRow(1, "ERR", "x".repeat(4001)))))
                 .isInstanceOf(ServiceException.class)

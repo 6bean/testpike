@@ -7,6 +7,7 @@ import com.sixbean.testpike.core.common.component.dedup.DedupVerdict;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInput;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInfo;
 import com.sixbean.testpike.core.mock.api.dto.MockStubPageView;
+import com.sixbean.testpike.core.mock.domain.component.MockRuleRefusals;
 import com.sixbean.testpike.core.mock.domain.component.MockRuleValidator;
 import com.sixbean.testpike.core.mock.domain.component.PageWindow;
 import com.sixbean.testpike.common.mock.MockScenarioRules;
@@ -186,8 +187,8 @@ public class MockStubServiceImpl implements MockStubService {
                  WHERE id = :id AND version = :expected
                 """, params);
         if (moved == 0) {
-            throw new ServiceException("规则已被其他人修改（期望版本 " + expected
-                    + " 已过期），请刷新后重试", BizErrorCode.VERSION_CONFLICT);
+            throw new ServiceException(MockRuleRefusals.stubVersionStale(stubId, expected),
+                    BizErrorCode.VERSION_CONFLICT);
         }
         // The saved row now carries version expected + 1 — announce exactly
         // that, so the impact ledger's version guard re-arms downstream edges
@@ -267,7 +268,8 @@ public class MockStubServiceImpl implements MockStubService {
                 + " FROM tp_mock_stub WHERE id = :id",
                 new MapSqlParameterSource("id", stubId), MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("Mock 规则不存在或已被删除", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(MockRuleRefusals.stubMissing(stubId),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         return rows.get(0);
     }
@@ -311,8 +313,8 @@ public class MockStubServiceImpl implements MockStubService {
             // no orphan state columns: a state without a machine is meaningless
             // and would silently never fire on the traffic plane
             if (requiredState != null || newState != null) {
-                throw new ServiceException("未选择场景的规则不能携带触发状态/推进状态——"
-                        + "请先绑定场景或清空这两个字段", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(MockRuleRefusals.stateColumnsWithoutScenario(),
+                        BizErrorCode.VALIDATION_ERROR);
             }
             return;
         }
@@ -325,7 +327,7 @@ public class MockStubServiceImpl implements MockStubService {
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM tp_mock_space WHERE id = :id",
                 new MapSqlParameterSource("id", spaceId), Integer.class);
         if (count == null || count == 0) {
-            throw new ServiceException("所属 Mock 空间不存在，请先创建空间再配置规则",
+            throw new ServiceException(MockRuleRefusals.stubSpaceMissing(spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -343,8 +345,7 @@ public class MockStubServiceImpl implements MockStubService {
                 new MapSqlParameterSource("sid", spaceId).addValue("name", scenarioName),
                 String.class);
         if (definitions.isEmpty()) {
-            throw new ServiceException("场景「" + scenarioName + "」在本空间不存在——"
-                    + "请先在场景管理中创建该状态机，或清空规则的场景绑定",
+            throw new ServiceException(MockRuleRefusals.scenarioGhost(scenarioName),
                     BizErrorCode.VALIDATION_ERROR);
         }
         return scenarioRules.declaredStates(definitions.get(0));

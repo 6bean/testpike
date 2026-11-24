@@ -1,5 +1,6 @@
 package com.sixbean.testpike.core.mock.domain.service.impl;
 
+import com.sixbean.testpike.core.mock.domain.component.MockRuntimeRefusals;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
@@ -90,15 +91,15 @@ public class MockHitLedgerServiceImpl implements MockHitLedgerService {
     private long requireSpaceId(String spaceKey) {
         String key = spaceKey == null ? null : spaceKey.trim();
         if (key == null || key.isEmpty()) {
-            throw new ServiceException("命中流水缺少空间路由标识（spaceKey）——整批拒收进死信，禁静默丢",
+            throw new ServiceException(MockRuntimeRefusals.hitLedgerSpaceKeyBlank(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<Long> ids = jdbc.queryForList(
                 "SELECT id FROM tp_mock_space WHERE space_key = :key",
                 new MapSqlParameterSource("key", key), Long.class);
         if (ids.isEmpty()) {
-            throw new ServiceException("命中流水指向不存在的路由标识「" + key
-                    + "」——空间可能已被删除，整批拒收进死信留痕", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(MockRuntimeRefusals.hitLedgerSpaceKeyUnknown(key),
+                    BizErrorCode.NOT_FOUND);
         }
         return ids.get(0);
     }

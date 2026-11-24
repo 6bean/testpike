@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -223,5 +224,29 @@ class MockSpaceBindingGateTest {
                         List.of(), null, 1, null, null, null, 0L));
         assertEquals(null, cleared.mockSpaceId(), "0 unbinds the suite declaration");
         assertEquals(null, suiteColumn(cleared.id()));
+    }
+
+    /**
+     * The gate must raise exactly the single-source refusal sentences (R63
+     * three elements), not ad-hoc strings built at the throw site. A stand-in
+     * jdbc returning canned rows keeps this wiring check free of real writes.
+     */
+    @Test
+    void gateRefusalsCarryTheSingleSourceThreeElementSentences() {
+        MockSpaceBindingGate draftGate = new MockSpaceBindingGate(new CannedRowJdbcTemplate(1L, 0));
+        ServiceException draft = assertThrows(ServiceException.class,
+                () -> draftGate.requireBindable(1L, 417L));
+        assertEquals(MockRuleRefusals.bindingSpaceDraft(417L), draft.getMessage());
+
+        MockSpaceBindingGate missingGate = new MockSpaceBindingGate(new CannedRowJdbcTemplate(null, null));
+        ServiceException missing = assertThrows(ServiceException.class,
+                () -> missingGate.requireBindable(1L, 417L));
+        assertTrue(missing.getMessage().contains("417"),
+                "missing-space refusal must echo the submitted id, got: " + missing.getMessage());
+
+        MockSpaceBindingGate retiredGate = new MockSpaceBindingGate(new CannedRowJdbcTemplate(1L, 2));
+        ServiceException retired = assertThrows(ServiceException.class,
+                () -> retiredGate.requireBindable(1L, 417L));
+        assertEquals(MockRuleRefusals.bindingSpaceRetired(417L), retired.getMessage());
     }
 }

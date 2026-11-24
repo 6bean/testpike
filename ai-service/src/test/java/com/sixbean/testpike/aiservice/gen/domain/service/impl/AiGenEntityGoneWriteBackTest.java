@@ -132,6 +132,81 @@ class AiGenEntityGoneWriteBackTest {
     }
 
     /**
+     * Stopped-task race (core state-machine rejection on markFailed): the
+     * row is already terminal, so the failure write-back rejection is the
+     * expected race outcome after a product-door cancel. Demoted through
+     * the shared write-back race vocabulary (common
+     * TerminalStateRaceSignals, the one source, R40) to a WARN naming the
+     * skip — it must not keep the ERROR persistence-incident signature.
+     */
+    @Test
+    void generate_任务已停止_失败回写竞态降WARN不误报写入异常() {
+        stubGenerationFailure();
+        doThrow(new ServiceException("任务 #41 当前为「已停止」，无法回报失败：仅「生成中」的任务可置失败",
+                BizErrorCode.STATE_MACHINE_REJECT))
+                .when(coreGateway).markFailed(anyLong(), any(), any());
+
+        assertThrows(ServiceException.class,
+                () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
+                        1, "用户可以使用正确的账号密码登录系统", null, null)));
+
+        assertEquals(List.of(), errorsContaining("AI 失败通知写入异常"),
+                "终态回写竞态是预期结果，禁记入写入异常 ERROR 族（R53 噪音闸）");
+        assertEquals(1, warnsContaining("任务已是终态").size(),
+                "必须有一条点名跳过原因的 WARN（失败通知无落点如实入账）");
+        verify(coreGateway, never()).createNotification(anyLong(), anyLong(),
+                any(), any(), any(), any());
+    }
+
+    /**
+     * Completion write-back raced by a stop: the generation itself
+     * succeeded and the late markDone rejection (code + guard phrase)
+     * reaches the failure handler. Nothing is left to record — skip the
+     * failure write-back, the notice and the terminal event, log one WARN.
+     */
+    @Test
+    void generate_完成回写竞态_不再落失败不弹通知只WARN() {
+        when(llmRouter.route(PROJECT_ID)).thenReturn(GenTestFixtures.endpoint());
+        when(llmChain.chatHandle(any(), eq(PROJECT_ID), any(LlmFallbackNotice.class)))
+                .thenThrow(new ServiceException("任务 #41 当前为「已停止」，无法回报完成：仅「生成中」的任务可完成",
+                        BizErrorCode.STATE_MACHINE_REJECT));
+
+        assertThrows(ServiceException.class,
+                () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
+                        1, "用户可以使用正确的账号密码登录系统", null, null)));
+
+        verify(coreGateway, never()).markFailed(anyLong(), any(), any());
+        verify(coreGateway, never()).createNotification(anyLong(), anyLong(),
+                any(), any(), any(), any());
+        assertEquals(List.of(), errorsContaining("AI 失败通知写入异常"),
+                "预期竞态不落 ERROR 签名");
+        assertEquals(1, warnsContaining("任务已是终态").size(),
+                "回写竞态必须有一条点名跳过原因的 WARN");
+    }
+
+    /**
+     * Teeth case for the phrase guard: a state-machine rejection without
+     * one of the write-back guard phrases (foreign domain conflict) must
+     * NOT be folded into the race skip — the failure write-back is still
+     * attempted and the retry notice still lands.
+     */
+    @Test
+    void generate_非回写族状态机拒止_失败处理照常执行() {
+        when(llmRouter.route(PROJECT_ID)).thenReturn(GenTestFixtures.endpoint());
+        when(llmChain.chatHandle(any(), eq(PROJECT_ID), any(LlmFallbackNotice.class)))
+                .thenThrow(new ServiceException("目标状态机拒绝：该对象不在可操作状态",
+                        BizErrorCode.STATE_MACHINE_REJECT));
+
+        assertThrows(ServiceException.class,
+                () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
+                        1, "用户可以使用正确的账号密码登录系统", null, null)));
+
+        verify(coreGateway).markFailed(eq(TASK_ID), any(), any());
+        verify(coreGateway).createNotification(eq(OPERATOR_ID), eq(PROJECT_ID),
+                eq("AI_GEN_FAILED"), any(), any(), any());
+    }
+
+    /**
      * Teeth case: a genuine write-back outage (core unreachable) keeps its
      * ERROR signature — the demotion must never fold a real persistence
      * failure into the race noise.

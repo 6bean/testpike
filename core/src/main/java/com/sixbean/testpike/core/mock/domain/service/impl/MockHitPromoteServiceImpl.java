@@ -1,5 +1,6 @@
 package com.sixbean.testpike.core.mock.domain.service.impl;
 
+import com.sixbean.testpike.core.mock.domain.component.MockRuntimeRefusals;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
@@ -58,14 +59,13 @@ public class MockHitPromoteServiceImpl implements MockHitPromoteService {
     public MockStubImportResult promote(long spaceId, long hitId) {
         MockHitInfo hit = findRow(hitId);
         if (hit.spaceId() == null || hit.spaceId() != spaceId) {
-            throw new ServiceException("该命中记录（" + hitId + "）属于空间 " + hit.spaceId()
-                    + "，与所选空间 " + spaceId + " 不一致，请刷新页面后重试",
+            throw new ServiceException(
+                    MockRuntimeRefusals.hitSpaceMismatch(hitId, hit.spaceId(), spaceId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         MockStubDraft draft = mapper.toDraft(hit);
         if (draft == null) {
-            throw new ServiceException("这条请求没有可固化的响应（无响应面记录）——可能是转发失败的"
-                    + "传输错误行；没有录到的应答不能凭空编成 stub，请挑一条有状态码的记录",
+            throw new ServiceException(MockRuntimeRefusals.hitNoResponseToPromote(hitId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         return stubImportService.importDrafts(spaceId, List.of(draft));
@@ -80,7 +80,7 @@ public class MockHitPromoteServiceImpl implements MockHitPromoteService {
                 FROM tp_mock_hit_log WHERE id = :id
                 """, new MapSqlParameterSource("id", hitId), this::toInfo);
         if (rows.isEmpty()) {
-            throw new ServiceException("命中记录 " + hitId + " 不存在或已被清理，无法转为 stub",
+            throw new ServiceException(MockRuntimeRefusals.hitRowMissing(hitId),
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);

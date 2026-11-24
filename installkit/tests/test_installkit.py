@@ -1150,8 +1150,14 @@ def test_scale_in_scenario_wires_poll_ack(server, sandbox):
     assert "step:command-ack" in content
     receipt_bodies = [b for p, b in Stub.requests
                       if p.endswith(("/progress", "/result"))]
-    text = json.dumps(receipt_bodies, ensure_ascii=False)
-    assert SECRET not in text, "progress/result 回执体零令牌（令牌只走 poll/enroll 请求体）"
+    # The receipt is the identity form: the api bridge folds the plaintext
+    # token into its digest and core reconciles digest + bound fingerprint
+    # before any write (the server rejection text names this exact client as
+    # one of the two sanctioned identity-carrying shapes), so both receipts
+    # must present the enrollment token the poll was made with.
+    for body in receipt_bodies:
+        assert body.get("token") == SECRET, \
+            "progress/result 回执体携带领取令牌（身份形态，服务端 CAS 前核对摘要+指纹）"
 
 
 

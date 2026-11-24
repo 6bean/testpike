@@ -30,6 +30,13 @@ public final class MockRuleRefusals {
     /** Repair entry quoted for scenario-level fields. */
     public static final String SCENARIO_ENTRY = "「状态场景」页的「新建场景」";
 
+    /**
+     * Repair entry quoted for mock-space binding refusals raised by the
+     * case/regression-suite save chains (the picker lives on those forms,
+     * the published spaces themselves are listed on the space page).
+     */
+    public static final String BINDING_ENTRY = "「仿真空间」页";
+
     private MockRuleRefusals() {
     }
 
@@ -113,6 +120,55 @@ public final class MockRuleRefusals {
         return fieldLabel + "不支持「" + (value == null ? "（留空）" : value) + "」，可选值："
                 + String.join(" / ", allowed) + "；请在" + entry + "里把" + fieldLabel
                 + "改成上述可选值之一后重新提交";
+    }
+
+    public static String bindingSpaceMissing(long spaceId) {
+        return "挂载的仿真空间不存在（ID=" + spaceId + "），可能已被删除；请在" + BINDING_ENTRY
+                + "确认空间仍在清单里，再回到用例/回归集的「仿真空间」下拉重新选择后保存";
+    }
+
+    public static String bindingSpaceOtherProject(long spaceId) {
+        return "ID=" + spaceId + " 的仿真空间不属于当前项目，跨项目挂载被拦截（空间只服务归属项目的流量）；"
+                + "请在「仿真空间」下拉里改选当前项目自己的空间，或到" + BINDING_ENTRY
+                + "为本项目新建并发布一个后重新保存";
+    }
+
+    public static String bindingSpaceDraft(long spaceId) {
+        return "ID=" + spaceId + " 的仿真空间还是「草稿」状态，发布前不对外服务、没有可运行的规则；"
+                + "请到" + BINDING_ENTRY + "找到该行点「发布空间」，再回到用例/回归集重新保存（也可先改挂其他已发布空间）";
+    }
+
+    public static String bindingSpaceRetired(long spaceId) {
+        return "ID=" + spaceId + " 的仿真空间" + "「已退役」是终态，不再对外服务，新绑定不允许指向退役空间；"
+                + "请在「仿真空间」下拉里改挂其他已发布空间，或到" + BINDING_ENTRY
+                + "复制该空间生成新空间后重新保存";
+    }
+
+    public static String stubVersionStale(long stubId, int expectedVersion) {
+        return "规则（ID=" + stubId + "）已被其他人修改，你提交的版本号 " + expectedVersion
+                + " 已过期，保存没有落笔以免覆盖别人的改动；请到「仿真文档」页该行点「编辑」重新打开最新内容，再提交你的修改";
+    }
+
+    public static String stubMissing(long stubId) {
+        return "找不到 ID=" + stubId + " 的仿真规则，可能已被删除；请到「仿真文档」页的规则列表按名称确认该行是否还在，"
+                + "不在则用「结构化新建规则」重新创建一条";
+    }
+
+    public static String stateColumnsWithoutScenario() {
+        return "「触发状态」/「推进状态」填了值，但「场景名称」是空的——没有状态机，这两个字段永远不会被触发；"
+                + "请在「结构化新建规则」/「编辑」表单里填写「场景名称」绑定本空间的场景，"
+                + "或清空「触发状态」与「推进状态」后重新保存";
+    }
+
+    public static String stubSpaceMissing(long spaceId) {
+        return "找不到 ID=" + spaceId + " 的仿真空间，规则没有可归属的空间；请到" + BINDING_ENTRY
+                + "用「新建空间」先创建（或恢复）该空间，再回到「仿真文档」页配置规则";
+    }
+
+    public static String scenarioGhost(String scenarioName) {
+        return "场景「" + scenarioName + "」在本空间不存在——绑了不存在的状态机，规则永远不会触发；"
+                + "请到" + SCENARIO_ENTRY + "先创建该场景，或回到" + RULE_ENTRY
+                + "把「场景名称」清空后重新保存";
     }
 
     /** Keeps the echoed payload readable when a whole document was submitted. */

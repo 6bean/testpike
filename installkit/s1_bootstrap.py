@@ -192,6 +192,14 @@ def cmd_seed_demo(args):
 
 def cmd_storage(args):
     pass
+    # Compose-substitute mode (unit/contract tests run install.sh with a fake
+    # compose binary): there is no real storage gateway to probe, so this gate
+    # short-circuits honestly, exactly like the MQ vhost reconcile above.
+    # Without the skip the gate hangs 60s on the S3 probe and then hard-fails
+    # the whole s1 scenario in test shape (and on fresh CI runners).
+    if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
+        print("对象存储对账：compose 替身模式跳过（测试形态无真存储网关）")
+        return 0
     answers = load_answers(args.answers_file)
     if answers.get("role", "platform") != "platform":
         print("本机角色非平台：对象存储面由平台节点承载，跳过。")
