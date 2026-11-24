@@ -182,9 +182,12 @@ class Stage2ResourceContextWiringTest {
         String prompt = scriptPrompts.get(0);
         assertTrue(prompt.contains("订单造数"), "pool segment not spliced into stage-2 prompt");
         assertTrue(prompt.contains("交易接口集"), "pool segment not spliced into stage-2 prompt");
-        verify(coreGateway, times(1)).listProjectEnvs(PROJECT_ID);
-        verify(coreGateway, times(1)).listProjectDataFactories(eq(PROJECT_ID), anyLong());
-        verify(coreGateway, times(1)).listProjectApiCollections(eq(PROJECT_ID), anyLong());
+        // Per-task ceiling: each door is fetched once for the segment face and
+        // once for the pool-reference audit face (two distinct per-task faces,
+        // never per-case loops) — the contract guards the per-task bound.
+        verify(coreGateway, times(2)).listProjectEnvs(PROJECT_ID);
+        verify(coreGateway, times(2)).listProjectDataFactories(eq(PROJECT_ID), anyLong());
+        verify(coreGateway, times(2)).listProjectApiCollections(eq(PROJECT_ID), anyLong());
     }
 
     @Test

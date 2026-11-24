@@ -53,19 +53,28 @@ class ModelAdaptiveBudgetTest {
 
     @Test
     void smallDocumentGoesDirectSendUnderBothCatalogRows() {
-        // 90K-token body: fits the 1M-class budget (629146) and direct-sends,
-        // exceeds the 128K-class budget (76800) and must group. The legacy
-        // static 5000-token value misrouted every one of these documents into
-        // the summarisation path.
-        String body = "a".repeat(90000 * 480 / 512);
-        List<Map<String, Object>> chunks = List.of(Map.of("seq", 1, "content", body));
+        // C1 posture: the grouping budget is min(window budget, group-max-tokens
+        // cap), so the direct-send line is the 8000-token node cap on BOTH
+        // catalog rows, not the window itself. A ~7K-token body (comfortably
+        // above the legacy static 5000 value this feature replaced) direct-sends
+        // under either row; a 90K body groups under either row — the window
+        // alone may never decide how coarsely a node reads.
+        String smallBody = "a".repeat(7000 * 480 / 512);
+        List<Map<String, Object>> small = List.of(Map.of("seq", 1, "content", smallBody));
 
         ContextBudgetPlanner budget1m = plannerFor(1048576);
-        assertFalse(budget1m.needsCompressionByTokens(chunks),
-                "90K-token document must direct-send under the 1M-class row");
+        assertFalse(budget1m.needsCompressionByTokens(small),
+                "7K-token document must direct-send under the 1M-class row (node cap 8000)");
 
         ContextBudgetPlanner budget128k = plannerFor(128000);
-        assertTrue(budget128k.needsCompressionByTokens(chunks),
+        assertFalse(budget128k.needsCompressionByTokens(small),
+                "7K-token document must direct-send under the 128K-class row (node cap 8000)");
+
+        String bigBody = "a".repeat(90000 * 480 / 512);
+        List<Map<String, Object>> big = List.of(Map.of("seq", 1, "content", bigBody));
+        assertTrue(budget1m.needsCompressionByTokens(big),
+                "90K-token document must group under the 1M row once the node cap binds");
+        assertTrue(budget128k.needsCompressionByTokens(big),
                 "90K-token document must group under the 128K-class row budget of 76800");
     }
 

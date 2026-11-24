@@ -24,9 +24,9 @@ class DocExtractPromptPrefixCacheAlignmentTest {
     void headBeforeBudgetDigitIsByteIdenticalAcrossBudgets() {
         String small = DocExtractServiceImpl.buildSummarySystemPrompt(281);
         String large = DocExtractServiceImpl.buildSummarySystemPrompt(12000);
-        int cutSmall = small.indexOf("【长度契约】");
-        int cutLarge = large.indexOf("【长度契约】");
-        assertTrue(cutSmall > 0 && cutLarge > 0, "长度契约段必须存在");
+        int cutSmall = small.indexOf("【长度上限】");
+        int cutLarge = large.indexOf("【长度上限】");
+        assertTrue(cutSmall > 0 && cutLarge > 0, "长度上限段必须存在");
         assertEquals(small.substring(0, cutSmall), large.substring(0, cutLarge),
                 "契约段之前的固定前缀必须逐字节一致（供应商前缀缓存依赖）");
         // The stable head must be the bulk of the prompt, not a token intro.
@@ -36,9 +36,9 @@ class DocExtractPromptPrefixCacheAlignmentTest {
     @Test
     void contractClauseSitsLastAndKeepsNumericBound() {
         String prompt = DocExtractServiceImpl.buildSummarySystemPrompt(281);
-        assertTrue(prompt.indexOf("【长度契约】") > prompt.indexOf("要求：保留"),
+        assertTrue(prompt.indexOf("【长度上限】") > prompt.indexOf("要求：保留"),
                 "预算数字必须排在不变条款之后（尾部），否则其右侧文本永不命中前缀缓存");
-        assertTrue(prompt.indexOf("【长度契约】") > prompt.indexOf("【输入隔离】"),
+        assertTrue(prompt.indexOf("【长度上限】") > prompt.indexOf("【输入隔离】"),
                 "输入隔离段属固定面，须先于预算数字");
         assertTrue(prompt.contains("不得超过 281 字"), "clamp 数字仍须显式入 prompt: " + prompt);
         assertTrue(!prompt.contains("简短"), "禁不可测措辞「简短」（E8 契约零漂移）");

@@ -15,7 +15,7 @@ class LlmPropertiesTest {
         assertTrue(p.isMockEnabled());
         assertEquals("openai", p.getProvider());
         assertEquals("gpt-4o-mini", p.getModel());
-        assertEquals(300, p.getTimeoutSeconds());
+        assertEquals(800, p.getTimeoutSeconds());
     }
 
     @Test

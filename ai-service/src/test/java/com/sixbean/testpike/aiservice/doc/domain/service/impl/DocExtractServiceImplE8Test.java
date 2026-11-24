@@ -161,7 +161,7 @@ class DocExtractServiceImplE8Test {
 
  
     @Test
-    void 摘要prompt含长度契约() {
+    void 摘要prompt含长度上限条款() {
         stubRoute(endpoint(1200));
         stubConfigs("0.1", null, null, null, null, null);
         stubChunks(List.of(
@@ -178,8 +178,8 @@ class DocExtractServiceImplE8Test {
 
         ChatMessage system = summaryRequests().get(0).messages().get(0);
         String prompt = system.content();
-        assertTrue(prompt.contains("281"), "长度契约须含 clamp 结果字符数: " + prompt);
-        assertTrue(prompt.contains("长度契约"), prompt);
+        assertTrue(prompt.contains("281"), "长度上限须含 clamp 结果字符数: " + prompt);
+        assertTrue(prompt.contains("长度上限"), prompt);
         assertFalse(prompt.contains("简短"), "禁不可测措辞「简短」");
     }
 

@@ -157,14 +157,17 @@ class OpenAiCompatClientIntegrationTest {
     void 调用超时_抛模型超时50401() throws IOException {
         HttpServer slow = startServer("慢响应", 200, 3000);
         try {
-            LlmProperties props = new LlmProperties();
-            props.setMockEnabled(false);
-            props.setBaseUrl("http://localhost:" + slow.getAddress().getPort() + "/v1");
-            props.setApiKey("sk-integration-test-key");
-            props.setTimeoutSeconds(1);
-            OpenAiCompatLlmProvider provider = new OpenAiCompatLlmProvider(props, MAPPER);
+            // The provider seam floors every production mint to the 800s
+            // model-request budget (R56), so a sub-floor exchange is assembled
+            // straight on the client constructor here — this test pins the
+            // timeout taxonomy (50401), not the floor seam.
+            OpenAiCompatClient client = new OpenAiCompatClient(
+                    "http://localhost:" + slow.getAddress().getPort() + "/v1",
+                    "sk-int...-key",
+                    java.time.Duration.ofSeconds(1), MAPPER);
 
-            ServiceException ex = assertThrows(ServiceException.class, () -> provider.chat(request()));
+            ServiceException ex = assertThrows(ServiceException.class,
+                    () -> client.chat(request(), "openai"));
             assertEquals(BizErrorCode.AI_TIMEOUT, ex.getCode().intValue());
         } finally {
             slow.stop(0);

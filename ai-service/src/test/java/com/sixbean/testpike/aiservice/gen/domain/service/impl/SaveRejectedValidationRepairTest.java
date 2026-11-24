@@ -141,7 +141,7 @@ class SaveRejectedValidationRepairTest {
         assertTrue(thrown.getMessage().contains("target.chain 不合法"),
                 "终态错误未点名残余校验问题: " + thrown.getMessage());
         List<String> errors = GenWiringHarness.errorSummaries(store, TASK_ID);
-        assertTrue(errors.stream().anyMatch(s -> s.contains("修复轮")),
+        assertTrue(errors.stream().anyMatch(s -> s.contains("修复用尽")),
                 "耗尽事件未上账本: " + errors);
     }
 

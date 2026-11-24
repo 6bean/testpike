@@ -104,7 +104,7 @@ class JobRunnerAlertWiringTest {
                     .filter(JobRunnerAlertWiringTest::hasScheduledAnnotation)
                     .toList();
         }
-        assertEquals(3, schedulers.size(),
+        assertEquals(4, schedulers.size(),
                 "ai-service 含 @Scheduled 的调度类文件数变化=调度器扩缩，同步核对告警接线后更新期望值");
         List<Path> unwired = new ArrayList<>();
         for (Path p : schedulers) {
