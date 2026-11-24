@@ -77,6 +77,12 @@ public interface CoreLoginStateClient {
     /** Run history of one probe face (revisit entry list, newest run first). */
     java.util.List<com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView> probeRuns(long id, Integer limit);
 
+    /** Keep-alive transition trail after cursor for one ledger row (R67 revisit door). */
+    java.util.List<AiTaskEventView> keepaliveEvents(long id, String runToken, long cursor);
+
+    /** Keep-alive run history of one ledger row (transition frames only). */
+    java.util.List<com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView> keepaliveRuns(long id, Integer limit);
+
     /** Gated reveal of one sealed header value of one probe trail row. */
     com.sixbean.testpike.admin.project.api.dto.TrailRevealView revealProbeTrailField(
             long id, long eventId, String field);

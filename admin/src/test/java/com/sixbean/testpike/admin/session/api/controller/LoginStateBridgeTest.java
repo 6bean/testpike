@@ -226,4 +226,27 @@ class LoginStateBridgeTest {
         assertTrue(json.contains("\"cursor\":13"), "cursor name on the wire: " + json);
         assertFalse(json.contains("\"id\":"), "no legacy id field: " + json);
     }
+
+    /** Keep-alive revisit doors (R67): pure pass-through on the row guard —
+     *  the bridge adds no second filter, no cursor rewrite and no wording;
+     *  the kind pin lives in core alone (single source, R40). */
+    @Test
+    void keepaliveReplayDoorsPassCursorAndLimitThroughOnTheRowGuard() {
+        LoginStateView target = row(77L);
+        when(client.findState(77L)).thenReturn(target);
+        when(client.keepaliveEvents(77L, "ka-1", 5L)).thenReturn(List.of(
+                new com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView(
+                        6L, "state", "保活熔断：目标持续异常", null, "2026-11-23T10:00:00")));
+        var frames = controller.keepaliveEvents(77L, "ka-1", 5L).getData();
+        assertEquals(1, frames.size());
+        assertEquals(6L, frames.get(0).cursor());
+        verify(client).keepaliveEvents(77L, "ka-1", 5L);
+
+        when(client.keepaliveRuns(77L, 20)).thenReturn(List.of(
+                new com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView(
+                        "ka-1", 3, true, "2026-11-23T09:00:00", "2026-11-23T10:00:00")));
+        var runs = controller.keepaliveRuns(77L, 20).getData();
+        assertEquals("ka-1", runs.get(0).runToken());
+        verify(client).keepaliveRuns(77L, 20);
+    }
 }

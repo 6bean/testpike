@@ -155,6 +155,23 @@ public class RestCoreLoginStateClient implements CoreLoginStateClient {
     }
 
     @Override
+    public java.util.List<AiTaskEventView> keepaliveEvents(long id, String runToken, long cursor) {
+        return RestClientInvoker.call(rest, HttpMethod.GET,
+                BASE + "/" + id + "/keepalive-events?runToken=" + runToken + "&cursor=" + cursor, null,
+                new ParameterizedTypeReference<Response<java.util.List<AiTaskEventView>>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
+    public java.util.List<com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView> keepaliveRuns(long id, Integer limit) {
+        String uri = BASE + "/" + id + "/keepalive-runs"
+                + (limit == null ? "" : "?limit=" + limit);
+        return RestClientInvoker.call(rest, HttpMethod.GET, uri, null,
+                new ParameterizedTypeReference<Response<java.util.List<com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView>>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
     public com.sixbean.testpike.admin.project.api.dto.TrailRevealView revealProbeTrailField(
             long id, long eventId, String field) {
         return RestClientInvoker.call(rest, HttpMethod.GET,

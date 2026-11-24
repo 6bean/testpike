@@ -82,6 +82,12 @@ class RecordFlowServiceImplTest {
     @Test
     void 关态裸打internal口_人话拒且零模型调用() {
         when(coreGateway.getSysConfig("ai.appauto.record-to-flow")).thenReturn("0");
+        // Isolation for the shared mock bean: the doc-extract assembly's
+        // @Autowired setter arms the ledger face on this mock once at context
+        // startup; whether that precedes this method depends on the bean
+        // creation order of the cached context, so the door's own traffic —
+        // not startup wiring — is what must stay at zero here.
+        org.mockito.Mockito.clearInvocations(llmFallbackChain);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> recordFlowService.generate(request(PROJECT_BASE + 1)));

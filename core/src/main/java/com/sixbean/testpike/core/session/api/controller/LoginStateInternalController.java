@@ -21,6 +21,7 @@ import java.util.List;
 import com.sixbean.testpike.core.session.domain.service.LoginStateProbeService;
 import com.sixbean.testpike.core.session.domain.service.LoginStateProbeService.ProbeResult;
 import com.sixbean.testpike.core.session.domain.service.impl.LoginStateProbeServiceImpl;
+import com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveRunner;
 import com.sixbean.testpike.core.events.domain.component.TaskEventWindowReader;
 
 /**
@@ -109,6 +110,26 @@ public class LoginStateInternalController {
             @PathVariable long id, @RequestParam(required = false) Integer limit) {
         return Response.builderSuccess(taskEvents.runs(
                 LoginStateProbeServiceImpl.EVENT_JOB_KIND, String.valueOf(id), limit));
+    }
+
+    /** Keep-alive trail for one row (R67 revisit door). Frames land only on
+     *  stop transitions; the window/paging plumbing is the SHARED
+     *  TaskEventWindowReader single source — only the kind token differs, so
+     *  no second replay chain exists. */
+    @GetMapping("/{id}/keepalive-events")
+    public Response<java.util.List<com.sixbean.testpike.core.events.api.dto.TaskEventRow>> keepaliveEvents(
+            @PathVariable long id, @RequestParam String runToken,
+            @RequestParam(defaultValue = "0") long cursor) {
+        return Response.builderSuccess(taskEvents.since(
+                LoginStateKeepAliveRunner.EVENT_JOB_KIND, String.valueOf(id), runToken, cursor, null));
+    }
+
+    /** Keep-alive run history of this row (transition frames only, newest run first). */
+    @GetMapping("/{id}/keepalive-runs")
+    public Response<java.util.List<com.sixbean.testpike.core.events.api.dto.TaskEventRunRow>> keepaliveRuns(
+            @PathVariable long id, @RequestParam(required = false) Integer limit) {
+        return Response.builderSuccess(taskEvents.runs(
+                LoginStateKeepAliveRunner.EVENT_JOB_KIND, String.valueOf(id), limit));
     }
 
     /**

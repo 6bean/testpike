@@ -198,6 +198,28 @@ public class LoginStateController {
         return Response.builderSuccess(coreLoginStateClient.probeRuns(id, limit));
     }
 
+    /** Keep-alive transition trail for one row (R67 revisit entry; masked
+     *  rows, same view-door grammar as the probe trail — no second chain). */
+    @GetMapping("/{id}/keepalive-events")
+    @RequirePermission("perm:session:read")
+    public Response<List<AiTaskEventView>> keepaliveEvents(@PathVariable long id,
+                                                           @RequestParam String runToken,
+                                                           @RequestParam(defaultValue = "0") long cursor) {
+        LoginStateView state = coreLoginStateClient.findState(id);
+        guard.assertCanView(UserContext.current(), state.projectId());
+        return Response.builderSuccess(coreLoginStateClient.keepaliveEvents(id, runToken, cursor));
+    }
+
+    /** Keep-alive run history for the row-level process-detail revisit entry. */
+    @GetMapping("/{id}/keepalive-runs")
+    @RequirePermission("perm:session:read")
+    public Response<List<com.sixbean.testpike.admin.ai.api.dto.AiTaskRunView>> keepaliveRuns(
+            @PathVariable long id, @RequestParam(required = false) Integer limit) {
+        LoginStateView state = coreLoginStateClient.findState(id);
+        guard.assertCanView(UserContext.current(), state.projectId());
+        return Response.builderSuccess(coreLoginStateClient.keepaliveRuns(id, limit));
+    }
+
     
     @GetMapping("/{id}/probe-events/{eventId}/reveal")
     @RequirePermission("perm:session:read")
