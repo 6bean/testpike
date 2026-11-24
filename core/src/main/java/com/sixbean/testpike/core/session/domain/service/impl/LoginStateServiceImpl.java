@@ -583,7 +583,11 @@ public class LoginStateServiceImpl implements LoginStateService {
                 row.originsAsList(), row.getSourceKind(), row.getExpiresAt(),
                 row.getLastVerifiedAt(), row.getStatus(), row.getRemark(),
                 row.getCreatedAt(), row.getUpdatedAt(),
-                ExtraAuthRef.readJson(row.getExtraAuthRefsJson()));
+                ExtraAuthRef.readJson(row.getExtraAuthRefsJson()),
+                row.getKeepaliveEnabled(), row.getKeepaliveUrl(),
+                row.getKeepaliveIntervalMinutes(), row.getLastKeepaliveAt(),
+                row.getLastKeepaliveVerdict(), row.getKeepaliveFailStreak(),
+                row.getKeepaliveStopReason());
     }
 
     /** Vault reference key behind a credential id (null id or missing row = null). */

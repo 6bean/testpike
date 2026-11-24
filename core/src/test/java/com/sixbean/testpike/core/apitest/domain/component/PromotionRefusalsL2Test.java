@@ -1,6 +1,6 @@
 package com.sixbean.testpike.core.apitest.domain.component;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static com.sixbean.testpike.core.support.RefusalGuidanceAssertions.assertThreeElements;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -13,18 +13,6 @@ import org.junit.jupiter.api.Test;
  * do next, and no sentence ends in a dead end.
  */
 class PromotionRefusalsL2Test {
-
-    private static void assertThreeElements(String sentence, String... echoedValues) {
-        assertFalse(sentence.isBlank(), "refusal sentence must not be blank");
-        for (String value : echoedValues) {
-            assertTrue(sentence.contains(value),
-                    "offending value not echoed: " + value + " in [" + sentence + "]");
-        }
-        assertTrue(sentence.contains("「"),
-                "repair entry label must be quoted: [" + sentence + "]");
-        assertTrue(sentence.contains("请") || sentence.contains("可点") || sentence.contains("建议"),
-                "action word missing: [" + sentence + "]");
-    }
 
     @Test
     void alreadyPromotedEchoesCaseNoAndPointsToCaseList() {

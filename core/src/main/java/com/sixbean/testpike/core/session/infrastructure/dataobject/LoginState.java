@@ -23,7 +23,10 @@ public class LoginState {
             l.credential_id, l.state_object_key, l.scope_origins::text AS scope_origins_json,
             l.extra_auth_refs::text AS extra_auth_refs_json,
             l.source_kind, l.expires_at, l.last_verified_at, l.status, l.remark,
-            l.created_at, l.updated_at
+            l.created_at, l.updated_at,
+            l.keepalive_enabled, l.keepalive_url, l.keepalive_interval_minutes,
+            l.last_keepalive_at, l.last_keepalive_verdict,
+            l.keepalive_fail_streak, l.keepalive_stop_reason
             """;
 
     public static final RowMapper<LoginState> ROW_MAPPER = new BeanPropertyRowMapper<>(LoginState.class);
@@ -47,6 +50,18 @@ public class LoginState {
     private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Keep-alive display columns: switch state, probe target, per-row cadence
+    // override and the scheduler's last outcome. Read-only
+    // here — every write goes through the runner/gate SQL so no second
+    // write path can drift the pacing anchor.
+    private Integer keepaliveEnabled;
+    private String keepaliveUrl;
+    private Integer keepaliveIntervalMinutes;
+    private LocalDateTime lastKeepaliveAt;
+    private String lastKeepaliveVerdict;
+    private Integer keepaliveFailStreak;
+    private String keepaliveStopReason;
 
     /** Parsed origin whitelist; malformed or absent json reads as empty (fail-closed). */
     public List<String> originsAsList() {
@@ -194,5 +209,61 @@ public class LoginState {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getKeepaliveEnabled() {
+        return keepaliveEnabled;
+    }
+
+    public void setKeepaliveEnabled(Integer keepaliveEnabled) {
+        this.keepaliveEnabled = keepaliveEnabled;
+    }
+
+    public String getKeepaliveUrl() {
+        return keepaliveUrl;
+    }
+
+    public void setKeepaliveUrl(String keepaliveUrl) {
+        this.keepaliveUrl = keepaliveUrl;
+    }
+
+    public Integer getKeepaliveIntervalMinutes() {
+        return keepaliveIntervalMinutes;
+    }
+
+    public void setKeepaliveIntervalMinutes(Integer keepaliveIntervalMinutes) {
+        this.keepaliveIntervalMinutes = keepaliveIntervalMinutes;
+    }
+
+    public LocalDateTime getLastKeepaliveAt() {
+        return lastKeepaliveAt;
+    }
+
+    public void setLastKeepaliveAt(LocalDateTime lastKeepaliveAt) {
+        this.lastKeepaliveAt = lastKeepaliveAt;
+    }
+
+    public String getLastKeepaliveVerdict() {
+        return lastKeepaliveVerdict;
+    }
+
+    public void setLastKeepaliveVerdict(String lastKeepaliveVerdict) {
+        this.lastKeepaliveVerdict = lastKeepaliveVerdict;
+    }
+
+    public Integer getKeepaliveFailStreak() {
+        return keepaliveFailStreak;
+    }
+
+    public void setKeepaliveFailStreak(Integer keepaliveFailStreak) {
+        this.keepaliveFailStreak = keepaliveFailStreak;
+    }
+
+    public String getKeepaliveStopReason() {
+        return keepaliveStopReason;
+    }
+
+    public void setKeepaliveStopReason(String keepaliveStopReason) {
+        this.keepaliveStopReason = keepaliveStopReason;
     }
 }

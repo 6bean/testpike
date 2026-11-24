@@ -157,6 +157,7 @@ jobs:
           EOF
       - name: Provision the dev-named postgres the migration tests exec into
         run: |
+          cp .env.example .env
           docker run -d --name testpike-postgres -p 127.0.0.1:15432:5432 \
             -e POSTGRES_DB=testpike -e POSTGRES_USER=testpike -e POSTGRES_HOST_AUTH_METHOD=trust \
             pgvector/pgvector:pg16

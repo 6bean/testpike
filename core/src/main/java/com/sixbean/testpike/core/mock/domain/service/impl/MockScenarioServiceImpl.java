@@ -54,7 +54,10 @@ public class MockScenarioServiceImpl implements MockScenarioService {
         }
         String name = input.name().trim();
         if (name.length() > 80) {
-            throw new ServiceException("场景名超长（上限 80 字符）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(
+                    com.sixbean.testpike.core.mock.domain.component.MockRuleRefusals
+                            .scenarioNameTooLong(name.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         rules.declaredStates(input.definitionJson());
         requireSpace(spaceId);
