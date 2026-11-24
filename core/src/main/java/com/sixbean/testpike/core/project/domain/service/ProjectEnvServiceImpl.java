@@ -13,6 +13,7 @@ import com.sixbean.testpike.core.project.api.dto.ProjectEnvInfo;
 import com.sixbean.testpike.core.project.api.dto.ProjectEnvInput;
 import com.sixbean.testpike.core.project.domain.component.EnvParamCipherSupport;
 import com.sixbean.testpike.core.project.domain.component.EnvTlsSupport;
+import com.sixbean.testpike.core.project.domain.component.ProjectEnvRefusals;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -29,16 +30,6 @@ import com.sixbean.testpike.core.audit.domain.component.AuditSnapshot;
 @Service
 public class ProjectEnvServiceImpl implements ProjectEnvService {
 
-    private static final String ENV_TYPE_LABEL(int type) {
-        return switch (type) {
-            case 1 -> "开发";
-            case 2 -> "测试";
-            case 3 -> "预发";
-            case 4 -> "生产";
-            default -> "未知";
-        };
-    }
-
     private static final String SELECT_COLUMNS = """
             id, project_id, name, env_type, base_url, config_json, end_types, browsers,
             health_status, health_checked_at, health_msg, version_snapshot, created_at, updated_at
@@ -49,7 +40,7 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
     private final DeleteGuard deleteGuard;
     private final EnvParamCipherSupport envParamCipherSupport;
     private final EnvTlsSupport envTlsSupport;
-    
+
     private final com.sixbean.testpike.core.batch.domain.component.BatchRuntimeChangeRecorder
             batchRuntimeChangeRecorder;
 
@@ -66,14 +57,12 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         this.batchRuntimeChangeRecorder = batchRuntimeChangeRecorder;
     }
 
-    
     public List<ProjectEnvInfo> list(long projectId) {
         return jdbcTemplate.query(
                 "SELECT " + SELECT_COLUMNS + " FROM tp_project_env WHERE project_id = ? ORDER BY id",
                 this::mapRow, projectId);
     }
 
-    
     @Audit(objectType = "project_env", action = "create", objectId = "#result ?: #input.name()", after = "#result")
     public long create(long projectId, ProjectEnvInput input) {
         requireProject(projectId);
@@ -88,12 +77,11 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
                     trimToNull(input.baseUrl()), trimToNull(input.configJson()),
                     defaultEndTypes(input), defaultBrowsers(input), trimToNull(input.versionSnapshot()));
         } catch (DuplicateKeyException e) {
-            throw new ServiceException("该项目已存在同名环境 " + input.name().trim() + "，请更换环境名",
+            throw new ServiceException(ProjectEnvRefusals.duplicateEnvName(input.name().trim()),
                     BizErrorCode.RESOURCE_CONFLICT);
         }
     }
 
-    
     @Audit(objectType = "project_env", action = "update", objectId = "#envId", after = "#result")
     public ProjectEnvInfo update(long projectId, long envId, ProjectEnvInput input) {
         requireProject(projectId);
@@ -112,27 +100,25 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
                 trimToNull(input.configJson()), defaultEndTypes(input), defaultBrowsers(input),
                 trimToNull(input.versionSnapshot()), envId, projectId);
         if (updated == 0) {
-            throw new ServiceException("环境不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ProjectEnvRefusals.envMissing(), BizErrorCode.NOT_FOUND);
         }
         batchRuntimeChangeRecorder.recordEnvChange(envId,
                 com.sixbean.testpike.core.batch.domain.component.BatchRuntimeChangeRecorder.KIND_ENV);
         return get(projectId, envId);
     }
 
-    
     @Audit(objectType = "project_env", action = "delete", objectId = "#envId")
     public void delete(long projectId, long envId) {
         delete(projectId, envId, false);
     }
 
-    
     @Audit(objectType = "project_env", action = "delete", objectId = "#envId")
     public void delete(long projectId, long envId, boolean force) {
         requireProject(projectId);
         getInternal(projectId, envId);
         DeleteCheckResult check = deleteGuard.checkEnv(envId);
         if (!check.deletable() && !force) {
-            throw new ServiceException("该环境被 %s 引用，无法删除；如确认级联删除请勾选确认后重试",
+            throw new ServiceException(ProjectEnvRefusals.deleteBlocked(),
                     BizErrorCode.RESOURCE_CONFLICT, DeleteGuard.joinMessages(check.refs()));
         }
         jdbcTemplate.update("UPDATE tp_exec_batch SET env_id = NULL WHERE env_id = ?", envId);
@@ -143,17 +129,15 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         int deleted = jdbcTemplate.update(
                 "DELETE FROM tp_project_env WHERE id = ? AND project_id = ?", envId, projectId);
         if (deleted == 0) {
-            throw new ServiceException("环境不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ProjectEnvRefusals.envMissing(), BizErrorCode.NOT_FOUND);
         }
     }
 
-    
     @Override
     public List<EnvParamItem> listParams(long projectId, long envId) {
         return envParamCipherSupport.readItems(getInternal(projectId, envId).configJson());
     }
 
-    
     @Override
     @Audit(objectType = "project_env", action = "update_params", objectId = "#envId")
     public List<EnvParamItem> saveParams(long projectId, long envId, EnvParamsInput input) {
@@ -174,7 +158,7 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
                 "SELECT " + SELECT_COLUMNS + " FROM tp_project_env WHERE id = ? AND project_id = ?",
                 this::mapRow, envId, projectId);
         if (rows.isEmpty()) {
-            throw new ServiceException("环境不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ProjectEnvRefusals.envMissing(), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -184,27 +168,25 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         return getInternal(projectId, envId);
     }
 
-    
     @Override
     public ProjectEnvInfo getByEnvId(long envId) {
         List<ProjectEnvInfo> rows = jdbcTemplate.query(
                 "SELECT " + SELECT_COLUMNS + " FROM tp_project_env WHERE id = ?",
                 this::mapRow, envId);
         if (rows.isEmpty()) {
-            throw new ServiceException("环境不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ProjectEnvRefusals.envGoneById(envId), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
 
- 
     @Override
     @Audit(objectType = "project_env", action = "deploy", objectId = "#envId", after = "#version")
     public EnvDeployInfo recordDeploy(long projectId, long envId, String version, long operatorId) {
         if (version == null || version.isBlank()) {
-            throw new ServiceException("部署版本不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectEnvRefusals.deployVersionBlank(), BizErrorCode.VALIDATION_ERROR);
         }
         if (version.trim().length() > 50) {
-            throw new ServiceException("部署版本不能超过 50 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectEnvRefusals.deployVersionTooLong(version), BizErrorCode.VALIDATION_ERROR);
         }
         getInternal(projectId, envId);
         AuditLogContext.setBefore(AuditSnapshot.snapshot(Map.of("deployedVersion",
@@ -220,7 +202,6 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         return getDeployInfo(projectId, envId);
     }
 
- 
     @Override
     public EnvDeployInfo getDeployInfo(long projectId, long envId) {
         getInternal(projectId, envId);
@@ -258,25 +239,24 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
 
     private void requireProject(long projectId) {
         if (!projectService.exists(projectId)) {
-            throw new ServiceException("项目不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ProjectEnvRefusals.projectMissing(projectId), BizErrorCode.NOT_FOUND);
         }
     }
 
     private void validate(ProjectEnvInput input) {
         if (input.name() == null || input.name().isBlank() || input.name().trim().length() > 50) {
-            throw new ServiceException("环境名不能为空且不超过 50 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectEnvRefusals.nameInvalid(input.name()), BizErrorCode.VALIDATION_ERROR);
         }
         if (input.envType() < 1 || input.envType() > 4) {
-            throw new ServiceException("环境类型仅支持：1=开发 2=测试 3=预发 4=生产", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ProjectEnvRefusals.typeInvalid(input.envType()), BizErrorCode.VALIDATION_ERROR);
         }
         if (input.envType() == 4 && (input.baseUrl() == null || input.baseUrl().isBlank())) {
-            throw new ServiceException("生产环境必须配置访问地址（base_url），用于执行前生产域名黑名单校验",
+            throw new ServiceException(ProjectEnvRefusals.prodBaseUrlMissing(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         envTlsSupport.assertSectionAllowed(input.envType(), input.configJson());
     }
 
- 
     private void ensureTypeUnique(long projectId, int envType, Long excludeEnvId) {
         Integer cnt = excludeEnvId == null
                 ? jdbcTemplate.queryForObject(
@@ -286,8 +266,7 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
                         "SELECT COUNT(*) FROM tp_project_env WHERE project_id = ? AND env_type = ? AND id != ?",
                         Integer.class, projectId, envType, excludeEnvId);
         if (cnt != null && cnt > 0) {
-            throw new ServiceException("该项目已存在" + ENV_TYPE_LABEL(envType)
-                    + "环境，每个项目每种环境类型仅一套（不同项目可配置不同环境集合）", BizErrorCode.RESOURCE_CONFLICT);
+            throw new ServiceException(ProjectEnvRefusals.typeNotUnique(envType), BizErrorCode.RESOURCE_CONFLICT);
         }
     }
 
