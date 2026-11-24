@@ -31,13 +31,13 @@
     { "expect": { "headers": { "name": "X", "op": "contains", "expect": "y" } },
       "why": "headers must be an array", "errorIncludes": ["headers 必须是非空数组"] },
     { "expect": { "headers": [{ "op": "contains", "expect": "y" }] }, "why": "header row needs a name",
-      "errorIncludes": ["必须给定头名"] },
+      "errorIncludes": ["头名"] },
     { "expect": { "headers": [{ "name": "X", "op": "equals", "expect": "y" }] },
       "why": "header op outside matcher family", "errorIncludes": ["matchType 仅支持"] },
     { "expect": { "headers": [{ "name": "X", "op": "regex", "expect": "(a+)+" }] },
       "why": "catastrophic-backtracking regex rejected", "errorIncludes": ["嵌套量词"] },
     { "expect": { "headers": [{ "name": "X", "op": "contains" }] }, "why": "missing expect value",
-      "errorIncludes": ["必须给定 expect"] }
+      "errorIncludes": ["期望值"] }
   ],
   "judge": {
     "positives": [

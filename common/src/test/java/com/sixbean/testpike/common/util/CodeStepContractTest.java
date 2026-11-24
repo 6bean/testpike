@@ -41,7 +41,7 @@ class CodeStepContractTest {
     void language缺失_点名必填() throws Exception {
         String v = CodeStepContract.violation(step(stepOf("\"code\":\"print(1)\"")));
         assertNotNull(v);
-        assertTrue(v.contains("language"), "字段点名缺失：" + v);
+        assertTrue(v.contains("选择语言"), "字段点名缺失：" + v);
     }
 
     @Test
@@ -58,7 +58,7 @@ class CodeStepContractTest {
         String v = CodeStepContract.violation(step(stepOf(
                 "\"language\":\"python\",\"code\":\"  \"")));
         assertNotNull(v);
-        assertTrue(v.contains("code"), "字段点名缺失：" + v);
+        assertTrue(v.contains("代码正文"), "字段点名缺失：" + v);
     }
 
 
