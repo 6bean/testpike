@@ -138,7 +138,7 @@ class PromotionServiceTest {
         // Idempotency posture: the answer names the already-promoted case, no second case
         assertTrue(ex.getMessage().contains(first.caseNo()),
                 "409 文案必须回显已升格用例编号，实际=" + ex.getMessage());
-        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case", Integer.class);
+        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case WHERE project_id = " + pid, Integer.class);
         assertEquals(1, caseCount);
     }
 

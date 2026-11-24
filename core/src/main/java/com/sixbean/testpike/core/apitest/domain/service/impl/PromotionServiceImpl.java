@@ -13,6 +13,7 @@ import com.sixbean.testpike.core.apitest.api.dto.ApiCollectionInfo;
 import com.sixbean.testpike.core.apitest.api.dto.ApiRequestInfo;
 import com.sixbean.testpike.core.apitest.api.dto.FlowPromotionResultView;
 import com.sixbean.testpike.core.apitest.api.dto.PromotionResultView;
+import com.sixbean.testpike.core.apitest.domain.component.PromotionRefusals;
 import com.sixbean.testpike.core.apitest.domain.component.PromotionStepMapper;
 import com.sixbean.testpike.core.apitest.domain.component.PromotionStepMapping;
 import com.sixbean.testpike.core.apitest.domain.service.ApiCollectionService;
@@ -79,15 +80,15 @@ public class PromotionServiceImpl implements PromotionService {
     public PromotionResultView promote(Long operatorId, long requestId) {
         ApiRequestInfo request = apiRequestService.get(requestId); // 40401 when missing
         if (request.promotedCaseId() != null) {
-            throw new ServiceException("该请求已升格为用例 %s，无需重复升格（如需更新用例内容请在用例侧编辑）",
-                    BizErrorCode.RESOURCE_CONFLICT, caseNoOfExistingPromotion(request.promotedCaseId()));
+            throw new ServiceException(PromotionRefusals.alreadyPromoted(
+                    caseNoOfExistingPromotion(request.promotedCaseId())), BizErrorCode.RESOURCE_CONFLICT);
         }
         long projectId = projectIdOfRequest(request);
 
         // Map assertion rows through the single-source mapper (slot conflicts and
         // illegal rows refused 400 in plain words — pins the same grammar
         // the step-side save gate accepts, so mapped output passes verbatim).
-        JsonNode rows = readJson(request.assertionsJson(), "断言组");
+        JsonNode rows = readJson(request.assertionsJson(), "断言组", request.name());
         String violation = PromotionStepMapper.mappingViolation(rows);
         if (violation != null) {
             throw new ServiceException(violation, BizErrorCode.VALIDATION_ERROR);
@@ -111,7 +112,7 @@ public class PromotionServiceImpl implements PromotionService {
         // was human-tuned, machine-mapped) validates the promotion product under
         // the same rules a hand-edited script faces. No second writing path.
         scriptService.save(new ScriptSaveInput(created.id(), "v2",
-                wrapEnvelope(created, List.of(step)), ScriptSourceContract.GENERATED_BY_MANUAL, operatorId));
+                wrapEnvelope(created, List.of(step), request.name()), ScriptSourceContract.GENERATED_BY_MANUAL, operatorId));
 
         // Badge write-back under the race guard (0 rows = another promotion won).
         int linked = namedJdbc.update("""
@@ -120,8 +121,8 @@ public class PromotionServiceImpl implements PromotionService {
                 """, new MapSqlParameterSource()
                 .addValue("caseId", created.id()).addValue("requestId", requestId));
         if (linked == 0) {
-            throw new ServiceException("该请求已被并发升格（用例 %s），本次未重复建用例",
-                    BizErrorCode.RESOURCE_CONFLICT, caseNoOfExistingPromotion(created.id()));
+            throw new ServiceException(PromotionRefusals.concurrentPromoted(
+                    caseNoOfExistingPromotion(created.id())), BizErrorCode.RESOURCE_CONFLICT);
         }
 
         migrateLatestDebugRunVerdict(requestId, created.id());
@@ -138,8 +139,7 @@ public class PromotionServiceImpl implements PromotionService {
         // sees in the rail is literally the flow that gets promoted.
         List<ApiRequestInfo> members = apiRequestService.list(collectionId);
         if (members.isEmpty()) {
-            throw new ServiceException("集合「" + collection.name()
-                    + "」还没有请求——空流程没有可升格的内容，请先在集合内补齐请求",
+            throw new ServiceException(PromotionRefusals.emptyCollection(collection.name()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Fail-closed pre-flight over the whole flow before anything is created
@@ -151,22 +151,15 @@ public class PromotionServiceImpl implements PromotionService {
         // something else .
         for (ApiRequestInfo member : members) {
             if (member.promotedCaseId() != null) {
-                throw new ServiceException("请求「" + member.name() + "」已升格为用例 "
-                        + caseNoOfExistingPromotion(member.promotedCaseId())
-                        + "，整条流程未重复升格（如需更新用例内容请在用例侧编辑）",
-                        BizErrorCode.RESOURCE_CONFLICT);
+                throw new ServiceException(PromotionRefusals.memberAlreadyPromoted(member.name(),
+                        caseNoOfExistingPromotion(member.promotedCaseId())), BizErrorCode.RESOURCE_CONFLICT);
             }
             if (!ApiWsContract.DEFAULT_PROTOCOL.equals(member.protocol())) {
-                throw new ServiceException("请求「" + member.name() + "」是 "
-                        + member.protocol() + " 传输——脚本步骤词表无 ws 槽位，整条流程已拒升格"
-                        + "（请摘除该成员后另行升格其余链路）",
-                        BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(PromotionRefusals.memberUnsupportedProtocol(member.name(),
+                        member.protocol()), BizErrorCode.VALIDATION_ERROR);
             }
             if (hasOrchestration(member.preconditionJson()) || hasOrchestration(member.loopJson())) {
-                throw new ServiceException("请求「" + member.name()
-                        + "」带编排行（前置条件/循环）——用例侧 04 词表与此不同构"
-                        + "（无 until 停止形态、无 last_status 池通道），为避免升格后执行语义"
-                        + "失真，整条流程已拒（请摘除编排行后再升格，或保留在接口测试中运行）",
+                throw new ServiceException(PromotionRefusals.memberOrchestration(member.name()),
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -178,10 +171,10 @@ public class PromotionServiceImpl implements PromotionService {
         List<CaseStepInput> stepRows = new java.util.ArrayList<>(members.size());
         for (int i = 0; i < members.size(); i++) {
             ApiRequestInfo member = members.get(i);
-            JsonNode rows = readJson(member.assertionsJson(), "断言组");
+            JsonNode rows = readJson(member.assertionsJson(), "断言组", member.name());
             String violation = PromotionStepMapper.mappingViolation(rows);
             if (violation != null) {
-                throw new ServiceException("请求「" + member.name() + "」：" + violation,
+                throw new ServiceException(PromotionRefusals.memberAssertionViolation(member.name(), violation),
                         BizErrorCode.VALIDATION_ERROR);
             }
             PromotionStepMapping mapping = PromotionStepMapper.toStepExpect(rows);
@@ -200,7 +193,7 @@ public class PromotionServiceImpl implements PromotionService {
                 null, null, "api", null, null));
 
         scriptService.save(new ScriptSaveInput(created.id(), "v2",
-                wrapEnvelope(created, steps), ScriptSourceContract.GENERATED_BY_MANUAL, operatorId));
+                wrapEnvelope(created, steps, collection.name()), ScriptSourceContract.GENERATED_BY_MANUAL, operatorId));
 
         // Badge write-back per member under the race guard (0 rows = another
         // promotion won the row — roll the whole flow back, one honest answer).
@@ -211,9 +204,8 @@ public class PromotionServiceImpl implements PromotionService {
                     """, new MapSqlParameterSource()
                     .addValue("caseId", created.id()).addValue("requestId", member.id()));
             if (linked == 0) {
-                throw new ServiceException("请求「" + member.name() + "」已被并发升格（用例 "
-                        + caseNoOfExistingPromotion(created.id()) + "），整条流程未重复建用例",
-                        BizErrorCode.RESOURCE_CONFLICT);
+                throw new ServiceException(PromotionRefusals.memberConcurrentPromoted(member.name(),
+                        caseNoOfExistingPromotion(created.id())), BizErrorCode.RESOURCE_CONFLICT);
             }
         }
         migrateFlowRunVerdict(members, created.id());
@@ -277,7 +269,7 @@ public class PromotionServiceImpl implements PromotionService {
         step.put("method", request.method());
         step.put("url", request.urlPath());
         ObjectNode headers = MAPPER.createObjectNode();
-        JsonNode headerRows = readJson(request.headersJson(), "请求头");
+        JsonNode headerRows = readJson(request.headersJson(), "请求头", request.name());
         if (headerRows.isArray()) {
             for (JsonNode row : headerRows) {
                 String name = row.path("name").asText("");
@@ -286,7 +278,7 @@ public class PromotionServiceImpl implements PromotionService {
                 }
             }
         }
-        foldAuthIntoHeaders(request.authJson(), headers);
+        foldAuthIntoHeaders(request.authJson(), headers, request.name());
         if (!headers.isEmpty()) {
             step.set("headers", headers);
         }
@@ -309,8 +301,8 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     /** Auth folding into step headers (bearer/header first phase, same shape as api_runner._auth_headers); other types are named and refused. */
-    private void foldAuthIntoHeaders(String authJson, ObjectNode headers) {
-        JsonNode auth = readJson(authJson, "认证配置");
+    private void foldAuthIntoHeaders(String authJson, ObjectNode headers, String requestName) {
+        JsonNode auth = readJson(authJson, "认证配置", requestName);
         String type = auth.path("type").asText("").trim().toLowerCase(Locale.ROOT);
         if (type.isEmpty() || auth.isEmpty() || auth.isNull()) {
             return;
@@ -319,7 +311,7 @@ public class PromotionServiceImpl implements PromotionService {
             case "bearer" -> {
                 String token = auth.path("token").asText("").trim();
                 if (token.isEmpty()) {
-                    throw new ServiceException("bearer 认证缺少 token——请先在请求/环境档案补齐再升格",
+                    throw new ServiceException(PromotionRefusals.bearerTokenMissing(requestName),
                             BizErrorCode.VALIDATION_ERROR);
                 }
                 headers.put("Authorization", "Bearer " + toStepCredDialect(token));
@@ -327,13 +319,12 @@ public class PromotionServiceImpl implements PromotionService {
             case "header" -> {
                 String name = auth.path("name").asText("").trim();
                 if (name.isEmpty()) {
-                    throw new ServiceException("header 认证缺少头名（auth.name），无法合装入步骤请求头",
+                    throw new ServiceException(PromotionRefusals.headerNameMissing(requestName),
                             BizErrorCode.VALIDATION_ERROR);
                 }
                 headers.put(name, toStepCredDialect(auth.path("value").asText("")));
             }
-            default -> throw new ServiceException("认证类型「" + type
-                    + "」当前执行面未支持（仅 bearer / header）——为避免升格后静默降级成无认证请求，已拒",
+            default -> throw new ServiceException(PromotionRefusals.authTypeUnsupported(type, requestName),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -361,7 +352,7 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     /** Full 04 v2 envelope (version/caseId/env/steps) around the mapped step(s). */
-    private String wrapEnvelope(CaseInfo created, List<ObjectNode> steps) {
+    private String wrapEnvelope(CaseInfo created, List<ObjectNode> steps, String subjectName) {
         ObjectNode root = MAPPER.createObjectNode();
         root.put("version", ActionJsonValidator.ACTION_JSON_VERSION);
         root.put("caseId", created.caseNo());
@@ -371,7 +362,8 @@ public class PromotionServiceImpl implements PromotionService {
         try {
             return MAPPER.writeValueAsString(root);
         } catch (Exception e) {
-            throw new ServiceException("升格步骤动作 JSON 组装失败", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(PromotionRefusals.envelopeAssemblyFailed(subjectName),
+                BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -411,14 +403,15 @@ public class PromotionServiceImpl implements PromotionService {
         return collection.projectId();
     }
 
-    private JsonNode readJson(String raw, String label) {
+    private JsonNode readJson(String raw, String label, String requestName) {
         if (raw == null || raw.isBlank()) {
             return MAPPER.createObjectNode();
         }
         try {
             return MAPPER.readTree(raw);
         } catch (Exception e) {
-            throw new ServiceException(label + "不是合法 JSON", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(PromotionRefusals.invalidJson(label, requestName),
+                BizErrorCode.VALIDATION_ERROR);
         }
     }
 

@@ -169,7 +169,7 @@ class PromotionFlowServiceTest {
         assertTrue(ex.getMessage().contains("轮询订单状态"),
                 "违例须点名带编排行的请求，实际=" + ex.getMessage());
         // All-or-nothing: the refusal leaves no orphan case/script behind
-        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case", Integer.class);
+        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case WHERE project_id = " + pid, Integer.class);
         assertEquals(0, caseCount);
     }
 
@@ -220,7 +220,7 @@ class PromotionFlowServiceTest {
         assertTrue(ex.getMessage().contains(single.caseNo()),
                 "409 文案须回显已升格用例编号，实际=" + ex.getMessage());
         // No second case for the rest of the flow either
-        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case", Integer.class);
+        Integer caseCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_test_case WHERE project_id = " + pid, Integer.class);
         assertEquals(1, caseCount);
     }
 
