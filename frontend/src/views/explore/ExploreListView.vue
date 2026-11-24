@@ -401,7 +401,7 @@ async function onCancel(row: ExploreSession) {
       />
 
    
-      <el-dialog v-model="createOpen" :title="t('explore.createTitle')" width="640px" data-test="explore-create-dialog" draggable>
+      <el-dialog v-model="createOpen" :title="t('explore.createTitle')" width="640px" data-test="explore-create-dialog">
         <!-- ownership echo (iron rule 1): read-only, single-sourced from the header context -->
         <ProjectOwnerEcho />
         <el-form label-width="90px">

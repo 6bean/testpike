@@ -249,7 +249,6 @@
            duplicate disposition. Ownership echo = header context single source. -->
       <el-dialog
         v-model="dispositionVisible"
-        draggable
         :title="dispositionRow ? t('specChange.dialogTitleRow', { id: dispositionRow.id }) : t('specChange.dialogTitleBatch', { n: checkedRows.length })"
         width="520px"
         data-test="spec-change-dialog"

@@ -1,0 +1,1517 @@
+{
+ "global_defined": [
+  "filter-bar",
+  "header-actions",
+  "page-header",
+  "pagination-bar",
+  "toolbar"
+ ],
+ "pages": {
+  "src/components/AppautoEngineRerunDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/AppautoMatrixFanoutDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/ChatDock.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"String(width)\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    19
+   ],
+   [
+    "S-13",
+    "dialog form spacing is page-local zeroing instead of the theme gap token (T592: gaps ride --tp-band-gap; exempt: tp-dialog-gap-exempt + reason) L393: dialog/drawer body padding zeroed with no gap token in file (fields sit flush against blocks): ai-chat-drawer .el-drawer__body",
+    393
+   ]
+  ],
+  "src/components/ExecMonitorWindow.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"420px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    139
+   ]
+  ],
+  "src/components/ExecutorSelfCheckDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    2
+   ]
+  ],
+  "src/components/FileUploadDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/GlobalSearchDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    6
+   ]
+  ],
+  "src/components/HelpDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"72%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    7
+   ]
+  ],
+  "src/components/ImportDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/MockStubEditorDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/OnboardingOverlay.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    6
+   ]
+  ],
+  "src/components/SimilarityHintDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/components/StepTree.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    399
+   ]
+  ],
+  "src/views/ai/ExtractPreviewDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"960px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/apitest/ApiInventoryView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"72%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    286
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    390
+   ]
+  ],
+  "src/views/apitest/ApiTestView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1812
+   ]
+  ],
+  "src/views/apitest/MockStubDirectWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    210
+   ]
+  ],
+  "src/views/apitest/RunSetDetailDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    341
+   ]
+  ],
+  "src/views/apitest/SpecChangeAnalysisView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    253
+   ]
+  ],
+  "src/views/apitest/SpecImportWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"960\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    498
+   ]
+  ],
+  "src/views/appauto/AppPackageView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    137
+   ]
+  ],
+  "src/views/appauto/AppautoOnboardWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/appauto/CredentialVaultView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    164
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    249
+   ]
+  ],
+  "src/views/appauto/DeviceReservationCalendarView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    175
+   ]
+  ],
+  "src/views/appauto/DeviceWallView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    199
+   ]
+  ],
+  "src/views/appauto/ElementLibraryView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    152
+   ]
+  ],
+  "src/views/appauto/PopupRuleApprovalView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    165
+   ]
+  ],
+  "src/views/asset/AssetPoolView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    118
+   ]
+  ],
+  "src/views/batch/BatchDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    157
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    186
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    211
+   ]
+  ],
+  "src/views/batch/BatchListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    166
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    261
+   ]
+  ],
+  "src/views/case/AutoAssignDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"600px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    6
+   ]
+  ],
+  "src/views/case/CaseDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1066
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1093
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1178
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1223
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1256
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1286
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1354
+   ]
+  ],
+  "src/views/case/CaseListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    433
+   ]
+  ],
+  "src/views/case/CaseRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/case/StepReorderPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    29
+   ]
+  ],
+  "src/views/cluster/UpgradeCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    664
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    706
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    739
+   ]
+  ],
+  "src/views/datafactory/DataFactoryListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    206
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    267
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    285
+   ]
+  ],
+  "src/views/defect/DefectListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    182
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    229
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    289
+   ]
+  ],
+  "src/views/execution/ExecutionCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    305
+   ]
+  ],
+  "src/views/explore/ExploreListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    404
+   ]
+  ],
+  "src/views/knowledge/KnowledgeDocListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    132
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    216
+   ]
+  ],
+  "src/views/mcp/KnowledgeSyncDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    100
+   ]
+  ],
+  "src/views/mcp/McpServerView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    94
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    143
+   ]
+  ],
+  "src/views/mcp/McpTemplatesPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    98
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    147
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"460px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    186
+   ]
+  ],
+  "src/views/mock/MockDocsView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    276
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    310
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    361
+   ]
+  ],
+  "src/views/mock/MockInspectorView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"46%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    132
+   ]
+  ],
+  "src/views/mock/MockRecordingView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    149
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    189
+   ]
+  ],
+  "src/views/mock/MockScenarioListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    157
+   ]
+  ],
+  "src/views/mock/MockSpacesView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    197
+   ]
+  ],
+  "src/views/monitor/TargetCreateWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    347
+   ]
+  ],
+  "src/views/perf/PerfScenarioWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"1040px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    1820
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    2660
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    2725
+   ]
+  ],
+  "src/views/perf/PerfWorkbenchView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    662
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    764
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    812
+   ]
+  ],
+  "src/views/plan/PlanDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    110
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    191
+   ]
+  ],
+  "src/views/plan/PlanListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    111
+   ]
+  ],
+  "src/views/plugin/PluginDetailDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    6
+   ]
+  ],
+  "src/views/program/ProgramListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"56%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    199
+   ]
+  ],
+  "src/views/project/ArchivedProjectDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/project/ProjectDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    576
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    643
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    717
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    769
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    826
+   ]
+  ],
+  "src/views/prompt/PromptTemplateListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    171
+   ]
+  ],
+  "src/views/rbac/RoleListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    116
+   ]
+  ],
+  "src/views/report/TestReportListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    113
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    161
+   ]
+  ],
+  "src/views/report-center/ReportCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    93
+   ]
+  ],
+  "src/views/sample/TrainingSampleListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    105
+   ]
+  ],
+  "src/views/skill/ProjectMemoryPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    136
+   ]
+  ],
+  "src/views/skill/ProjectMemoryRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/skill/SkillListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    179
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    236
+   ]
+  ],
+  "src/views/skill/SkillRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    5
+   ]
+  ],
+  "src/views/suite/SuiteListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    121
+   ]
+  ],
+  "src/views/system/AuditLogView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    162
+   ]
+  ],
+  "src/views/system/ConfigListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    177
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    232
+   ]
+  ],
+  "src/views/system/DeadLetterQueueView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    269
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    281
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    301
+   ]
+  ],
+  "src/views/system/LlmConfigListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    96
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"980px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    189
+   ]
+  ],
+  "src/views/system/SchedulerHealthView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    93
+   ]
+  ],
+  "src/views/token/ApiTokenView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    73
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    154
+   ]
+  ],
+  "src/views/tool/ToolListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    185
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"860px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    303
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    441
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    465
+   ]
+  ],
+  "src/views/user/UserListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    126
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
+    179
+   ]
+  ]
+ },
+ "pending": {
+  "src/components/AppautoEngineRerunDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/AppautoMatrixFanoutDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/ChatDock.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"String(width)\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-13",
+    "dialog form spacing is page-local zeroing instead of the theme gap token (T592: gaps ride --tp-band-gap; exempt: tp-dialog-gap-exempt + reason) L393: dialog/drawer body padding zeroed with no gap token in file (fields sit flush against blocks): ai-chat-drawer .el-drawer__body"
+   ]
+  ],
+  "src/components/ExecMonitorWindow.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"420px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/ExecutorSelfCheckDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/FileUploadDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/GlobalSearchDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/HelpDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"72%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/ImportDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/MockStubEditorDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/OnboardingOverlay.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/SimilarityHintDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/components/StepTree.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/ai/ExtractPreviewDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"960px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/ApiInventoryView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"72%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/ApiTestView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/MockStubDirectWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/RunSetDetailDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/SpecChangeAnalysisView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/apitest/SpecImportWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"960\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/AppPackageView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/AppautoOnboardWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/CredentialVaultView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/DeviceReservationCalendarView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/DeviceWallView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/ElementLibraryView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/appauto/PopupRuleApprovalView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/asset/AssetPoolView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/batch/BatchDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/batch/BatchListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/case/AutoAssignDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"600px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/case/CaseDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/case/CaseListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/case/CaseRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/case/StepReorderPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/cluster/UpgradeCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/datafactory/DataFactoryListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/defect/DefectListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/execution/ExecutionCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/explore/ExploreListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/knowledge/KnowledgeDocListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mcp/KnowledgeSyncDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"880px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mcp/McpServerView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mcp/McpTemplatesPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"460px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mock/MockDocsView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mock/MockInspectorView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"46%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mock/MockRecordingView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mock/MockScenarioListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/mock/MockSpacesView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"900px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/monitor/TargetCreateWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/perf/PerfScenarioWizard.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"1040px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/perf/PerfWorkbenchView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/plan/PlanDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/plan/PlanListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/plugin/PluginDetailDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/program/ProgramListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"56%\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/project/ArchivedProjectDialog.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/project/ProjectDetailView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/prompt/PromptTemplateListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"680px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/rbac/RoleListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"760px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/report/TestReportListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/report-center/ReportCenterView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/sample/TrainingSampleListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/skill/ProjectMemoryPanel.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/skill/ProjectMemoryRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/skill/SkillListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"620px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/skill/SkillRecycleDrawer.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/suite/SuiteListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/system/AuditLogView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"800px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/system/ConfigListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/system/DeadLetterQueueView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/system/LlmConfigListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"980px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/system/SchedulerHealthView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/token/ApiTokenView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/tool/ToolListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"860px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ],
+  "src/views/user/UserListView.vue": [
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ],
+   [
+    "S-14",
+    "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
+   ]
+  ]
+ },
+ "rules": {},
+ "pages_new": {},
+ "new_violations": 0,
+ "pending_count": 122,
+ "fb3_merge_candidates": {},
+ "fb4_touch_reconcile": {
+  "armed": true,
+  "touched": [
+   "docs/.ui-audit-struct.json"
+  ],
+  "violations": [],
+  "deferred": [],
+  "touch_source": "git-diff-auto"
+ },
+ "s9_detail": {
+  "src/views/batch/BatchListView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": false,
+   "mode1_declared": false,
+   "absent_panes": [
+    "fires"
+   ]
+  },
+  "src/views/case/CaseListView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": false,
+   "mode1_declared": false,
+   "absent_panes": [
+    "suites"
+   ]
+  },
+  "src/views/cluster/UpgradeCenterView.vue": {
+   "hits": [],
+   "risky_panes": 4,
+   "exempt_file": true,
+   "mode1_declared": false,
+   "exempt_panes": [
+    "manifest",
+    "plans",
+    "matrix",
+    "insight"
+   ]
+  },
+  "src/views/execution/ExecutionCenterView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": false,
+   "mode1_declared": false,
+   "absent_panes": [
+    "process"
+   ]
+  },
+  "src/views/program/ProgramListView.vue": {
+   "hits": [],
+   "risky_panes": 2,
+   "exempt_file": true,
+   "mode1_declared": false,
+   "exempt_panes": [
+    "projects",
+    "members"
+   ]
+  },
+  "src/views/skill/SkillListView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": false,
+   "mode1_declared": false,
+   "absent_panes": [
+    "market"
+   ]
+  },
+  "src/views/tag/TagListView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": true,
+   "mode1_declared": true,
+   "fixed_view_panes": [
+    "stats"
+   ]
+  },
+  "src/views/tool/ToolListView.vue": {
+   "hits": [],
+   "risky_panes": 1,
+   "exempt_file": false,
+   "mode1_declared": false,
+   "absent_panes": [
+    "market"
+   ]
+  }
+ },
+ "s12_detail": {},
+ "s13_detail": {
+  "src/components/ChatDock.vue": [
+   {
+    "line": 393,
+    "detail": "dialog/drawer body padding zeroed with no gap token in file (fields sit flush against blocks): ai-chat-drawer .el-drawer__body"
+   }
+  ]
+ },
+ "se1_detail": {}
+}

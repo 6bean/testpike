@@ -156,12 +156,12 @@ class DocExtractReconcileTest {
                 eq(DOC_ID), eq(TOKEN), codes.capture(), labels.capture());
         java.util.List<String> landed = codes.getAllValues();
         assertTrue(landed.contains("start"), landed + " 缺提取启动行");
-        assertTrue(landed.contains("bucket-1"), landed + " 缺最终桶行");
-        assertTrue(landed.contains("reconcile-1"), landed + " 缺复核轮行");
-        assertTrue(labels.getAllValues().contains("最终桶 1/1"),
-                "桶行标签点名 j/m: " + labels.getAllValues());
-        assertTrue(labels.getAllValues().stream().anyMatch(l -> l.startsWith("复核轮 1/")),
-                "复核轮标签点名轮次与总数: " + labels.getAllValues());
+        assertTrue(landed.contains("bucket-1"), landed + " 缺归并结果行");
+        assertTrue(landed.contains("reconcile-1"), landed + " 缺完整性复核行");
+        assertTrue(labels.getAllValues().stream().anyMatch(l -> l.startsWith("归并结果 1/1")),
+                "归并结果标签点名 j/m: " + labels.getAllValues());
+        assertTrue(labels.getAllValues().stream().anyMatch(l -> l.startsWith("完整性复核 1/")),
+                "完整性复核标签点名轮次与总数: " + labels.getAllValues());
     }
 
     @Test

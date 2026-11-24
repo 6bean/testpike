@@ -281,9 +281,23 @@ def count_legacy_ident_names(root: str) -> int:
     return n
 
 
-W6_ZH = ["人话", "拒件", "单源", "棘轮", "落章", "出账", "收口", "裁决"]
+W6_ZH = ["人话", "拒件", "单源", "棘轮", "落章", "出账", "收口", "裁决",
+         # Internal engineering wording that leaked onto progress events:
+         # only words with no legitimate on-screen product meaning join this
+         # global family. Contract, dispatch and cursor stay out = established
+         # terms in the contract-testing and task-dispatch features; their
+         # misuse inside progress-event frames is policed by one wording guard
+         # fixture (core ProcessEventWordingGuardTest) instead of this family.
+         "封账", "派发门",
+         # The process drawer is titled "process detail" on screen; this internal
+         # shortname has no legitimate on-screen use. Joined after the seeded
+         # help chapters were rewritten. The truncation phrase for tool output
+         # ("head and tail window") is a different concept and never matches
+         # this longer entry.
+         "尾窗子窗"]
 W6_EN = [r"plain[- ]language", r"plain[- ]word", r"plain words", r"single source",
-         r"adjudicat\w*", r"final(?:ly)? judged[^']{0,30}server"]
+         r"adjudicat\w*", r"final(?:ly)? judged[^']{0,30}server",
+         r"dispatch door", r"tail follows?"]
 
 
 def _w6_line_ok(line: str) -> bool:

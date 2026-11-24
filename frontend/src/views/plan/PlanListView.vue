@@ -108,7 +108,7 @@
       </div>
 
    
-      <el-dialog draggable v-model="wizardVisible" :title="t('plan.createTitle')" width="640px" :before-close="wizardDraftGuard.beforeClose" data-test="plan-wizard-dialog">
+      <el-dialog v-model="wizardVisible" :title="t('plan.createTitle')" width="640px" :before-close="wizardDraftGuard.beforeClose" data-test="plan-wizard-dialog">
         <!-- ownership echo (iron rule 1): read-only, single-sourced from the
  header project context - the record lands on the visible segment -->
         <ProjectOwnerEcho />

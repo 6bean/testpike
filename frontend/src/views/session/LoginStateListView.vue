@@ -151,7 +151,6 @@
 
       <!-- "test now": session replay against one origin, tail-visible trail -->
       <el-dialog
-        draggable
         v-model="probeVisible"
         :title="t('sessionState.probeTitle', { name: probeRow?.stateName || '' })"
         class="tp-dialog--lg"
@@ -210,7 +209,7 @@
            starts it blank, edit prefills every field from the row. The
            secret slot is write-only in both modes: edit never echoes the
            stored value back, a blank save keeps the vault ciphertext. -->
-      <el-dialog draggable v-model="createVisible"
+      <el-dialog v-model="createVisible"
         :title="editingId === null ? t('sessionState.createTitle') : t('sessionState.editTitle', { name: editingName })"
         class="tp-dialog--lg" append-to-body
         :data-test="editingId === null ? 'login-state-create-dialog' : 'login-state-edit-dialog'">

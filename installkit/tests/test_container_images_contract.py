@@ -78,7 +78,7 @@ def test_frontend_dockerfile_builds_and_serves_via_nginx():
     assert "npm ci" in text, "clean install from the lockfile, not npm install"
     assert "vite build" in text or "npm run build" in text
     assert "nginx" in text, "runtime stage must be nginx (SPA + reverse proxy)"
-    assert "COPY .*\.env" not in text.replace("\\", "") or ".env" not in text
+    assert r"COPY .*\.env" not in text.replace("\\", "") or ".env" not in text
 
 
 def test_nginx_template_proxies_api_and_open_homes():

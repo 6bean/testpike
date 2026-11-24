@@ -159,7 +159,6 @@
 
       
       <el-dialog
-        draggable
         v-model="testVisible"
         :title="t('appauto.credential.testTitle', { name: testRow?.name || '' })"
         width="640px"
@@ -246,7 +245,6 @@
       
       <el-dialog
         v-model="dialogVisible"
-        draggable
         :title="editing ? t('appauto.credential.editTitle') : t('appauto.credential.createTitle')"
         width="520px"
         data-test="credential-dialog"

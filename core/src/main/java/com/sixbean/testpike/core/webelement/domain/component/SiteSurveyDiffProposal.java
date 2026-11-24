@@ -45,7 +45,7 @@ public class SiteSurveyDiffProposal {
                 new MapSqlParameterSource("runId", runId).addValue("profileId", profileId));
         if (current.isEmpty()) {
             throw new ServiceException(
-                    "该测绘记录不属于这个站点档案（或记录过旧，尚未包含逐页入账明细），"
+                    "该测绘记录不属于这个站点档案（或记录过旧，尚未包含逐页采集明细），"
                             + "无法生成差异复核提案。请从「站点档案」抽屉的测绘记录清单"
                             + "中选择本次档案下的一条测绘记录；旧记录可重新发起一次整站测绘。",
                     BizErrorCode.NOT_FOUND);

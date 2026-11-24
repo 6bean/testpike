@@ -1,5 +1,5 @@
 <template>
-  <el-dialog draggable
+  <el-dialog
     :model-value="modelValue"
     :title="t('archivedProject.title')"
     width="800px"

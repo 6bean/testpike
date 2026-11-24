@@ -85,12 +85,16 @@ public class DataFactoryWriteDraftStrategy implements DraftWriteStrategy {
         String content = body.path("content").asText("").trim();
         if (name == null) {
             throw new ServiceException(
-                    "AI 造数脚本草案缺少脚本名称，无法保存（请重新让 AI 生成提案）",
+                    "AI 造数脚本草案缺少脚本名称（草案载荷 name 为空），无法保存"
+                            + "——请在右侧对话坞重新让 AI 生成带名称的造数脚本提案，本卡无需再确认；"
+                            + "也可在左侧菜单「自动造数」页直接新建脚本",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (content.isEmpty()) {
             throw new ServiceException(
-                    "AI 造数脚本草案缺少脚本内容，无法保存（请重新让 AI 生成提案）",
+                    "AI 造数脚本草案缺少脚本内容（草案载荷 content 为空），无法保存"
+                            + "——请在右侧对话坞重新让 AI 生成含脚本内容的提案，本卡无需再确认；"
+                            + "也可在左侧菜单「自动造数」页新建脚本时填写内容",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The type/env/pool-key legality spectrum is NOT re-decided here —
@@ -114,14 +118,20 @@ public class DataFactoryWriteDraftStrategy implements DraftWriteStrategy {
     private Integer landEdit(long projectId, JsonNode body, long factoryId, long operatorId) {
         var current = dataFactoryService.get(operatorId, factoryId);
         if (current.projectId() != projectId) {
-            throw new ServiceException("该草案指向的造数脚本不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException(
+                    "该草案指向的造数脚本（脚本 #" + factoryId + "，归属项目 #" + current.projectId()
+                            + "）不属于当前会话所在项目（#" + projectId + "），确认写入已拒绝"
+                            + "——请先在顶栏「选择项目」切换到该项目，"
+                            + "再回到右侧对话坞重新生成提案或直接进入左侧菜单「自动造数」页编辑该脚本",
                     BizErrorCode.FORBIDDEN);
         }
         Integer status = body.hasNonNull("status") && body.get("status").isNumber()
                 ? body.get("status").asInt() : null;
         if (status != null && status != 1 && status != 2) {
             throw new ServiceException(
-                    "AI 造数脚本草案的启停状态不合法（1=启用 2=停用），本次编辑未写入（请重新让 AI 生成提案）",
+                    "AI 造数脚本草案的启停状态不合法（草案载荷 status=" + status + "，仅允许 1=启用 2=停用），本次编辑未写入"
+                            + "——本卡请勿再确认，请在右侧对话坞重新让 AI 生成启停值为 1 或 2 的提案；"
+                            + "也可在左侧菜单「自动造数」页打开该脚本的编辑弹窗修改启停状态",
                     BizErrorCode.VALIDATION_ERROR);
         }
         dataFactoryService.update(operatorId, factoryId, new DataFactoryUpdateInput(

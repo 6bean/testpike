@@ -67,7 +67,9 @@ public class ChatShareServiceImpl implements ChatShareService {
         sessionService.requireOwned(sessionId, userId);
         ChatExportView frozen = exportService.renderMarkdown(userId, sessionId);
         if (frozen.turnCount() == 0) {
-            throw new ServiceException("这段对话还没有问答内容，聊几句后再分享",
+            throw new ServiceException("这段对话还没有问答内容，暂时无法生成分享——"
+                            + "请先在右侧对话坞发出第一个问题并等回答完成，再点「生成链接」"
+                            + "（入口：对话坞 → 「生成只读分享链接」面板）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         LocalDateTime expiresAt = LocalDateTime.now()
@@ -123,7 +125,10 @@ public class ChatShareServiceImpl implements ChatShareService {
     public ChatShareInfo revoke(long userId, long shareId) {
         ChatShareRow row = requireRow(shareId);
         if (row.getOwnerUserId() != userId) {
-            throw new ServiceException("该分享链接不属于当前用户，已拒绝操作",
+            throw new ServiceException("分享记录（编号 " + shareId
+                    + "）不是当前用户创建的，撤回已拒绝——只有分享者本人能撤回；"
+                    + "请打开右侧对话坞的分享面板核对自己的记录编号（入口：对话坞 → 「生成只读分享链接」面板），"
+                    + "再点击对应行的「撤回链接」",
                     BizErrorCode.FORBIDDEN);
         }
         if (row.getRevoked() == 0) {
@@ -153,7 +158,10 @@ public class ChatShareServiceImpl implements ChatShareService {
                     new MapSqlParameterSource("id", shareId),
                     new BeanPropertyRowMapper<>(ChatShareRow.class));
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
-            throw new ServiceException("分享链接不存在或已过期", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("没有编号为 " + shareId
+                    + " 的分享记录（可能已到期并被自动清理）——请在右侧对话坞的分享面板查看现存记录"
+                    + "（入口：对话坞 → 「生成只读分享链接」面板），以列表为准点击对应行的「撤回链接」",
+                    BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -163,7 +171,11 @@ public class ChatShareServiceImpl implements ChatShareService {
         try {
             return UUID.fromString(shareToken == null ? "" : shareToken.trim());
         } catch (IllegalArgumentException e) {
-            throw new ServiceException("分享链接格式不正确", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("分享链接末尾的编号不是有效的 36 位链接编号（收到 "
+                    + (shareToken == null ? 0 : shareToken.trim().length()) + " 个字符），无法打开——"
+                    + "请让分享者重新生成链接后从「复制链接」获取完整地址"
+                    + "（分享者入口：对话坞 → 「生成只读分享链接」面板 → 「生成链接」）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

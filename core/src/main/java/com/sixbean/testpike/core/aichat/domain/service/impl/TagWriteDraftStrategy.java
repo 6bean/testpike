@@ -82,7 +82,8 @@ public class TagWriteDraftStrategy implements DraftWriteStrategy {
     private Integer landCreate(long draftId, long projectId, JsonNode body, long operatorId) {
         String name = DraftPayloadReads.text(body, "name");
         if (name == null || name.isBlank()) {
-            throw new ServiceException("AI 标签草案缺少标签名，无法创建标签（请重新让 AI 生成提案）",
+            throw new ServiceException("标签草案缺少「标签名」（name 为空），无法创建标签——"
+                    + "请在对话里补充名称（示例「回归冒烟」），系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Integer type = body.hasNonNull("type") && body.get("type").isNumber()
@@ -98,7 +99,8 @@ public class TagWriteDraftStrategy implements DraftWriteStrategy {
         requireSameProject(tagId, projectId);
         String newName = DraftPayloadReads.text(body, "newName");
         if (newName == null || newName.isBlank()) {
-            throw new ServiceException("AI 标签草案缺少新名称，改名未执行（请重新让 AI 生成提案）",
+            throw new ServiceException("标签草案缺少「新名称」（newName 为空），改名未执行——"
+                    + "请在对话里给出目标名称（示例「性能基线」），系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         tagService.rename(operatorId, tagId, new TagRenameInput(newName.trim()));
@@ -113,11 +115,14 @@ public class TagWriteDraftStrategy implements DraftWriteStrategy {
         Object rowTarget = draftRow.get("target_id");
         long anchored = rowTarget == null ? 0L : ((Number) rowTarget).longValue();
         if (anchored > 0 && anchored != fromTagId) {
-            throw new ServiceException("AI 标签草案的目标标签与登记锚不一致，合并未执行",
+            throw new ServiceException("草案的「源标签」（编号 " + fromTagId + "）与登记的「目标标签」（编号 "
+                    + anchored + "）不是同一个，合并未执行——本次提案已失效，"
+                    + "请在右侧对话坞重新要求合并标签并立即接受（入口：对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (toTagId <= 0) {
-            throw new ServiceException("AI 标签草案缺少合并目标标签，合并未执行（请重新让 AI 生成提案）",
+            throw new ServiceException("标签草案缺少「合并目标」（toTagId 为空），合并未执行——"
+                    + "请在对话里指明并入哪个标签（示例「把标签A并入标签B」），系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         requireSameProject(fromTagId, projectId);
@@ -130,7 +135,9 @@ public class TagWriteDraftStrategy implements DraftWriteStrategy {
     private void requireSameProject(long tagId, long projectId) {
         TagInfo tag = tagService.get(tagId);
         if (tag.projectId() != projectId) {
-            throw new ServiceException("该草案指向的标签不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("草案指向的标签「" + tagId + "」不属于当前会话所在项目（项目「"
+                    + projectId + "」），确认写入已拒绝——"
+                    + "请通过顶栏「选择项目」切到该标签所在项目，或在当前项目让 AI 重新创建标签",
                     BizErrorCode.FORBIDDEN);
         }
     }

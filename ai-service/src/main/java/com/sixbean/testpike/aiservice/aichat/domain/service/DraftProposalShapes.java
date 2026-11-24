@@ -759,7 +759,7 @@ final class DraftProposalShapes {
         String goalShown = goal.length() > 60 ? goal.substring(0, 60) + "…" : goal;
         return new WriteProposal(toolName, "EXPLORE_CREATE",
                 "发起自主探索：「" + goalShown + "」（起点 " + startUrl
-                        + "；确认后走探索页同一创建链——预算熔断、目标字数上限、起始地址合规底线"
+                        + "；确认后走探索页同一创建链——达到上限自动停止、目标字数上限、起始地址合规底线"
                         + "（内网与元数据地址会被拒绝）与移动形态环境白名单照常在创建时复核，"
                         + "不通过会被拒绝并提示原因；归属项目取当前会话项目，载荷无法指向其他项目；"
                         + "确认即开始探索并占用项目 AI 预算，探索可在探索页随时取消）",

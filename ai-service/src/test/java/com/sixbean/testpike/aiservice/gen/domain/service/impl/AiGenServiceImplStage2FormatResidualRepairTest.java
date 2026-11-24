@@ -172,7 +172,7 @@ class AiGenServiceImplStage2FormatResidualRepairTest {
         stubRouting("0");
         ServiceException hardFail = assertThrows(ServiceException.class,
                 () -> service().generate(message()));
-        assertTrue(hardFail.getMessage().contains("推理确认环"), hardFail.getMessage());
+        assertTrue(hardFail.getMessage().contains("未完成核验项"), hardFail.getMessage());
         assertEquals(BizErrorCode.AI_FORMAT_ERROR, hardFail.getCode());
         assertEquals(0, stage2RepairCalls.size(), "budget 0 = the repair never rides the wire");
     }

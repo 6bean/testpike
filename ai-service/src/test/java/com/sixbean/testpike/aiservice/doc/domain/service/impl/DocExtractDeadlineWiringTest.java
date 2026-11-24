@@ -92,9 +92,9 @@ class DocExtractDeadlineWiringTest {
                 Map.of("seq", 1, "chapter", "登录", "content", "账号密码正确可登录。")));
         when(llmChain.chatStreamHandle(any(), eq(PROJECT_ID), any(LlmFallbackNotice.class),
                 any(), any()))
-                .thenThrow(new ServiceException("需求点提取超出时长预算，请重试", BizErrorCode.AI_TIMEOUT));
+                .thenThrow(new ServiceException("需求点提取超出时长上限，请重试", BizErrorCode.AI_TIMEOUT));
         when(llmChain.chat(any(), eq(PROJECT_ID), any(LlmFallbackNotice.class), anyBoolean(), any()))
-                .thenThrow(new ServiceException("需求点提取超出时长预算，请重试", BizErrorCode.AI_TIMEOUT));
+                .thenThrow(new ServiceException("需求点提取超出时长上限，请重试", BizErrorCode.AI_TIMEOUT));
 
         assertThrows(ServiceException.class,
                 () -> service.extract(new AiDocExtractMessage(DOC_ID, PROJECT_ID, 11L, null, TOKEN)));

@@ -1,0 +1,234 @@
+{
+ "src/components/AppautoEngineRerunDialog.vue": [
+  "S-14"
+ ],
+ "src/components/AppautoMatrixFanoutDialog.vue": [
+  "S-14"
+ ],
+ "src/components/ChatDock.vue": [
+  "S-13",
+  "S-14"
+ ],
+ "src/components/ExecMonitorWindow.vue": [
+  "S-14"
+ ],
+ "src/components/ExecutorSelfCheckDrawer.vue": [
+  "S-14"
+ ],
+ "src/components/FileUploadDialog.vue": [
+  "S-14"
+ ],
+ "src/components/GlobalSearchDialog.vue": [
+  "S-14"
+ ],
+ "src/components/HelpDrawer.vue": [
+  "S-14"
+ ],
+ "src/components/ImportDialog.vue": [
+  "S-14"
+ ],
+ "src/components/MockStubEditorDrawer.vue": [
+  "S-14"
+ ],
+ "src/components/OnboardingOverlay.vue": [
+  "S-14"
+ ],
+ "src/components/SimilarityHintDialog.vue": [
+  "S-14"
+ ],
+ "src/components/StepTree.vue": [
+  "S-14"
+ ],
+ "src/views/ai/ExtractPreviewDialog.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/ApiInventoryView.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/ApiTestView.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/MockStubDirectWizard.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/RunSetDetailDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/SpecChangeAnalysisView.vue": [
+  "S-14"
+ ],
+ "src/views/apitest/SpecImportWizard.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/AppPackageView.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/AppautoOnboardWizard.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/CredentialVaultView.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/DeviceReservationCalendarView.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/DeviceWallView.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/ElementLibraryView.vue": [
+  "S-14"
+ ],
+ "src/views/appauto/PopupRuleApprovalView.vue": [
+  "S-14"
+ ],
+ "src/views/asset/AssetPoolView.vue": [
+  "S-14"
+ ],
+ "src/views/batch/BatchDetailView.vue": [
+  "S-14"
+ ],
+ "src/views/batch/BatchListView.vue": [
+  "S-14"
+ ],
+ "src/views/case/AutoAssignDialog.vue": [
+  "S-14"
+ ],
+ "src/views/case/CaseDetailView.vue": [
+  "S-14"
+ ],
+ "src/views/case/CaseListView.vue": [
+  "S-14"
+ ],
+ "src/views/case/CaseRecycleDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/case/StepReorderPanel.vue": [
+  "S-14"
+ ],
+ "src/views/cluster/UpgradeCenterView.vue": [
+  "S-14"
+ ],
+ "src/views/datafactory/DataFactoryListView.vue": [
+  "S-14"
+ ],
+ "src/views/defect/DefectListView.vue": [
+  "S-14"
+ ],
+ "src/views/execution/ExecutionCenterView.vue": [
+  "S-14"
+ ],
+ "src/views/explore/ExploreListView.vue": [
+  "S-14"
+ ],
+ "src/views/knowledge/KnowledgeDocListView.vue": [
+  "S-14"
+ ],
+ "src/views/mcp/KnowledgeSyncDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/mcp/McpServerView.vue": [
+  "S-14"
+ ],
+ "src/views/mcp/McpTemplatesPanel.vue": [
+  "S-14"
+ ],
+ "src/views/mock/MockDocsView.vue": [
+  "S-14"
+ ],
+ "src/views/mock/MockInspectorView.vue": [
+  "S-14"
+ ],
+ "src/views/mock/MockRecordingView.vue": [
+  "S-14"
+ ],
+ "src/views/mock/MockScenarioListView.vue": [
+  "S-14"
+ ],
+ "src/views/mock/MockSpacesView.vue": [
+  "S-14"
+ ],
+ "src/views/monitor/TargetCreateWizard.vue": [
+  "S-14"
+ ],
+ "src/views/perf/PerfScenarioWizard.vue": [
+  "S-14"
+ ],
+ "src/views/perf/PerfWorkbenchView.vue": [
+  "S-14"
+ ],
+ "src/views/plan/PlanDetailView.vue": [
+  "S-14"
+ ],
+ "src/views/plan/PlanListView.vue": [
+  "S-14"
+ ],
+ "src/views/plugin/PluginDetailDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/program/ProgramListView.vue": [
+  "S-14"
+ ],
+ "src/views/project/ArchivedProjectDialog.vue": [
+  "S-14"
+ ],
+ "src/views/project/ProjectDetailView.vue": [
+  "S-14"
+ ],
+ "src/views/prompt/PromptTemplateListView.vue": [
+  "S-14"
+ ],
+ "src/views/rbac/RoleListView.vue": [
+  "S-14"
+ ],
+ "src/views/report-center/ReportCenterView.vue": [
+  "S-14"
+ ],
+ "src/views/report/TestReportListView.vue": [
+  "S-14"
+ ],
+ "src/views/requirement/RequirementListView.vue": [
+  "S-14"
+ ],
+ "src/views/sample/TrainingSampleListView.vue": [
+  "S-14"
+ ],
+ "src/views/skill/ProjectMemoryPanel.vue": [
+  "S-14"
+ ],
+ "src/views/skill/ProjectMemoryRecycleDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/skill/SkillListView.vue": [
+  "S-14"
+ ],
+ "src/views/skill/SkillRecycleDrawer.vue": [
+  "S-14"
+ ],
+ "src/views/suite/SuiteListView.vue": [
+  "S-14"
+ ],
+ "src/views/system/AuditLogView.vue": [
+  "S-14"
+ ],
+ "src/views/system/ConfigListView.vue": [
+  "S-14"
+ ],
+ "src/views/system/DeadLetterQueueView.vue": [
+  "S-14"
+ ],
+ "src/views/system/LlmConfigListView.vue": [
+  "S-14"
+ ],
+ "src/views/system/SchedulerHealthView.vue": [
+  "S-14"
+ ],
+ "src/views/token/ApiTokenView.vue": [
+  "S-14"
+ ],
+ "src/views/tool/ToolListView.vue": [
+  "S-14"
+ ],
+ "src/views/user/UserListView.vue": [
+  "S-14"
+ ]
+}

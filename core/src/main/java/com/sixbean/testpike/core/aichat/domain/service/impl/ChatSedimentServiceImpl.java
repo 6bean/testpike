@@ -59,7 +59,8 @@ public class ChatSedimentServiceImpl implements ChatSedimentService {
 
         // An empty dialog must not become a header-only shell document.
         if (export.turnCount() == 0) {
-            throw new ServiceException("这段对话还没有问答内容，先聊几句再存为知识",
+            throw new ServiceException("这段对话还没有问答内容，请先在下方输入框发出至少一问并收到回答，"
+                    + "再点击「把本对话存为知识文档，供检索与生成参考」重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
 
@@ -72,8 +73,9 @@ public class ChatSedimentServiceImpl implements ChatSedimentService {
             // speaks in file terms, which would confuse a dialog user, so the
             // 409 is re-phrased with the dialog context before it rides out.
             if (Integer.valueOf(BizErrorCode.RESOURCE_CONFLICT).equals(e.getCode())) {
-                throw new ServiceException("这段对话刚才已经存过知识了（内容相同："
-                        + displayOf(export.filename()) + "），继续聊出新内容后再存",
+                throw new ServiceException("这段对话刚才已经存过知识了（内容相同：「"
+                        + displayOf(export.filename()) + "」），请继续聊出新内容后"
+                        + "再点击「把本对话存为知识文档，供检索与生成参考」重新保存",
                         BizErrorCode.RESOURCE_CONFLICT);
             }
             throw e;
@@ -82,7 +84,10 @@ public class ChatSedimentServiceImpl implements ChatSedimentService {
         // Parsing failed inside the sync pipeline (status=2): the document row
         // exists but is unsearchable — tell the user why instead of claiming success.
         if (doc.status() != 1) {
-            throw new ServiceException("对话内容未能解析成知识片段：" + doc.errorMsg(),
+            throw new ServiceException("对话内容未能解析成知识片段："
+                    + (doc.errorMsg() == null ? "未记录具体原因" : doc.errorMsg())
+                    + "；请按该原因调整对话内容后，再点击「把本对话存为知识文档，供检索与生成参考」"
+                    + "重新保存（本次失败文档「" + doc.name() + "」可在「需求提取」页查看处置）",
                     BizErrorCode.VALIDATION_ERROR);
         }
 

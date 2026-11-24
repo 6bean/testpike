@@ -50,6 +50,19 @@ public final class CoreStubHttp {
         return new LlmFunctionCalling(new CoreGateway(baseUrl(server)), new ObjectMapper());
     }
 
+    /**
+     * Stub handler replaying the production "config absent" answer: HTTP 200 with
+     * a JSON success envelope carrying null data. Registered on the doors the LLM
+     * router and the prompt-template reader poll when a deployment has no project
+     * model config and no published behaviour directives. An unregistered path is
+     * answered by the JDK server with an HTML 404 page, which the gateway can
+     * classify as a read-path outage — the caller then logs a fallback warning on
+     * every single call (test-noise family booked under the zero-leftover rule).
+     */
+    public static void respondAbsentConfig(HttpExchange exchange) throws IOException {
+        respondRawJson(exchange, "{\"code\":\"0\",\"msg\":\"ok\",\"data\":null}");
+    }
+
     /** Writes a raw JSON body back with an application/json header and HTTP 200. */
     public static void respondRawJson(HttpExchange exchange, String body) throws IOException {
         byte[] resp = body.getBytes(StandardCharsets.UTF_8);

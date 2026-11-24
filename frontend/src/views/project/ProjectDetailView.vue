@@ -540,7 +540,7 @@
     </el-tabs>
 
     
-    <el-dialog draggable v-model="envDialogVisible" :title="envEditing ? t('project.editEnv') : t('project.addEnv')" width="480px" destroy-on-close data-test="env-dialog">
+    <el-dialog v-model="envDialogVisible" :title="envEditing ? t('project.editEnv') : t('project.addEnv')" width="480px" destroy-on-close data-test="env-dialog">
       <el-form ref="envFormRef" :model="envForm" :rules="envRules" label-width="90px" scroll-to-error>
         <el-form-item :label="t('project.envName')" prop="name">
           <el-input v-model="envForm.name" :placeholder="t('project.envNamePlaceholder')" data-test="env-name-input" />
@@ -570,7 +570,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="paramsDialogVisible"
       :title="t('project.envParamsTitle', { name: paramsTarget?.name || '' })"
       width="640px"
@@ -640,7 +640,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="deployDialogVisible" :title="t('project.deployRecordTitle')" width="640px" destroy-on-close data-test="deploy-dialog">
+    <el-dialog v-model="deployDialogVisible" :title="t('project.deployRecordTitle')" width="640px" destroy-on-close data-test="deploy-dialog">
       <div class="deploy-env-name">
         {{ deployEnvName }}
         <el-tag v-if="deployMap[deployTarget?.id ?? -1]?.deployedVersion" size="small" type="info" data-test="deploy-current-version">
@@ -680,7 +680,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="memberDialogVisible" :title="t('project.addMember')" width="480px" destroy-on-close data-test="member-dialog">
+    <el-dialog v-model="memberDialogVisible" :title="t('project.addMember')" width="480px" destroy-on-close data-test="member-dialog">
       <el-form ref="memberFormRef" :model="memberForm" :rules="memberRules" label-width="90px" scroll-to-error>
         <el-form-item :label="t('project.memberUser')" prop="userId">
           <el-select
@@ -712,7 +712,6 @@
 
     
     <el-dialog
-      draggable
       v-model="pluginApplyVisible"
       :title="t('project.pluginApplyBtn')"
       width="640px"

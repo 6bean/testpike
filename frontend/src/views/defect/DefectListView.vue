@@ -179,7 +179,7 @@
       </div>
 
    
-      <el-dialog draggable v-model="createVisible" :title="t('defect.createTitle')" width="640px" :before-close="defectCreateGuard.beforeClose" data-test="defect-create-dialog">
+      <el-dialog v-model="createVisible" :title="t('defect.createTitle')" width="640px" :before-close="defectCreateGuard.beforeClose" data-test="defect-create-dialog">
         <!-- ownership echo (iron rule 1): read-only, single-sourced from the
  header project context - the record lands on the visible segment -->
         <ProjectOwnerEcho />
@@ -226,7 +226,7 @@
       </el-dialog>
 
    
-      <el-dialog draggable v-model="editVisible" :title="t('defect.editTitle')" width="640px" :before-close="defectEditGuard.beforeClose" data-test="defect-edit-dialog">
+      <el-dialog v-model="editVisible" :title="t('defect.editTitle')" width="640px" :before-close="defectEditGuard.beforeClose" data-test="defect-edit-dialog">
         <el-form ref="editFormRef" :model="editForm" :rules="rules" label-width="110px" class="defect-form" scroll-to-error>
           <el-form-item :label="t('defect.title')" prop="title">
             <el-input v-model="editForm.title" :maxlength="200" data-test="defect-edit-title" />
@@ -260,7 +260,7 @@
       </el-dialog>
 
       
-      <el-dialog draggable v-model="transitionVisible" :title="t('defect.transitionTitle')" width="480px" destroy-on-close>
+      <el-dialog v-model="transitionVisible" :title="t('defect.transitionTitle')" width="480px" destroy-on-close>
         <div class="transition-row">
           <span class="label">{{ t('defect.targetStatus') }}：</span>
           <el-select v-model="transitionTarget" style="width: 220px" data-test="defect-transition-select"

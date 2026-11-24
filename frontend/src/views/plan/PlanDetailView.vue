@@ -107,7 +107,7 @@
       </el-card>
 
       
-      <el-dialog draggable v-model="registerVisible" :title="t('plan.registerDeviation')" width="640px" destroy-on-close>
+      <el-dialog v-model="registerVisible" :title="t('plan.registerDeviation')" width="640px" destroy-on-close>
         <el-form label-width="96px">
           <el-form-item :label="t('plan.devType')" required>
             <!-- id="" prevents the form label for= from targeting the non-labelable radiogroup div -->
@@ -188,7 +188,7 @@
       </el-card>
 
       
-      <el-dialog draggable v-model="assignVisible" :title="t('plan.assignTitle')" width="640px" destroy-on-close>
+      <el-dialog v-model="assignVisible" :title="t('plan.assignTitle')" width="640px" destroy-on-close>
         <div class="assign-row">
           <span class="label">{{ t('plan.assignee') }}：</span>
           <el-select v-model="assigneeId" filterable style="width: 220px" data-test="plan-assign-select" :placeholder="t('plan.assigneePlaceholder')">

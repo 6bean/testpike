@@ -69,7 +69,7 @@ class DeadLetterStockMigratorTest {
     void peeksEveryMessageWithoutAckingAndCountsNewAndDuplicateBookings() throws Exception {
         queueHolds(2, 2);
         when(channel.basicGet(anyString(), anyBoolean()))
-                .thenReturn(response(1, "m-a", "{\"i\":1}"), response(2, "m-b", "{\"i\":2}"), null);
+                .thenReturn(response(1, "m-a", "{\"i\":1}"), response(2, "m-b", "{\"i\":2}"), (GetResponse) null);
         when(ledgerService.record(any())).thenReturn(Optional.of(1L), Optional.empty());
 
         DeadLetterStockTally tally = new DeadLetterStockMigrator(connection, booker)
@@ -92,7 +92,7 @@ class DeadLetterStockMigratorTest {
     void bookingFailureMarksTheQueueRedAndKeepsTheMessageOnTheDlq() throws Exception {
         queueHolds(1, 1);
         when(channel.basicGet(anyString(), anyBoolean()))
-                .thenReturn(response(1, "m-x", "{}"), null);
+                .thenReturn(response(1, "m-x", "{}"), (GetResponse) null);
         when(ledgerService.record(any())).thenThrow(new IllegalStateException("db down"));
 
         DeadLetterStockTally tally = new DeadLetterStockMigrator(connection, booker)
@@ -109,7 +109,7 @@ class DeadLetterStockMigratorTest {
         // is diff != 0 and a re-run, never a silent pass.
         queueHolds(1, 2);
         when(channel.basicGet(anyString(), anyBoolean()))
-                .thenReturn(response(1, "m-1", "{}"), response(2, "m-2", "{}"), null);
+                .thenReturn(response(1, "m-1", "{}"), response(2, "m-2", "{}"), (GetResponse) null);
         when(ledgerService.record(any())).thenReturn(Optional.of(1L), Optional.of(2L));
 
         DeadLetterStockTally tally = new DeadLetterStockMigrator(connection, booker)

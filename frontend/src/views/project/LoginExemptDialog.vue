@@ -173,7 +173,6 @@ async function onReview() {
        the 1.2-1.8 band on both sides (720px -> 1.15, 1080px -> 1.95). -->
   <el-dialog
     v-model="visible"
-    draggable
     width="960px"
     destroy-on-close
     :title="t('project.exemptDialogTitle') + (envName ? '：' + envName : '')"

@@ -51,7 +51,8 @@ public class CtxMemoryDraftStrategy implements DraftWriteStrategy {
         if (anchor == null) {
             // Defence in depth behind the door's anchor guard: an unanchored
             // row must never reach a project-scoped write.
-            throw new ServiceException("该草案缺少所属项目，无法确认写入（请重新让 AI 生成提案）",
+            throw new ServiceException("该草案缺少所属项目（草案行 project_id 为空），无法确认写入"
+                    + "——请在顶栏「选择项目」确认当前项目后，回到右侧对话坞重新让 AI 生成提案，本卡无需再确认",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long projectId = ((Number) anchor).longValue();
@@ -64,7 +65,9 @@ public class CtxMemoryDraftStrategy implements DraftWriteStrategy {
                 .addValue("projectId", projectId)
                 .addValue("content", content));
         if (promoted == 0) {
-            throw new ServiceException("该记忆条目已不存在或状态已变化，本次确认未写入（可重新让 AI 归纳生成）",
+            throw new ServiceException("该记忆条目已不存在或状态已变化（不再是待采纳态），本次确认未写入"
+                    + "——可在左侧菜单「SKILL 管理」的「项目记忆」页签查看该条目当前状态，"
+                    + "或回到右侧对话坞重新让 AI 归纳生成新草案",
                     BizErrorCode.NOT_FOUND);
         }
         // tp_ai_ctx_memory has no version ledger (same null shape as the
@@ -79,14 +82,16 @@ public class CtxMemoryDraftStrategy implements DraftWriteStrategy {
             JsonNode body = MAPPER.readTree(raw);
             String content = body.path("content").asText("");
             if (content.isBlank()) {
-                throw new ServiceException("该记忆草案缺少条目正文，无法确认写入",
+                throw new ServiceException("该记忆草案缺少条目正文（草案载荷 content 为空），无法确认写入"
+                        + "——请让 AI 重新归纳生成带正文的记忆提案（右侧对话坞「草案卡」处发起），本卡无需再确认",
                         BizErrorCode.VALIDATION_ERROR);
             }
             return content;
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("该记忆草案内容格式不合法，无法确认写入（请重新让 AI 生成提案）",
+            throw new ServiceException("该记忆草案内容格式不合法（草案载荷不是合法 JSON 或缺少 content 字段），无法确认写入"
+                    + "——本卡请勿再确认，请在顶栏「选择项目」确认项目后回到右侧对话坞重新让 AI 生成提案",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

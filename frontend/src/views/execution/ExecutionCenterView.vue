@@ -299,7 +299,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="detailVisible"
       :title="t('exec.taskDetail')"
       width="640px"

@@ -9,7 +9,6 @@
 <template>
   <el-dialog
     v-model="visible"
-    draggable
     :title="t('pool.wizardTitle')"
     :class="step === 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
     append-to-body

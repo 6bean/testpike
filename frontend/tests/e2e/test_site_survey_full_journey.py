@@ -39,6 +39,7 @@ from issues_monitor import assert_no_browser_issues
 from playwright.sync_api import expect
 from web_element_ledger_kit import (
     OUTER_ROW,
+    create_profile_via_ui,
     dsn,
     expand_group,
 )
@@ -160,15 +161,7 @@ def open_profile_drawer(page):
 
 
 def create_profile_and_dispatch(page, profile_name):
-    page.locator("[data-test='profile-create-btn']").click()
-    form = page.locator("[data-test='profile-form']")
-    expect(form).to_be_visible()
-    form.locator("[data-test='profile-field-name']").fill(profile_name)
-    form.locator("[data-test='profile-field-start-url']").fill(START_URL)
-    form.locator("[data-test='profile-save-btn']").click()
-    row = page.locator("[data-test='profile-table'] tr.el-table__row",
-                       has_text=profile_name).first
-    expect(row).to_be_visible(timeout=10000)
+    row = create_profile_via_ui(page, profile_name, START_URL)
     row.locator("[data-test='profile-survey-btn']").click()
 
 

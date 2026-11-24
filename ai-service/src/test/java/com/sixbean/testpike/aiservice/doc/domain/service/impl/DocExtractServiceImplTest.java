@@ -174,10 +174,10 @@ when(coreGateway.getSysConfig(DocExtractServiceImpl.KEY_ANCHOR_REQUIRED_ENABLED)
      * per-call timeout key.
      */
     @Test
-    void extract_时长预算耗尽_回写点名预算参数不误指单次超时键() {
+    void extract_时长上限耗尽_回写点面上限参数不误指单次超时键() {
         stubChunks(List.of(chunk(1, "登录", "正文一段。")));
         when(llmChain.chat(any(), eq(PROJECT_ID), any(LlmFallbackNotice.class), anyBoolean(), any())).thenThrow(
-                new ServiceException("需求点提取超出任务时长预算（默认 7200 秒，可在系统设置调整），本次调用已中止；再次发起提取即可重试",
+                new ServiceException("需求点提取超出任务时长上限（默认 7200 秒，可在系统设置调整），本次调用已中止；再次发起提取即可重试",
                         BizErrorCode.AI_TIMEOUT));
 
         assertThrows(ServiceException.class, () -> service.extract(message(null)));
@@ -288,7 +288,7 @@ when(coreGateway.getSysConfig(DocExtractServiceImpl.KEY_ANCHOR_REQUIRED_ENABLED)
  * raw extraction in the EE batch ruling document.
  */
     @Test
-    void extract_超预算逐组原文直提_概览轮保留且跨组折叠() {
+    void extract_超时长上限逐组原文提取_概览轮保留且跨组折叠() {
         stubChunks(List.of(
                 chunk(1, "登录", "登录正文。".repeat(20)),
                 chunk(2, "支付", "支付正文。".repeat(20)),

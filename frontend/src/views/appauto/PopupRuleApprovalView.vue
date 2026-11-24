@@ -161,7 +161,6 @@
       
       <el-dialog
         v-model="learnDialogVisible"
-        draggable
         :title="t('appauto.popupRules.learnDialogTitle')"
         width="560px"
         data-test="popup-rule-learn-dialog"

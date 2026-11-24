@@ -165,7 +165,7 @@ class StepsGenProcessEventRecordingTest {
         generate(service);
 
         verify(store).record(eq("steps-gen"), eq(String.valueOf(TASK_ID)),
-                eq(String.valueOf(TASK_ID)), eq("step"), contains("推理确认环结束"), any());
+                eq(String.valueOf(TASK_ID)), eq("step"), contains("逐项核验结束"), any());
         verify(store).record(eq("steps-gen"), eq(String.valueOf(TASK_ID)),
                 eq(String.valueOf(TASK_ID)), eq("step"), contains("脚本已写入"), any());
         assertTrue(stage2Prompts.size() >= 1, "脚本轮应真实发出");
@@ -173,7 +173,7 @@ class StepsGenProcessEventRecordingTest {
     }
 
     @Test
-    void 未收敛拒收_error事件点名残余_里程碑注明未收敛_异常照常上抛() {
+    void 未完成校验终局_error事件点名未完成核验项_里程碑注明未完成校验_异常照常上抛() {
         AiGenServiceImpl service = serviceWithStore();
         stubBase("true");
         stubLlm(STAGE2_VIOLATING);
@@ -181,9 +181,9 @@ class StepsGenProcessEventRecordingTest {
         assertThrows(ServiceException.class, () -> generate(service));
 
         verify(store).record(eq("steps-gen"), eq(String.valueOf(TASK_ID)),
-                eq(String.valueOf(TASK_ID)), eq("step"), contains("未收敛"), any());
-        assertTrue(errorSummaries().stream().anyMatch(s -> s.contains("残余")),
-                "拒收 error 事件必须点名残余: " + errorSummaries());
+                eq(String.valueOf(TASK_ID)), eq("step"), contains("未完成核验"), any());
+        assertTrue(errorSummaries().stream().anyMatch(s -> s.contains("未完成核验项")),
+                "终局 error 事件必须点名未完成核验项: " + errorSummaries());
         verify(coreGateway, never()).saveScript(anyLong(), any(), any(), anyInt(), eq(OPERATOR_ID));
     }
 

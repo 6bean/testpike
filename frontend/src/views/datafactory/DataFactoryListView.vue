@@ -200,7 +200,7 @@
       </el-tabs>
 
    
-      <el-dialog draggable
+      <el-dialog
         v-model="dialogVisible"
         :title="editing ? t('dataFactory.editTitle') : t('dataFactory.createTitle')"
         width="640px"

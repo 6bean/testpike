@@ -115,7 +115,7 @@ class LlmFallbackChainBudgetHardStopIsolationTest {
                         null, false, deadline::clamp));
 
         assertEquals(BizErrorCode.AI_TIMEOUT, ex.getCode());
-        assertTrue(ex.getMessage().contains("时长预算"),
+        assertTrue(ex.getMessage().contains("时长上限"),
                 "硬停须点名任务时长预算, 实际=" + ex.getMessage());
         assertFalse(ex.getMessage().contains("全链失败明细"),
                 "b 端点从未发起，禁混进失败供应商明细（审计假归因）, 实际=" + ex.getMessage());

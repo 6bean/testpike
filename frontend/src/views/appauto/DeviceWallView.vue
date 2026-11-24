@@ -197,7 +197,6 @@
         v-model="dialogVisible"
         :title="editing ? t('appauto.wall.editTitle') : t('appauto.wall.register')"
         width="640px"
-        draggable
         data-test="device-wall-dialog"
       >
         <el-form :model="form" label-width="110px">

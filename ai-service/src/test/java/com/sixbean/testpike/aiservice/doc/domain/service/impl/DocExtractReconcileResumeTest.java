@@ -148,7 +148,7 @@ class DocExtractReconcileResumeTest {
         assertTrue(landedStageCodes().contains("reconcile-resume"),
                 "the resume must land one visible stage row: " + landedStageCodes());
         assertTrue(landedStageLabels().stream()
-                        .anyMatch(l -> l.startsWith("复核轮挂账恢复") && l.contains("1800")),
+                        .anyMatch(l -> l.startsWith("完整性复核已延期") && l.contains("1800")),
                 "stage label names the recovery with the resume window: " + landedStageLabels());
         org.junit.jupiter.api.Assertions.assertEquals(2,
                 DocExtractTestSupport.capturedWrite(coreGateway, DOC_ID, TOKEN).size(),

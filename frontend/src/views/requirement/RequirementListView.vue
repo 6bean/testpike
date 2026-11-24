@@ -166,7 +166,6 @@
           </el-table-column>
           <el-table-column :label="t('common.action')" width="320" fixed="right">
             <template #default="{ row }">
-              <FavoriteButton entityType="requirement" :entity-id="row.id" size="small" @change="favSet.apply" />
               <el-tooltip
                 :content="sourceDisabledTip(row)"
                 :disabled="hasSourceAnchor(row)"
@@ -182,7 +181,7 @@
                   >{{ t('requirement.viewSource') }}</el-button>
                 </span>
               </el-tooltip>
-              <RowActions :actions="reqRowActions()" :max="2" @command="(k: string) => onReqRowCmd(k, row)" />
+              <RowActions :actions="reqRowActions(row)" :max="2" @command="(k: string) => onReqRowCmd(k, row)" />
             </template>
           </el-table-column>
         </DataTablePage>
@@ -203,7 +202,7 @@
     </div>
 
  
-    <el-dialog draggable v-model="editVisible" class="tp-dialog--md" :show-close="false" :before-close="reqDraftGuard.beforeClose" data-test="req-edit-dialog">
+    <el-dialog v-model="editVisible" class="tp-dialog--md" :show-close="false" :before-close="reqDraftGuard.beforeClose" data-test="req-edit-dialog">
       <template #header="{ close }">
         <div class="dialog-header">
           <span class="el-dialog__title">{{ editForm.id ? t('requirement.editTitle') : t('requirement.createTitle') }}</span>
@@ -260,7 +259,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="linkVisible" :title="`${t('requirement.linkCases')}：${linkTarget?.title ?? ''}`" class="tp-dialog--lg" destroy-on-close data-test="req-link-dialog">
+    <el-dialog v-model="linkVisible" :title="`${t('requirement.linkCases')}：${linkTarget?.title ?? ''}`" class="tp-dialog--lg" destroy-on-close data-test="req-link-dialog">
       <div v-loading="linkLoading">
         
         <div class="link-section">
@@ -272,7 +271,7 @@
             {{ t('requirement.linkedEmpty') }}
           </div>
           <div v-for="c in linkedCases" :key="c.id" class="linked-row" :data-test="`req-linked-${c.id}`">
-            <span class="mono">{{ c.caseNo }}</span>
+            <el-button link type="primary" class="mono req-case-no-link" data-test="req-linked-case-detail" @click="openCaseDetailDoor(c.id)">{{ c.caseNo }}</el-button>
             <span class="link-case-title">{{ c.title }}</span>
             <el-tag :type="CASE_STATUS[c.status]?.type ?? 'info'" size="small">{{ CASE_STATUS[c.status]?.label ?? c.status }}</el-tag>
             <el-button v-if="canLink" link type="danger" size="small" data-test="req-unlink" @click="onUnlink(c)">
@@ -298,7 +297,7 @@
           <DataTablePage :data="candidateRows" size="small" max-height="260" row-key="id" data-test="req-candidate-table" @selection-change="onCandidateSelect">
             <el-table-column type="selection" width="40" :selectable="(row: RequirementCaseBrief) => !isLinked(row.id)" />
             <el-table-column prop="caseNo" :label="t('requirement.colCaseNo')" width="150">
-              <template #default="{ row }"><span class="mono">{{ row.caseNo }}</span></template>
+              <template #default="{ row }"><el-button link type="primary" class="mono req-case-no-link" data-test="req-candidate-case-detail" @click="openCaseDetailDoor(row.id)">{{ row.caseNo }}</el-button></template>
             </el-table-column>
             <el-table-column prop="title" :label="t('requirement.title')" min-width="200" show-overflow-tooltip />
             <el-table-column :label="t('requirement.status')" width="90">
@@ -326,7 +325,7 @@
     </el-dialog>
 
     <!-- AL batch: requirement version chain dialog (read only; corrupted snapshots stay listed and flagged) -->
-    <el-dialog draggable v-model="versionVisible" :title="t('requirement.versionHistory')" class="tp-dialog--lg" destroy-on-close data-test="req-version-dialog">
+    <el-dialog v-model="versionVisible" :title="t('requirement.versionHistory')" class="tp-dialog--lg" destroy-on-close data-test="req-version-dialog">
       <div v-loading="versionLoading">
         <div class="version-target text-secondary" data-test="req-version-target">{{ versionTarget?.title ?? '' }}</div>
         <div v-if="!versionLoading && versionRows.length === 0" class="text-secondary" data-test="req-version-empty">
@@ -365,7 +364,7 @@
     <ImportDialog v-model="importVisible" :project-id="projectId" import-type="requirement" @imported="onImported" />
 
  
-    <el-dialog draggable v-model="traceVisible" :title="t('requirement.traceChainTitle')" class="tp-dialog--md" destroy-on-close>
+    <el-dialog v-model="traceVisible" :title="t('requirement.traceChainTitle')" class="tp-dialog--md" destroy-on-close>
       <TraceChainPanel :chain="traceChain" :loading="traceLoading" />
     </el-dialog>
   </div>
@@ -374,9 +373,11 @@
     <SourceChunkViewerDialog
       v-model="sourceVisible"
       :document-id="sourceDocId"
-      :chunk-id="sourceChunkId"
+      v-model:chunk-id="sourceChunkId"
       :fallback-evidence="sourceEvidence"
+      :subject="sourceSubject"
     />
+    <CaseDetailDialog v-model="caseDoorVisible" :case-id="caseDoorId" />
 </template>
 
 <script setup lang="ts">
@@ -410,7 +411,7 @@ useObjectSync({
 import TraceChainPanel from '@/components/TraceChainPanel.vue'
 import SourceChunkViewerDialog from '@/components/SourceChunkViewerDialog.vue'
 import ProjectOwnerEcho from '@/components/ProjectOwnerEcho.vue'
-import FavoriteButton from '@/components/FavoriteButton.vue'
+import CaseDetailDialog from '@/components/CaseDetailDialog.vue'
 import { listLiveRequirementGenerations, type AiRequirementLive } from '@/api/ai'
 
 
@@ -460,6 +461,7 @@ function gotoGenerationQueue(live: AiRequirementLive): void {
 
 onUnmounted(stopGenLiveTimer)
 import { useFavoriteSet } from '@/composables/useFavoriteSet'
+import { useFavoriteToggle } from '@/composables/useFavoriteToggle'
 import { useKeepAliveList } from '@/composables/useKeepAliveList'
 import { useProjectPageContext } from '@/composables/useProjectPageContext'
 import { confirmStaleReload } from '@/utils/staleConflict'
@@ -567,6 +569,17 @@ function handoffToAiGenerate(): void {
 
 
 const favSet = useFavoriteSet('requirement')
+const favToggle = useFavoriteToggle()
+
+// Shared case-detail door (single source: the real detail page embedded in a
+// dialog). Clicking a case number inside the link dialog opens it in place;
+// append-to-body keeps it layered above the still-open link dialog.
+const caseDoorVisible = ref(false)
+const caseDoorId = ref<number | null>(null)
+function openCaseDetailDoor(id: number): void {
+  caseDoorId.value = id
+  caseDoorVisible.value = true
+}
 
 const filters = reactive<{ status?: number; keyword: string; ids: string; fingerprint: string }>({ status: undefined, keyword: '', ids: '', fingerprint: '' })
 // Server-side sort state (same shape as the batch/mcp/skill/tool pages).
@@ -969,12 +982,15 @@ const hasActiveFilter = computed(() =>
   filters.status !== undefined || filters.keyword.trim() !== ''
     || filters.ids.trim() !== '' || filters.fingerprint.trim() !== '')
 function clearReqFilters(): void { filters.status = undefined; filters.keyword = ''; filters.ids = ''; filters.fingerprint = ''; load(1) }
-const reqRowActions = () => {
+const reqRowActions = (row: RequirementItem) => {
   const acts: { key: string; label: string; type?: "primary" | "warning" | "danger" | "info" }[] = []
   if (canWrite.value) acts.push({ key: "edit", label: t("common.edit") })
   acts.push({ key: "link", label: t("requirement.linkCases"), type: "warning" })
   acts.push({ key: "versions", label: t("requirement.versionHistory"), type: "info" })
   acts.push({ key: "trace", label: t("requirement.traceChain"), type: "info" })
+  // Favourite is a low-frequency action (user ruling): it folds into the
+  // "more" dropdown instead of sitting as a third direct star in the band.
+  acts.push({ key: "fav", label: favSet.ids.value.has(row.id) ? t("favorite.unfavAria") : t("favorite.favAria"), type: "info" })
   if (canWrite.value) acts.push({ key: "delete", label: t("common.delete"), type: "danger" })
   return acts
 }
@@ -983,7 +999,19 @@ function onReqRowCmd(key: string, row: RequirementItem): void {
   else if (key === "link") void openLinkDialog(row)
   else if (key === "versions") void openVersionHistory(row)
   else if (key === "trace") void openTraceChain(row)
+  else if (key === "fav") void onReqFavCmd(row)
   else if (key === "delete") void onDelete(row)
+}
+
+/** Favourite fold: the dropdown entry toggles through the shared single-source
+ *  round-trip; a null result means the composable already surfaced the error. */
+async function onReqFavCmd(row: RequirementItem): Promise<void> {
+  const next = await favToggle.toggle("requirement", row.id, favSet.ids.value.has(row.id))
+  if (next === null) {
+    ElMessage.error(t('favorite.failedFallback'))
+    return
+  }
+  favSet.apply(row.id, next)
 }
 // first item: view-original. A point adopted from a document extraction
 // carries its provenance anchor (document id + chunk ids, plus the verbatim
@@ -993,6 +1021,7 @@ const sourceVisible = ref(false)
 const sourceDocId = ref<number | null>(null)
 const sourceChunkId = ref<number | null>(null)
 const sourceEvidence = ref('')
+const sourceSubject = ref('')
 
 /** Either half of an answer opens the door: a readable chunk (needs its
  *  document) or the stored verbatim excerpt. Only a fully empty anchor
@@ -1019,6 +1048,7 @@ function openSourceText(row: RequirementItem): void {
   sourceDocId.value = anchor.documentId ?? null
   sourceChunkId.value = anchor.documentId != null ? anchor.chunkIds?.[0] ?? null : null
   sourceEvidence.value = anchor.evidence ?? ''
+  sourceSubject.value = row.title ?? ''
   sourceVisible.value = true
 }
 </script>

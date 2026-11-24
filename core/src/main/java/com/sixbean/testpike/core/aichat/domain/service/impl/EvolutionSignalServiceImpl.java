@@ -54,7 +54,7 @@ public class EvolutionSignalServiceImpl implements EvolutionSignalService {
     @Override
     public EvolutionSignalView observe(String month, Long projectId) {
         if (month == null || !MONTH_KEY.matcher(month).matches()) {
-            throw invalidMonth();
+            throw invalidMonth(month);
         }
         YearMonth window = parseMonth(month);
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -154,8 +154,11 @@ public class EvolutionSignalServiceImpl implements EvolutionSignalService {
                 .toList();
     }
 
-    private static ServiceException invalidMonth() {
-        return new ServiceException("月份参数必须是 yyyy-MM（如 2026-10）", BizErrorCode.VALIDATION_ERROR);
+    private static ServiceException invalidMonth(String raw) {
+        return new ServiceException("月份参数不合法：收到「"
+                + (raw == null ? "空值" : raw)
+                + "」，请改成 yyyy-MM 形式的月份（正确写法示例 2026-10）后重新查询",
+                BizErrorCode.VALIDATION_ERROR);
     }
 
     private static YearMonth parseMonth(String month) {
@@ -163,7 +166,7 @@ public class EvolutionSignalServiceImpl implements EvolutionSignalService {
             return YearMonth.parse(month, MONTH_FORMAT);
         } catch (DateTimeParseException e) {
             // A syntactically shaped but impossible month (2026-13) lands here.
-            throw invalidMonth();
+            throw invalidMonth(month);
         }
     }
 }

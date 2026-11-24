@@ -139,7 +139,8 @@ public class RequirementWriteDraftStrategy implements DraftWriteStrategy {
                                boolean informedOverride) {
         String title = DraftPayloadReads.text(body, "title");
         if (title == null || title.isBlank()) {
-            throw new ServiceException("AI 需求草案缺少标题，无法创建需求点（请重新让 AI 生成提案）",
+            throw new ServiceException("AI 需求草案缺少标题（草案载荷 title 为空），无法创建需求点"
+                    + "——请在右侧对话坞「草案卡」处重新让 AI 生成带标题的需求提案，本卡无需再确认",
                     BizErrorCode.VALIDATION_ERROR);
         }
         RequirementInfo created = requirementService.create(operatorId, new RequirementCreateInput(
@@ -163,7 +164,8 @@ public class RequirementWriteDraftStrategy implements DraftWriteStrategy {
         JsonNode baseVersion = branch.get("baseVersion");
         if (target == null || !target.canConvertToLong()
                 || baseVersion == null || !baseVersion.canConvertToInt()) {
-            throw new ServiceException("该变更草案缺少目标需求点或版本锚点，无法写入（请重新让 AI 生成提案）",
+            throw new ServiceException("该变更草案缺少目标需求点编号 targetId 或版本锚点 baseVersion，无法写入"
+                    + "——请在左侧菜单「需求点管理」确认目标需求点仍在，再回右侧对话坞「草案卡」处重新让 AI 生成提案",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long requirementId = target.asLong();
@@ -206,7 +208,9 @@ public class RequirementWriteDraftStrategy implements DraftWriteStrategy {
                               JsonNode body, long operatorId, boolean forceLatest) {
         RequirementInfo current = requirementService.get(requirementId);
         if (current.projectId() != projectId) {
-            throw new ServiceException("该草案指向的需求点不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("该草案指向的需求点 " + requirementId + " 属于项目 "
+                    + current.projectId() + "，不是当前会话所在项目 " + projectId + "，确认写入已拒绝"
+                    + "——请在顶栏「选择项目」切换到该需求点所属项目后再点「应用草案」，或在本项目重新让 AI 生成提案",
                     BizErrorCode.FORBIDDEN);
         }
         int anchor = baseVersion;
@@ -214,8 +218,9 @@ public class RequirementWriteDraftStrategy implements DraftWriteStrategy {
             RevisionMergeOutcome outcome = revisionMergeGate.assessRequirement(
                     requirementId, baseVersion, current.version(), proposalFields(body));
             if (outcome.status() == RevisionMergeStatus.BASELINE_MISSING) {
-                throw new ServiceException("无法核对草案的基线内容（草案基于版本 " + baseVersion
-                        + " 的历史快照缺失或不可读），为避免覆盖他人的修改，本次编辑未写入——请基于最新版本重新确认",
+                throw new ServiceException("无法核对草案的基线内容（需求点 " + requirementId
+                        + " 基于版本 " + baseVersion + " 的历史快照缺失或不可读），为避免覆盖他人的修改，本次编辑未写入"
+                        + "——请在左侧菜单「需求点管理」打开该需求点查看最新内容，再回右侧对话坞「草案卡」处重新让 AI 基于最新版本生成提案",
                         BizErrorCode.VERSION_CONFLICT);
             }
             if (outcome.status() == RevisionMergeStatus.CONFLICT && !forceLatest) {

@@ -89,7 +89,6 @@
 
     
     <el-dialog
-      draggable
       v-model="formVisible"
       :title="editingId ? t('mcp.editTitle') : t('mcp.createBtn')"
       width="640px"
@@ -139,7 +138,6 @@
 
     
     <el-dialog
-      draggable
       v-model="toolsDialogVisible"
       :title="probeMode ? t('mcp.probeTitle') : t('mcp.toolSelectTitle')"
       width="640px"

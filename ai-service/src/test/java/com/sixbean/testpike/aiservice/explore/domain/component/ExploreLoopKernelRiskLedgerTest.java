@@ -17,6 +17,7 @@ import com.sixbean.testpike.aiservice.tool.domain.component.LlmFunctionCalling;
 import com.sixbean.testpike.aiservice.tool.domain.component.ToolDispatcher;
 import com.sixbean.testpike.aiservice.tool.domain.component.ToolResultBudgetFolder;
 import com.sun.net.httpserver.HttpExchange;
+import com.sixbean.testpike.aiservice.support.CoreStubHttp;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -94,6 +95,9 @@ class ExploreLoopKernelRiskLedgerTest {
                 ExploreLoopKernelRiskLedgerTest::handleRiskPages);
         server.createContext("/internal/executors/tasks/",
                 ExploreLoopKernelRiskLedgerTest::handleExecTask);
+        server.createContext("/internal/prompt-templates/", CoreStubHttp::respondAbsentConfig);
+        server.createContext("/internal/projects/", CoreStubHttp::respondAbsentConfig);
+        server.createContext("/internal/configs/", CoreStubHttp::respondAbsentConfig);
         server.start();
     }
 

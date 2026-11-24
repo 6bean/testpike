@@ -193,7 +193,6 @@
       v-model="saveVisible"
       :title="t('promptTpl.saveTitle')"
       width="720px"
-      draggable
       destroy-on-close
       data-test="prompt-tpl-save-dialog"
     >

@@ -153,7 +153,7 @@ public class PerfInsightServiceImpl implements PerfInsightService {
         return BehaviorKernelAssembly.assembleHeadFromGateway(coreGateway,
                 KEY_DIRECTIVES_ENABLED, TEMPLATE_NAME, TEMPLATE_DOMAIN,
                 PerfInsightPromptTemplate.SYSTEM,
-                "压测归因解读行为指令模板读取失败，本轮解读回退内置契约");
+                "压测归因解读行为指令模板读取失败，本轮解读回退内置指令模板");
     }
 
     /**
@@ -182,7 +182,7 @@ public class PerfInsightServiceImpl implements PerfInsightService {
         }
         JsonNode insightNode = parsed == null ? null : parsed.path("insight");
         if (insightNode == null || !insightNode.isTextual()) {
-            throw new ServiceException("模型应答缺少 insight 解读文本（契约结构不符），本次解读不采用",
+            throw new ServiceException("模型应答缺少归因解读正文（返回格式不符），本次解读不采用",
                     BizErrorCode.AI_FORMAT_ERROR);
         }
         String insight = insightNode.asText().trim();
@@ -229,9 +229,7 @@ public class PerfInsightServiceImpl implements PerfInsightService {
             detailJson = "{}";
         }
         processEvents.record(PROCESS_JOB_KIND, anchor, anchor, "thinking",
-                "模型应答已取回（输入 " + handle.result().promptTokens() + " tokens，输出 "
-                        + handle.result().completionTokens() + " tokens，耗时 "
-                        + handle.result().latencyMs() + "ms）", detailJson);
+                "压测运行 #" + anchor + "｜模型已应答，正在写归因解读（用时与用量见明细）", detailJson);
     }
 
     /** End an anchored run that died on {@code failure} with the single-source

@@ -70,7 +70,9 @@ public class ReservationCreateDraftStrategy implements DraftWriteStrategy {
         long deviceId = body.path("deviceId").asLong(0L);
         if (deviceId <= 0) {
             throw new ServiceException(
-                    "AI 设备预约草案缺少设备编号，无法预约（请重新让 AI 生成提案）",
+                    "AI 设备预约草案缺少「设备编号」（deviceId 为空），无法预约——"
+                            + "请在右侧对话坞重新要求预约并说清设备与时间段（示例「预约3号机明天9点到12点」），"
+                            + "系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         LocalDateTime startsAt = readTime(body, "startsAt");
@@ -96,8 +98,9 @@ public class ReservationCreateDraftStrategy implements DraftWriteStrategy {
         String raw = body.path(field).asText("").trim();
         if (raw.isEmpty()) {
             throw new ServiceException(
-                    "AI 设备预约草案缺少" + ("startsAt".equals(field) ? "开始" : "结束")
-                            + "时间，无法预约（请重新让 AI 生成提案）",
+                    "AI 设备预约草案缺少" + ("startsAt".equals(field) ? "「开始时间」（startsAt" : "「结束时间」（endsAt")
+                            + " 为空），无法预约——请在对话里给出时间段（格式：YYYY-MM-DDTHH:mm:ss，示例 2026-11-25T09:00:00），"
+                            + "系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         try {
@@ -108,8 +111,9 @@ public class ReservationCreateDraftStrategy implements DraftWriteStrategy {
                     ? normalized.substring(0, 19) : normalized);
         } catch (DateTimeParseException e) {
             throw new ServiceException(
-                    "AI 设备预约草案的时间格式无法识别（" + raw
-                            + "），确认预约已拒绝（请重新让 AI 生成提案）",
+                    "AI 设备预约草案的时间「" + raw
+                            + "」格式无法识别，确认预约已拒绝——时间格式：YYYY-MM-DDTHH:mm:ss"
+                            + "（示例 2026-11-25T09:00:00），请在右侧对话坞重新要求预约（入口：对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

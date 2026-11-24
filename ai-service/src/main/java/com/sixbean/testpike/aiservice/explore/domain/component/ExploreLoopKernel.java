@@ -199,8 +199,10 @@ public class ExploreLoopKernel {
                 new ChatMessage("user", userPrompt(session, mobile))));
 
         recordProcessEvent(session, "step",
-                "探索循环启动（" + (mobile ? "移动" : "网页") + "形态）目标："
-                        + (session.goalText() == null ? "未提供" : session.goalText()),
+                "已发起自动浏览｜" + (mobile ? "移动应用" : "网页") + "｜目标："
+                        + (session.goalText() == null ? "未提供" : session.goalText())
+                        + "｜起点：" + session.startUrl()
+                        + "｜步数上限 " + policy.maxSteps(),
                 Map.of("startUrl", String.valueOf(session.startUrl()),
                         "maxSteps", policy.maxSteps()));
 
@@ -234,10 +236,10 @@ public class ExploreLoopKernel {
                     throw refuse;
                 }
                 outcome = ExploreBudgetPolicy.OUTCOME_PARTIAL;
-                stepLog.add("上下文预算拒止：" + refuse.getMessage());
+                stepLog.add("本次自动浏览提前结束：" + refuse.getMessage());
                 recordProcessEvent(session, "error",
-                        "上下文预算拒止，探索提前结束：" + refuse.getMessage(), null);
-                log.warn("B9 探索循环预算拒止终态封转 sessionId={} reason={}",
+                        "本次自动浏览提前结束：" + refuse.getMessage(), null);
+                log.warn("探索循环预算拒止终态封转 sessionId={} reason={}",
                         session.id(), refuse.getMessage());
                 break;
             }
@@ -278,11 +280,14 @@ public class ExploreLoopKernel {
                     messages.add(ChatMessage.tool(call.id(), toJson(Map.of(
                             "ok", false, "observation", ExploreEnvelopeContract
                                     .mobileRoamViolation(call.name())))));
-                    stepLog.add("step " + stepsUsed + " [" + call.name()
-                            + "] 探索黑名单拒生成（零出站）");
+                    stepLog.add("第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                            + ExploreActionNaming.humanLabel(call.name(), tools)
+                            + "被安全限制拦下（不可逆操作不会对外发出）");
                     recordProcessEvent(session, "step",
-                            "步骤 " + stepsUsed + " [" + call.name()
-                                    + "] 被探索黑名单拒绝（不可逆动作禁探索模式，零出站）", null);
+                            "第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                                    + ExploreActionNaming.humanLabel(call.name(), tools)
+                                    + "被安全限制拦下（不可逆操作不会对外发出）",
+                            Map.of("action", call.name()));
                     continue;
                 }
                 // Mechanical gate (never bets on model
@@ -296,21 +301,27 @@ public class ExploreLoopKernel {
                                 "ok", false,
                                 "observation", "该页已降级为只读：在该页输入与点击会直接保存数据，"
                                         + "请改用 page-snapshot 读取页面内容，再从其它只读入口离开该页。"))));
-                        stepLog.add("step " + stepsUsed + " [" + call.name()
-                                + "] 写入风险页已降级为只读（动作未派发）");
+                        stepLog.add("第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                                + ExploreActionNaming.humanLabel(call.name(), tools)
+                                + "命中写入风险页面，已改为只读观察，该操作未执行");
                         recordProcessEvent(session, "step",
-                                "步骤 " + stepsUsed + " [" + call.name()
-                                        + "] 命中写入风险页，已降级为只读（动作未派发）",
+                                "第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                                        + ExploreActionNaming.humanLabel(call.name(), tools)
+                                        + "命中写入风险页面，已改为只读观察，该操作未执行",
                                 Map.of("action", call.name(), "url", String.valueOf(riskTarget)));
                         continue;
                     }
                 }
                 ExploreActOutcome act = executeCall(session, plan, call, actorId, mobile);
                 messages.add(ChatMessage.tool(call.id(), act.stepResultJson()));
-                stepLog.add("step " + stepsUsed + " [" + call.name() + "]");
                 boolean actOk = isStepOk(act.stepResultJson());
+                stepLog.add("第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                        + ExploreActionNaming.humanLabel(call.name(), tools)
+                        + (actOk ? "执行成功" : "执行失败"));
                 recordProcessEvent(session, "step",
-                        "步骤 " + stepsUsed + " [" + call.name() + "] " + (actOk ? "成功" : "失败"),
+                        "第 " + stepsUsed + "/" + policy.maxSteps() + " 步｜"
+                                + ExploreActionNaming.humanLabel(call.name(), tools)
+                                + (actOk ? "执行成功" : "执行失败"),
                         Map.of("action", call.name(), "ok", actOk));
                 if (mobile) {
                     irStepSequence.add(ExploreEnvelopeContract.roamToIrStepAction(call.name()));
@@ -343,15 +354,15 @@ public class ExploreLoopKernel {
         }
 
         recordProcessEvent(session, "step",
-                "探索循环出口：" + outcomeLabel(outcome) + "（步数 " + stepsUsed + "，页数 "
-                        + pagesVisited + "，token " + tokensUsed + "）",
+                "自动浏览结束｜" + outcomeLabel(outcome) + "｜共 " + stepsUsed + "/"
+                        + policy.maxSteps() + " 步｜浏览 " + pagesVisited + " 页",
                 Map.of("outcome", outcome, "stepsUsed", stepsUsed,
                         "pagesVisited", pagesVisited, "tokensUsed", tokensUsed));
         coreGateway.updateExploreStats(session.id(), new ExploreRunStatsUpdate(
                 pagesVisited, null, buildReport(session, outcome, stepsUsed, pagesVisited,
                 stepLog, mobile, crashSeen, irStepSequence)));
         coreGateway.updateExploreStatus(session.id(), outcome);
-        log.info("B9 探索循环出口 sessionId={} outcome={} steps={} pages={}",
+        log.info("探索循环出口 sessionId={} outcome={} steps={} pages={}",
                 session.id(), outcome, stepsUsed, pagesVisited);
     }
 
@@ -378,7 +389,7 @@ public class ExploreLoopKernel {
             coreGateway.recordExploreStep(session.id(), record);
         } catch (ServiceException dup) {
             if (dup.getCode() != null && dup.getCode() == BizErrorCode.RESOURCE_CONFLICT) {
-                log.info("B9 步进回写重复已跳过（重投重放） sessionId={} seq={}",
+                log.info("步进回写重复已跳过（重投重放） sessionId={} seq={}",
                         session.id(), record.seq());
                 return;
             }
@@ -483,8 +494,9 @@ public class ExploreLoopKernel {
         long execTaskId = coreGateway.submitExploreAct(session.id(),
                 buildSiteSurveyEnvelopeJson(rules));
         recordProcessEvent(session, "step",
-                "整站测绘已发起：起点 " + rules.path("startUrl").asText("")
-                        + "，页数上限 " + rules.path("maxPages").asInt(0), null);
+                "整站测绘已发起｜起点 " + rules.path("startUrl").asText("")
+                        + "｜页数上限 " + rules.path("maxPages").asInt(0)
+                        + "｜将逐页采集页面元素", null);
         ExecTaskResultRemote task = coreGateway.pollExecTaskResult(
                 execTaskId, siteSurveyPollCapMs(rules));
         int okPages = 0;
@@ -588,7 +600,7 @@ public class ExploreLoopKernel {
                 .append("- 页帧：").append(frames).append("　成功页：").append(okPages).append('\n');
         if (task == null) {
             md.append("- 执行结果未能取得（执行器离线或回传通道故障），本次未重放页帧；")
-                    .append("已入账页数以步进记录为准，可稍后从「站点档案」页重新发起整站测绘。\n");
+                    .append("已采集页数以步进记录为准，可稍后从「站点档案」页重新发起整站测绘。\n");
         } else if (task.errorDetail() != null && !task.errorDetail().isBlank()) {
             md.append("- 失败明细：").append(task.errorDetail()).append('\n');
         }
@@ -716,7 +728,7 @@ public class ExploreLoopKernel {
                     "step-" + seq + "-" + actionName + ".txt",
                     stepResultJson.getBytes(StandardCharsets.UTF_8), "text/plain");
         } catch (Exception e) {
-            log.warn("B9 留证上传失败 sessionId={} seq={}: {}", sessionId, seq, e.getMessage());
+            log.warn("留证上传失败 sessionId={} seq={}: {}", sessionId, seq, e.getMessage());
             return null;
         }
     }
@@ -807,11 +819,11 @@ public class ExploreLoopKernel {
                 ? BehaviorKernelAssembly.assembleHeadFromGateway(coreGateway,
                         KEY_MOBILE_DIRECTIVES_ENABLED, TEMPLATE_NAME_MOBILE,
                         TEMPLATE_DOMAIN_MOBILE, BUILTIN_MOBILE_CONTRACT,
-                        "行为指令模板读路径不可用，本轮移动探索回退内置契约")
+                        "行为指令模板读路径不可用，本轮移动探索改用内置指令模板")
                 : BehaviorKernelAssembly.assembleHeadFromGateway(coreGateway,
                         KEY_WEB_DIRECTIVES_ENABLED, TEMPLATE_NAME_WEB,
                         TEMPLATE_DOMAIN_WEB, BUILTIN_WEB_CONTRACT,
-                        "行为指令模板读路径不可用，本轮网页探索回退内置契约");
+                        "行为指令模板读路径不可用，本轮网页探索改用内置指令模板");
     }
 
     /**
@@ -845,7 +857,7 @@ public class ExploreLoopKernel {
                 .append(" — 该页输入会直接保存数据，只允许读取页面快照。"));
         if (riskPages.size() > PROMPT_RISK_LINE_CAP) {
             lines.append("\n另有 ").append(riskPages.size() - PROMPT_RISK_LINE_CAP)
-                    .append(" 个写入风险页未在此列出，动作同样不会在该类页面派发。");
+                    .append(" 个写入风险页未在此列出，此类页面上的操作同样不会被执行。");
         }
         return lines.toString();
     }
@@ -863,7 +875,7 @@ public class ExploreLoopKernel {
             // Outage faces include transport/HTTP errors (unreachable core,
             // 404, undecodable body) which Spring surfaces below
             // RestClientException rather than ServiceException.
-            log.warn("B9 页面写入风险清单读路径不可用，本轮不标注风险页 sessionId={} reason={}",
+            log.warn("页面写入风险清单读路径不可用，本轮不标注风险页 sessionId={} reason={}",
                     session.id(), outage.getMessage());
             recordProcessEvent(session, "error",
                     "页面写入风险清单暂时不可用（" + outage.getMessage() + "），本轮探索不标注风险页",
@@ -907,7 +919,7 @@ public class ExploreLoopKernel {
                 .append("。目标：").append(session.goalText() == null ? "" : session.goalText());
         if (session.credRef() != null && !session.credRef().isBlank()) {
             prompt.append("。测试账号引用：{{CRED:")
-                    .append(session.credRef().strip()).append("}}（派发时由平台注入实值）");
+                    .append(session.credRef().strip()).append("}}（执行时由系统自动填入真实账号）");
         }
         return prompt.toString();
     }
@@ -917,7 +929,7 @@ public class ExploreLoopKernel {
                                       int stepsUsed, int pagesVisited, List<String> stepLog,
                                       boolean mobile, boolean crashSeen,
                                       List<String> irStepSequence) {
-        StringBuilder md = new StringBuilder("# B9 探索报告\n\n")
+        StringBuilder md = new StringBuilder("# 探索报告\n\n")
                 .append("- 目标：").append(session.goalText() == null ? "" : session.goalText()).append('\n')
                 .append("- 出口：").append(outcomeLabel(outcome)).append('\n')
                 .append("- 步数：").append(stepsUsed)
@@ -944,9 +956,9 @@ public class ExploreLoopKernel {
     private static String outcomeLabel(int outcome) {
         return switch (outcome) {
             case ExploreBudgetPolicy.OUTCOME_DONE -> "目标达成";
-            case ExploreBudgetPolicy.OUTCOME_BUDGET_STOP -> "预算耗尽（部分完成）";
+            case ExploreBudgetPolicy.OUTCOME_BUDGET_STOP -> "达到本次任务的步数上限（部分完成）";
             case ExploreBudgetPolicy.OUTCOME_PARTIAL -> "无进展终止（部分完成）";
-            default -> "未出口";
+            default -> "未正常结束";
         };
     }
 

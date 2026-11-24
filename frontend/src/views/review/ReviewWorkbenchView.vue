@@ -220,7 +220,7 @@
     </div>
 
     
-    <el-dialog draggable v-model="reasonVisible" :title="reasonAction === 'need_change' ? t('case.needChangeTitle') : t('case.rejectTitle')" width="480px" destroy-on-close data-test="review-reason-dialog">
+    <el-dialog v-model="reasonVisible" :title="reasonAction === 'need_change' ? t('case.needChangeTitle') : t('case.rejectTitle')" width="480px" destroy-on-close data-test="review-reason-dialog">
       <el-input
         v-model="reasonText"
         type="textarea"

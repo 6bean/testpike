@@ -2,6 +2,14 @@
 
 > English | **[简体中文](README.zh-CN.md)**
 
+[![CI](https://github.com/6bean/testpike/actions/workflows/ci.yml/badge.svg)](https://github.com/6bean/testpike/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-informational)](https://github.com/6bean/testpike)
+[![Node 20](https://img.shields.io/badge/Node-20-brightgreen)](https://github.com/6bean/testpike)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-yellowgreen)](https://github.com/6bean/testpike)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Good first issues](https://img.shields.io/badge/good%20first%20issues-open-green)](https://github.com/6bean/testpike/labels/good%20first%20issue)
+
 testPike turns requirement documents into structured test cases and executable scripts, runs them
 on real browsers, real devices and real load engines, and learns from every review and every
 failure. One closed loop: **requirements → AI generation → human review → real execution →
@@ -18,6 +26,15 @@ pgvector knowledge · MCP in both directions · runs fully offline on a built-in
  scripts ──executor cluster──▶ Web UI · API · mobile · performance runs
  results ──▶ reports, defects, cost ledger ──▶ feedback / learning / self-evolution
 ```
+
+## Screens
+
+| Dashboard with guided first-run journeys | Reviewed, versioned case library |
+| --- | --- |
+| ![testPike dashboard: quick journeys, executor and device status, review and defect counters](assets/img/readme/dashboard-light.png) | ![testPike case library table: case number, objective, priority, confidence, review status, tags and row actions](assets/img/readme/case-library-light.png) |
+
+*Captured from a live stack running the built-in mock LLM (no external API key); the project shown is the
+factory demo project that ships with the first-install seed.*
 
 ## Features
 
@@ -278,6 +295,7 @@ python3 runner.py              # register → heartbeat → claim → subprocess
 
 - [INSTALL.md](INSTALL.md) / [INSTALL.zh-CN.md](INSTALL.zh-CN.md) — guided install and acceptance checklist
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to file issues, send patches and add skills/tools
+- [Good first issues](https://github.com/6bean/testpike/labels/good%20first%20issue) — a curated entry point for first contributions
 - [SECURITY.md](SECURITY.md) — vulnerability reporting and the security invariants we hold
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [NOTICE](NOTICE) — third-party attribution ledger
 

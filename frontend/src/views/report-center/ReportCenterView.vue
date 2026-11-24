@@ -141,7 +141,7 @@
     </el-drawer>
 
  
-    <el-dialog v-model="genVisible" :title="t('reportCenter.generateTitle')" width="480px" data-test="rc-generate-dialog" draggable>
+    <el-dialog v-model="genVisible" :title="t('reportCenter.generateTitle')" width="480px" data-test="rc-generate-dialog">
       <el-form label-width="90px">
         <el-form-item :label="t('reportCenter.reportType')">
           <!-- id="" prevents the form label for= from targeting the non-labelable radiogroup div -->

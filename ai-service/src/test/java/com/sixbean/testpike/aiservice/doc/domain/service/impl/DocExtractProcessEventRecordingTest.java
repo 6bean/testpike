@@ -69,7 +69,8 @@ class DocExtractProcessEventRecordingTest {
         List<String[]> rows = thinkingRows();
         assertTrue(rows.size() >= 1, "每一次提取面外呼都应留下一条过程事件");
         String firstSummary = rows.get(0)[0];
-        assertTrue(firstSummary.contains("F2"), "摘要点名外呼函数位: " + firstSummary);
+        assertTrue(firstSummary.startsWith("模型应答完成，输出片段："),
+                "摘要点名动作语义（模型应答完成）: " + firstSummary);
         assertTrue(firstSummary.contains("正确账号密码登录"),
                 "摘要携带模型可见输出片段（非隐藏思维链）: " + firstSummary);
         String firstDetail = rows.get(0)[1];
@@ -87,7 +88,7 @@ class DocExtractProcessEventRecordingTest {
 
         ArgumentCaptor<String> detail = ArgumentCaptor.forClass(String.class);
         verify(store, atLeast(1)).record(eq("doc-extract"), eq(String.valueOf(DOC_ID)),
-                eq(TOKEN), eq("step"), contains("提取启动"), detail.capture());
+                eq(TOKEN), eq("step"), contains("提取启动｜文档「"), detail.capture());
         assertTrue(detail.getValue().contains("start"),
                 "step 事件 detail 带上阶段码便于对账: " + detail.getValue());
     }

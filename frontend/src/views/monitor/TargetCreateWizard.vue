@@ -345,7 +345,6 @@ async function submit() {
     v-model="visible"
     :title="t('monitor.wizard.title')"
     width="640px"
-    draggable
     destroy-on-close
     data-test="monitor-wizard"
   >

@@ -110,7 +110,7 @@
       </div>
 
       
-      <el-dialog draggable v-model="genVisible" :title="t('testReport.generate')" width="640px" data-test="report-gen-dialog">
+      <el-dialog v-model="genVisible" :title="t('testReport.generate')" width="640px" data-test="report-gen-dialog">
         <!-- ownership echo (iron rule 1): the generated report belongs to the
              header-context project; read-only, single-sourced -->
         <ProjectOwnerEcho />

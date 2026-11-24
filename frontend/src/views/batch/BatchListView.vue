@@ -163,7 +163,7 @@
       </template>
 
    
-      <el-dialog draggable v-model="createVisible" :title="t('batch.createTitle')" width="800px" data-test="batch-create-dialog">
+      <el-dialog v-model="createVisible" :title="t('batch.createTitle')" width="800px" data-test="batch-create-dialog">
         <!-- ownership echo (iron rule 1): read-only, single-sourced from the
  header project context - the record lands on the visible segment -->
         <ProjectOwnerEcho />
@@ -258,7 +258,7 @@
       </el-dialog>
 
    
-      <el-dialog draggable v-model="templateVisible" :title="t('batch.templateTitle')" width="800px" data-test="batch-template-dialog">
+      <el-dialog v-model="templateVisible" :title="t('batch.templateTitle')" width="800px" data-test="batch-template-dialog">
         <el-table border v-loading="tplLoading" :data="templates" size="small" data-test="batch-template-table">
           <el-table-column prop="name" :label="t('batch.templateName')" min-width="180" show-overflow-tooltip />
           <el-table-column :label="t('batch.caseCount')" width="90" align="center">
@@ -301,7 +301,7 @@
       </el-dialog>
 
       
-      <el-dialog draggable v-model="scheduleVisible" :title="t('batch.scheduleTitle')" width="480px" data-test="batch-schedule-dialog">
+      <el-dialog v-model="scheduleVisible" :title="t('batch.scheduleTitle')" width="480px" data-test="batch-schedule-dialog">
         <el-form label-width="110px">
           <el-form-item :label="t('batch.scheduleEnable')">
             <el-switch v-model="scheduleForm.enabled" :active-value="1" :inactive-value="0" data-test="batch-schedule-enable" />
@@ -326,7 +326,7 @@
       </el-dialog>
 
       
-      <el-dialog draggable v-model="reuseVisible" :title="t('batch.reuseTitle')" width="480px" data-test="batch-reuse-dialog">
+      <el-dialog v-model="reuseVisible" :title="t('batch.reuseTitle')" width="480px" data-test="batch-reuse-dialog">
         <el-form label-width="96px">
           <el-form-item :label="t('batch.name')">
             <el-input v-model="reuseName" maxlength="200" data-test="batch-reuse-name" :placeholder="t('batch.reuseNamePlaceholder')" />

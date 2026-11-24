@@ -26,11 +26,20 @@ public class SessionGovernanceKeys {
     public static final String KEY_RETENTION_DAYS = "session.retention-days";
     public static final String KEY_HEADLESS_HOST_CAPTURE_ENABLED = "session.headless-host-capture.enabled";
 
+    /** Keep-alive family (XC batch), seeded by V655. */
+    public static final String KEY_KEEPALIVE_ENABLED = "session.keepalive.enabled";
+    public static final String KEY_KEEPALIVE_INTERVAL_MINUTES = "session.keepalive.interval-minutes";
+    public static final String KEY_KEEPALIVE_MAX_PER_TICK = "session.keepalive.max-per-tick";
+    public static final String KEY_KEEPALIVE_MAX_FAIL_STREAK = "session.keepalive.max-fail-streak";
+
     /** Factory defaults; must mirror the V504 seed rows (drift = seed contract red). */
     public static final int DEFAULT_CAPTURE_TIMEOUT_MINUTES = 10;
     public static final int DEFAULT_VALIDATE_TIMEOUT_MS = 8000;
     public static final int DEFAULT_RENEW_LEAD_MINUTES = 15;
     public static final int DEFAULT_RETENTION_DAYS = 30;
+    public static final int DEFAULT_KEEPALIVE_INTERVAL_MINUTES = 10;
+    public static final int DEFAULT_KEEPALIVE_MAX_PER_TICK = 50;
+    public static final int DEFAULT_KEEPALIVE_MAX_FAIL_STREAK = 6;
 
     private final ConfigService configService;
 
@@ -76,6 +85,42 @@ public class SessionGovernanceKeys {
     /** Secondary-path capture window shell switch; only an explicit on reads true. */
     public boolean headlessHostCaptureEnabled() {
         return parseEnabled(configService.getValue(KEY_HEADLESS_HOST_CAPTURE_ENABLED, null));
+    }
+
+    /**
+     * Keep-alive global gate. The seed ships an enabled default (a fresh
+     * install keeps idle sessions alive out of the box), so anything but an
+     * explicit off value reads true; blank/garbage fall back to the factory
+     * on, only "0" or "false" park the whole round.
+     */
+    public boolean keepaliveEnabled() {
+        String raw = configService.getValue(KEY_KEEPALIVE_ENABLED, null);
+        if (raw == null || raw.isBlank()) {
+            return true;
+        }
+        String v = raw.trim();
+        return !("0".equals(v) || "false".equalsIgnoreCase(v));
+    }
+
+    /** Global keep-alive cadence in minutes (5..1440); a row override may beat it. */
+    public int keepaliveIntervalMinutes() {
+        return parseInt(KEY_KEEPALIVE_INTERVAL_MINUTES,
+                configService.getValue(KEY_KEEPALIVE_INTERVAL_MINUTES, null),
+                DEFAULT_KEEPALIVE_INTERVAL_MINUTES, 5, 1440);
+    }
+
+    /** Upper bound of probes one scheduler round may fire (1..500). */
+    public int keepaliveMaxPerTick() {
+        return parseInt(KEY_KEEPALIVE_MAX_PER_TICK,
+                configService.getValue(KEY_KEEPALIVE_MAX_PER_TICK, null),
+                DEFAULT_KEEPALIVE_MAX_PER_TICK, 1, 500);
+    }
+
+    /** Consecutive UNKNOWN/FAILED rounds that park a row's keep-alive (1..20). */
+    public int keepaliveMaxFailStreak() {
+        return parseInt(KEY_KEEPALIVE_MAX_FAIL_STREAK,
+                configService.getValue(KEY_KEEPALIVE_MAX_FAIL_STREAK, null),
+                DEFAULT_KEEPALIVE_MAX_FAIL_STREAK, 1, 20);
     }
 
     /** Hot value -> int with a legal window; anything else is the factory default. */

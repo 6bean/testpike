@@ -256,7 +256,7 @@
       </div>
 
       
-      <el-dialog v-model="payloadVisible" :title="t('deadLetter.payloadTitle')" width="720px" draggable data-test="dead-letter-payload-dialog">
+      <el-dialog v-model="payloadVisible" :title="t('deadLetter.payloadTitle')" width="720px" data-test="dead-letter-payload-dialog">
         <pre class="payload-pre" data-test="dead-letter-payload-body">{{ payloadText }}</pre>
         <template #footer>
           <el-button type="primary" data-test="dead-letter-payload-close" @click="payloadVisible = false">

@@ -4,7 +4,6 @@
     class="onboarding-dialog"
     :title="t('journey.overlayTitle')"
     width="560px"
-    draggable
     :modal="false"
     modal-penetrable
     :lock-scroll="false"

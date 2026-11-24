@@ -89,7 +89,7 @@ public class ScriptMechanicalGapFiller {
                     if (step.has("target")) {
                         step.remove("target");
                         notes.add("第 " + stepNo + " 步 console.assert 不需要定位符，"
-                                + "已机械摘除多余 target（其余字段未动）");
+                                + "已删除多余的 target（其余字段未动）");
                     }
                     kept.add(step);
                 }
@@ -121,8 +121,8 @@ public class ScriptMechanicalGapFiller {
             return List.of(step);
         }
         if (connCandidates.isEmpty()) {
-            notes.add("第 " + stepNo + " 步 " + action + " 缺 conn，且项目×环境无启用中的数据库"
-                    + "连接，落库校验已机械摘除（需降级为界面断言：请先在环境管理中配置数据库连接"
+            notes.add("第 " + stepNo + " 步 " + action + " 缺 conn，且项目×环境没有启用中的数据库"
+                    + "连接，本步数据库校验已跳过（处理办法：先在环境管理中配置数据库连接"
                     + "后重新生成，或人工补写页面断言步骤）");
             return List.of();
         }
@@ -149,7 +149,7 @@ public class ScriptMechanicalGapFiller {
         }
         step.remove("match");
         notes.add("第 " + stepNo + " 步 net.assert 缺 match 且步内无 url 可派生，"
-                + "网络断言已机械摘除（需人工精化：补写 match.urlPattern 后重新生成）");
+                + "本步网络断言已跳过（处理办法：补写 match.urlPattern 后重新生成）");
         return List.of();
     }
 

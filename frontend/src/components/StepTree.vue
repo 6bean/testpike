@@ -1,7 +1,6 @@
 
 <template>
   <el-dialog
-    draggable
     :model-value="visible"
     :title="caseTitle ? `${t('stepTree.dialogTitle')} · ${caseTitle}` : t('stepTree.dialogTitle')"
     class="tp-dialog--xl"
@@ -367,7 +366,6 @@
       v-model="diffVisible"
       :title="t('stepTree.diffTitle')"
       width="720px"
-      draggable
       append-to-body
       data-test="step-tree-diff-dialog"
     >
@@ -396,7 +394,6 @@
  
     <el-dialog
       v-model="nlDialogVisible"
-      draggable
       append-to-body
       :title="t('stepTree.nl.dialogTitle')"
       width="640px"
@@ -499,7 +496,6 @@
  
     <el-dialog
       v-model="recordDialogVisible"
-      draggable
       append-to-body
       :title="t('stepTree.record.dialogTitle')"
       width="720px"

@@ -1818,7 +1818,6 @@ async function submit() {
     v-model="visible"
     :title="editingId ? t('perf.wizard.titleEdit') : t('perf.wizard.title')"
     width="1040px"
-    draggable
     destroy-on-close
     data-test="perf-wizard"
   >
@@ -2597,7 +2596,7 @@ async function submit() {
     </template>
 
     
-    <el-dialog v-model="wlDialog" :title="t('perf.wl.title')" width="480px" draggable append-to-body data-test="pw-wl-dialog">
+    <el-dialog v-model="wlDialog" :title="t('perf.wl.title')" width="480px" append-to-body data-test="pw-wl-dialog">
       <div class="pw__field">
         <label for="pw-wl-concurrency-input">
           {{ t('perf.wl.maxConcurrency') }}
@@ -2621,7 +2620,7 @@ async function submit() {
     </el-dialog>
 
     
-    <el-dialog v-model="apDialog" :title="t('perf.applied.title')" width="480px" draggable append-to-body data-test="pw-ap-dialog">
+    <el-dialog v-model="apDialog" :title="t('perf.applied.title')" width="480px" append-to-body data-test="pw-ap-dialog">
       <div class="pw__field">
         <label for="pw-ap-concurrency-input">
           {{ t('perf.applied.concurrency') }}
@@ -2658,7 +2657,7 @@ async function submit() {
  selection across filtering, sticky action bar, chunked generation.
  Worst scale 500 requests: only the scroll window renders (pads keep
  the scrollbar honest); the action bar stays reachable without scroll. -->
-    <el-dialog v-model="importOpen" :title="t('perf.wizard.importTitle')" width="760px" draggable append-to-body data-test="pw-import-panel">
+    <el-dialog v-model="importOpen" :title="t('perf.wizard.importTitle')" width="760px" append-to-body data-test="pw-import-panel">
       <div class="pw__imp" tabindex="-1" @keydown="onImportKeydown">
         <div class="pw__imp-bar">
           <el-input v-model="importKeyword" :placeholder="t('perf.wizard.importSearchPh')" data-test="pw-import-search" clearable class="pw__imp-search" />
@@ -2723,7 +2722,7 @@ async function submit() {
  set), each row badged with its source set; duplicate method+path
  rows are flagged, never silently dropped. Commit runs only from the
  confirm button; the chunked progress line lives here. -->
-    <el-dialog v-model="importPreviewVisible" :title="t('perf.wizard.importPreviewTitle')" width="760px" draggable append-to-body data-test="pw-import-preview">
+    <el-dialog v-model="importPreviewVisible" :title="t('perf.wizard.importPreviewTitle')" width="760px" append-to-body data-test="pw-import-preview">
       <p v-if="duplicateKeys.size > 0" class="pw__imp-duphint" data-test="pw-import-dup-hint">
         {{ t('perf.wizard.importDupHint', { n: duplicateKeys.size }) }}
       </p>

@@ -153,7 +153,78 @@ class SiteSurveyDispatchTest {
         assertTrue(msg.contains("系统设置"), "must name the settings path: " + msg);
     }
 
+    // ------------------------------------------------------- duplicate dispatch
+
+    /**
+     * One profile may hold only one survey in flight: a second click is refused
+     * before any side effect happens, and the refusal names the run that is
+     * already crawling plus the entry where its progress can be watched.
+     */
+    @Test
+    void secondDispatchWhileOneRunIsInFlightIsRefusedAndNamesThatRun() {
+        long projectId = createProject();
+        SiteProfileView profile = SiteSurveyProfileFixture.createProfile(siteProfileService, fixtureProfileIds,
+                projectId, "查重档案" + tail(), "http://127.0.0.1:8899/dup/", Map.of());
+
+        long firstRun = siteSurveyDispatch.dispatch(1L, projectId, profile.getId());
+        fixtureRunIds.add(firstRun);
+        trackSessionOf(firstRun);
+
+        ServiceException refusal = assertThrows(ServiceException.class,
+                () -> siteSurveyDispatch.dispatch(1L, projectId, profile.getId()));
+        String msg = refusal.getMessage();
+        assertTrue(msg.contains(String.valueOf(firstRun)),
+                "refusal must name the run already in flight: " + msg);
+        assertTrue(msg.contains("查看进度"), "refusal must point at the progress entry: " + msg);
+        assertTrue(msg.contains("站点档案"), "refusal must name where that entry lives: " + msg);
+        assertEquals(1, runCountOf(profile.getId()),
+                "a refused dispatch must not add a second ledger row");
+        assertEquals(1, sessionCountOf(projectId),
+                "a refused dispatch must not open a second explore session");
+    }
+
+    /** The guard covers the in-flight window only: a terminal run frees the door. */
+    @Test
+    void dispatchOpensAgainOnceTheEarlierRunReachesATerminalState() {
+        long projectId = createProject();
+        SiteProfileView profile = SiteSurveyProfileFixture.createProfile(siteProfileService, fixtureProfileIds,
+                projectId, "终态后再发" + tail(), "http://127.0.0.1:8899/dup-end/", Map.of());
+
+        long firstRun = siteSurveyDispatch.dispatch(1L, projectId, profile.getId());
+        fixtureRunIds.add(firstRun);
+        trackSessionOf(firstRun);
+        jdbcTemplate.update("UPDATE tp_site_survey_run SET status = 'partial', finished_at = now() WHERE id = ?",
+                firstRun);
+
+        long secondRun = siteSurveyDispatch.dispatch(1L, projectId, profile.getId());
+        fixtureRunIds.add(secondRun);
+        trackSessionOf(secondRun);
+        assertTrue(secondRun > 0, "the next dispatch gets its own ledger row");
+        assertEquals(2, runCountOf(profile.getId()));
+        assertEquals(2, sessionCountOf(projectId));
+    }
+
     // ---------------------------------------------------------------- fixtures
+
+    private void trackSessionOf(long runId) {
+        Long sessionId = jdbcTemplate.queryForObject(
+                "SELECT explore_session_id FROM tp_site_survey_run WHERE id = ?", Long.class, runId);
+        if (sessionId != null) {
+            fixtureSessionIds.add(sessionId);
+        }
+    }
+
+    private int runCountOf(long profileId) {
+        Integer counted = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_site_survey_run WHERE profile_id = ?", Integer.class, profileId);
+        return counted == null ? 0 : counted;
+    }
+
+    private int sessionCountOf(long projectId) {
+        Integer counted = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_explore_session WHERE project_id = ?", Integer.class, projectId);
+        return counted == null ? 0 : counted;
+    }
 
     private static String tail() {
         return UUID.randomUUID().toString().substring(0, 8);

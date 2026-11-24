@@ -171,7 +171,6 @@
       
       <el-dialog
         v-model="createVisible"
-        draggable
         :title="t('appauto.reservation.createTitle')"
         width="640px"
         data-test="reservation-create-dialog"

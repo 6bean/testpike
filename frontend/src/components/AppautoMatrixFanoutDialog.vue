@@ -3,7 +3,6 @@
     :model-value="modelValue"
     :title="t('appauto.matrix.dialogTitle')"
     width="880px"
-    draggable
     destroy-on-close
     data-test="matrix-fanout-dialog"
     @update:model-value="emit('update:modelValue', $event)"

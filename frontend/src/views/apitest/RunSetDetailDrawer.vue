@@ -524,7 +524,6 @@ onUnmounted(stopPolling)
 
     <el-dialog
       v-model="defectDialogOpen"
-      draggable
       width="480px"
       :title="t('apitest.runSet.defectEntry')"
       data-test="apitest-runset-defect-dialog"

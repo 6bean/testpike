@@ -67,7 +67,7 @@ class ExtractDeadlineTest {
                 () -> spent.clamp(Duration.ofSeconds(300)));
         assertEquals(BizErrorCode.AI_TIMEOUT, ex.getCode(),
                 "错误码固定 AI_TIMEOUT，禁伪装成可重试的供应商异常");
-        assertTrue(ex.getMessage().contains("时长预算"),
+        assertTrue(ex.getMessage().contains("时长上限"),
                 "人话须点名超时原因, 实际=" + ex.getMessage());
     }
 

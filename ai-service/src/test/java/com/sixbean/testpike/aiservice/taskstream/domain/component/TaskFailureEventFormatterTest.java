@@ -82,7 +82,7 @@ class TaskFailureEventFormatterTest {
                         BizErrorCode.AI_FORMAT_ERROR),
                 "任务详情页「重试生成」按钮");
         assertEquals(TaskFailureEventFormatter.CATEGORY_VALIDATION, script.category());
-        assertTrue(script.suggestion().startsWith("脚本格式经系统自动重生成后仍未收敛"),
+        assertTrue(script.suggestion().startsWith("脚本格式经系统自动重生成后仍未通过校验"),
                 script.suggestion());
         assertTrue(!script.suggestion().contains("字段补全"), script.suggestion());
         assertTrue(script.suggestion().contains("无需调整输入内容"), script.suggestion());

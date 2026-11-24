@@ -148,7 +148,6 @@
            name) runs in core and its rejection text travels back unmutated. -->
       <el-dialog
         v-model="dialogVisible"
-        draggable
         :title="editing ? t('appauto.elementLibrary.editTitle') : t('appauto.elementLibrary.createTitle')"
         width="560px"
         data-test="element-form-dialog"

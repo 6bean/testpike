@@ -14,6 +14,9 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,10 @@ import java.util.Map;
  */
 @Component
 public class SiteSurveyDispatch {
+
+    /** Text shape of a ledger start time inside an on-screen refusal. */
+    private static final DateTimeFormatter STARTED_AT_TEXT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /** Hot keys of the whole-site family, seeded by the install baseline. */
     static final String KEY_ALLOW_PROD = "element.survey-site.allow-prod";
@@ -83,6 +90,7 @@ public class SiteSurveyDispatch {
      */
     public long dispatch(long operatorId, long projectId, long profileId) {
         SiteProfileView profile = siteProfileService.get(profileId);
+        refuseWhileAnotherRunIsInFlight(profile);
         refuseProductionHost(profile.startUrl());
         String goal = WebElementSurveyCollector.SITE_SURVEY_GOAL_PREFIX + profileId
                 + " " + profile.startUrl();
@@ -99,6 +107,43 @@ public class SiteSurveyDispatch {
                 VALUES (:profileId, :projectId, :sessionId, 'running', CAST(:snapshot AS JSONB))
                 RETURNING id""", params, Long.class);
         return runId == null ? -1L : runId;
+    }
+
+    /**
+     * Duplicate guard: one profile crawls only once at a time. A second dispatch
+     * is refused before any session or ledger row is written, and the refusal
+     * names the run that is still going (id + start time) plus the two entries
+     * that show its progress, so the operator always has a next step to take.
+     */
+    private void refuseWhileAnotherRunIsInFlight(SiteProfileView profile) {
+        List<Map<String, Object>> inFlight = jdbc.queryForList("""
+                SELECT id, started_at FROM tp_site_survey_run
+                 WHERE profile_id = :profileId AND status = 'running'
+                 ORDER BY started_at DESC
+                 LIMIT 1""", new MapSqlParameterSource("profileId", profile.getId()));
+        if (inFlight.isEmpty()) {
+            return;
+        }
+        Map<String, Object> running = inFlight.get(0);
+        long runningId = ((Number) running.get("id")).longValue();
+        throw new ServiceException(String.format(
+                "整站测绘未发起：站点档案「%s」已有一条测绘正在进行中（测绘记录 %d，%s 开始，尚未结束）。"
+                        + "该档案右侧的按钮此时显示「查看进度」，点它即可查看实时过程；"
+                        + "也可在「站点档案」抽屉下方的「测绘记录」列表中找到记录 %d 点「进程详情」回看。"
+                        + "等这条测绘结束后即可再次发起。",
+                profile.name(), runningId, formatStartedAt(running.get("started_at")), runningId),
+                BizErrorCode.VALIDATION_ERROR);
+    }
+
+    /** Ledger timestamps read as yyyy-MM-dd HH:mm:ss; unexpected types print as-is. */
+    private String formatStartedAt(Object startedAt) {
+        if (startedAt instanceof Timestamp timestamp) {
+            return timestamp.toLocalDateTime().format(STARTED_AT_TEXT);
+        }
+        if (startedAt instanceof LocalDateTime dateTime) {
+            return dateTime.format(STARTED_AT_TEXT);
+        }
+        return String.valueOf(startedAt);
     }
 
     /** Production door: matched host + settings path + key literal (R63/R32). */

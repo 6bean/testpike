@@ -208,7 +208,6 @@ watch(
     :model-value="props.modelValue"
     :title="t('apitest.stubImport.title')"
     width="900"
-    draggable
     data-test="stub-direct-dialog"
     @update:model-value="(v: boolean) => { if (!v) closeWizard() }"
   >

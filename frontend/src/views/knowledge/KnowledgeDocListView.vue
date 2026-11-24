@@ -211,7 +211,6 @@
 
     
     <el-dialog
-      draggable
       v-model="resultVisible"
       :title="t('knowledge.rebuildResultTitle')"
       width="560px"

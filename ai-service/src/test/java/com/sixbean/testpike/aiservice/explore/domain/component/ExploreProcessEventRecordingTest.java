@@ -113,8 +113,9 @@ class ExploreProcessEventRecordingTest {
         kernel(LoopContextFitting.NONE).run(webSession(), ACTOR_ID);
 
         List<String[]> rows = landedRows();
-        assertTrue(rows.stream().anyMatch(r -> "step".equals(r[0]) && r[1].contains("探索")),
-                "运行开始应留下一条可读的启动事件: " + rows);
+        assertTrue(rows.stream().anyMatch(r -> "step".equals(r[0])
+                        && r[1].contains("已发起自动浏览") && r[1].contains("步数上限")),
+                "运行开始应留下一条含对象与进度上限的启动事件: " + rows);
         assertTrue(rows.stream().anyMatch(r -> "thinking".equals(r[0])
                         && r[1].contains("页面快照已读取")),
                 "每轮模型可见输出应留下一条 thinking 事件: " + rows);
@@ -140,15 +141,16 @@ class ExploreProcessEventRecordingTest {
 
         List<String[]> rows = landedRows();
         assertTrue(rows.stream().anyMatch(r -> "step".equals(r[0])
-                        && r[1].contains("login-tool") && r[1].contains("成功")),
-                "执行的动作应留下一条点名成败的 step 事件: " + rows);
+                        && r[1].contains("自定义动作") && r[1].contains("成功")
+                        && r[2] != null && r[2].contains("login-tool")),
+                "步骤帧上屏走人话动作名、裸工具名归机读明细: " + rows);
         assertTrue(rows.stream().anyMatch(r -> "step".equals(r[0])
                         && r[1].contains("目标达成")),
                 "达成出口判型应上屏: " + rows);
     }
 
     @Test
-    void 上下文预算拒止_落error事件点名停止原因() {
+    void 上下文用量达上限_落error事件点名提前结束原因() {
         LoopContextFitting refuse = (request, projectId) -> {
             throw new ServiceException("上下文超过模型上限，无法继续装配",
                     BizErrorCode.AI_PROMPT_TOO_LARGE);
@@ -157,8 +159,8 @@ class ExploreProcessEventRecordingTest {
 
         List<String[]> rows = landedRows();
         assertTrue(rows.stream().anyMatch(r -> "error".equals(r[0])
-                        && r[1].contains("预算")),
-                "预算拒止必须作为错误事件出现在过程流里: " + rows);
+                        && r[1].contains("提前结束") && r[1].contains("上限")),
+                "达上限必须作为错误事件出现在过程流里并点名原因: " + rows);
     }
 
     @Test

@@ -157,7 +157,6 @@
 
       <!-- Create / edit share one dialog: id==0 means create. -->
       <el-dialog
-        draggable
         v-model="formVisible"
         :title="form.id === 0 ? t('program.createTitle') : t('program.editTitle')"
         width="480px"

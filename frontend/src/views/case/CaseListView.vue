@@ -427,7 +427,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="createVisible"
       :title="editingId ? t('case.editTitle') : t('case.createTitle')"
       width="640px"
@@ -551,7 +551,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="reasonVisible" :title="reasonAction === 'need_change' ? t('case.needChangeTitle') : t('case.rejectTitle')" width="480px" destroy-on-close data-test="reason-dialog">
+    <el-dialog v-model="reasonVisible" :title="reasonAction === 'need_change' ? t('case.needChangeTitle') : t('case.rejectTitle')" width="480px" destroy-on-close data-test="reason-dialog">
       <div v-if="batchReviewTargets.length" class="assign-targets text-secondary" data-test="batch-review-targets">
         {{ t('case.selectedCount', { n: batchReviewTargets.length }) }}：{{ batchReviewTargets.map((r) => r.caseNo).join('、') }}
       </div>
@@ -571,7 +571,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="assignVisible" :title="t('case.assignDialogTitle')" width="480px" destroy-on-close data-test="assign-dialog">
+    <el-dialog v-model="assignVisible" :title="t('case.assignDialogTitle')" width="480px" destroy-on-close data-test="assign-dialog">
       <div v-if="assignTargetRows.length" class="assign-targets text-secondary">
         {{ t('case.selectedCount', { n: assignTargetRows.length }) }}：{{ assignTargetRows.map((r) => r.caseNo).join('、') }}
       </div>
@@ -602,7 +602,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable v-model="batchEditVisible" :title="t('case.batchEdit')" width="480px" destroy-on-close data-test="batch-edit-dialog">
+    <el-dialog v-model="batchEditVisible" :title="t('case.batchEdit')" width="480px" destroy-on-close data-test="batch-edit-dialog">
       <div v-if="selection.length" class="text-secondary hint-block">
         {{ t('case.selectedCount', { n: selection.length }) }}：{{ selection.slice(0, 5).map((r) => r.caseNo).join('、') }}<template v-if="selection.length > 5">{{ t('case.selectedMore', { n: selection.length }) }}</template>
       </div>
@@ -633,7 +633,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable v-model="tagVisible" :title="t('case.tagDialogTitle')" width="480px" destroy-on-close data-test="case-tag-dialog">
+    <el-dialog v-model="tagVisible" :title="t('case.tagDialogTitle')" width="480px" destroy-on-close data-test="case-tag-dialog">
       <div v-if="tagTarget" class="text-secondary hint-block">
         {{ t('case.caseNo') }}：{{ tagTarget.caseNo }} · {{ t('case.tagPickHint') }}
       </div>

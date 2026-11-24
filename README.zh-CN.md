@@ -2,6 +2,14 @@
 
 > **[English](README.md)** | 简体中文
 
+[![CI](https://github.com/6bean/testpike/actions/workflows/ci.yml/badge.svg)](https://github.com/6bean/testpike/actions/workflows/ci.yml)
+[![许可协议: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-informational)](https://github.com/6bean/testpike)
+[![Node 20](https://img.shields.io/badge/Node-20-brightgreen)](https://github.com/6bean/testpike)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-yellowgreen)](https://github.com/6bean/testpike)
+[![欢迎贡献](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![新人友好任务](https://img.shields.io/badge/good%20first%20issues-open-green)](https://github.com/6bean/testpike/labels/good%20first%20issue)
+
 testPike 将需求文档转化为结构化测试用例与可执行脚本，在真实浏览器、真实设备与真实压测引擎上执行，
 并从每一次评审与每一次失败中学习。一条完整闭环：**需求 → AI 生成 → 人工评审 → 真实执行 →
 运营与治理 → 反馈回流到提示词、技能与样本。**
@@ -17,6 +25,14 @@ MCP 双向打通 · 内置 mock LLM，零外网 API 也能全链路跑通。
  脚本 ──执行器集群──▶ Web UI · 接口 · 移动端 · 性能 执行
  结果 ──▶ 报告、缺陷、成本台账 ──▶ 反馈 / 学习 / 自进化
 ```
+
+## 界面一览
+
+| 工作台：首次上手六条旅程与执行器/设备状态 | 用例库：优先级、置信度、评审状态与行操作 |
+| --- | --- |
+| ![testPike 工作台：快速旅程卡片、执行器与设备状态、待评与缺陷计数](assets/img/readme/dashboard-light.png) | ![testPike 用例列表：用例号、测试目的、优先级、置信度、评审状态、标签与行操作](assets/img/readme/case-library-light.png) |
+
+*截图取自真实在跑的完整栈：使用内置 mock LLM（无需外网 API Key），项目为首装出厂种子自带的演示项目。*
 
 ## 功能特性
 
@@ -241,6 +257,7 @@ python3 runner.py              # 注册 → 心跳 → 领取 → 子进程执�
 
 - [INSTALL.zh-CN.md](INSTALL.zh-CN.md) / [INSTALL.md](INSTALL.md) — 装机手册与验收清单
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 提 issue、交补丁、新增技能/工具的规矩
+- [新人友好任务](https://github.com/6bean/testpike/labels/good%20first%20issue) — 第一次贡献的推荐入口
 - [SECURITY.md](SECURITY.md) — 漏洞披露与坚持的安全不变量
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [NOTICE](NOTICE) — 第三方署名台账
 

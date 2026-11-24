@@ -1285,8 +1285,8 @@ public class AiGenServiceImpl implements AiGenService {
                 parsedDraft = tryStage1FormatRepair(ring.draft(), rejected, message,
                         primary, notice, markedModel, taskId);
                 if (parsedDraft == null) {
-                    throw new ServiceException("AI 输出格式校验失败（推理确认环 " + ring.roundsUsed()
-                            + " 轮残余：" + String.join("；", ring.residualClaims()) + "）",
+                    throw new ServiceException("AI 输出格式校验失败（重试 " + ring.roundsUsed()
+                            + " 轮后仍有未完成核验项：" + String.join("；", ring.residualClaims()) + "）",
                             BizErrorCode.AI_FORMAT_ERROR);
                 }
             }
@@ -1655,7 +1655,7 @@ public class AiGenServiceImpl implements AiGenService {
             List<String> gaps = caseJsonParser.collectMissingFields(working);
             String gapText = gaps.isEmpty() ? String.valueOf(rejected.getMessage())
                     : String.join("；", gaps);
-            String prompt = "以下测试用例草案不满足输出契约（缺失或不合规字段：" + gapText + "）。"
+            String prompt = "以下测试用例草案未通过输出格式校验（缺失或不合规字段：" + gapText + "）。"
                     + "保留草案中已有的有效内容，补写缺失字段后只输出一个完整合规的 JSON 对象。"
                     + "必填键：title（测试目标）、expectedResult（预期结果）、steps（数组，每项含非空 description）。"
                     + "\n草案：\n" + (working.length() <= cap ? working : working.substring(0, cap));
@@ -1723,7 +1723,7 @@ public class AiGenServiceImpl implements AiGenService {
         for (String note : filled.notes()) {
             recordProcessEvent(taskId, "step",
                     (groupTag == null || groupTag.isBlank() ? "" : groupTag + " ")
-                            + "机械缺项装配：" + note);
+                            + "按缺项清单补写：" + note);
         }
         return filled.script();
     }
@@ -1764,7 +1764,7 @@ public class AiGenServiceImpl implements AiGenService {
             if (check.passed()) {
                 if (round > 1) {
                     recordProcessEvent(taskId, "step",
-                            groupTag + " 格式类残余已定向补写通过动作契约校验");
+                            groupTag + " 格式类问题已按缺项清单补写并通过脚本校验");
                     log.info("脚本通道格式类残余定向补写成功 taskId={} round={}",
                             taskId, round - 1);
                 }
@@ -1774,7 +1774,7 @@ public class AiGenServiceImpl implements AiGenService {
                 break;
             }
             String gapText = String.join("；", check.errors());
-            String prompt = "以下测试脚本不满足动作 JSON v2 输出契约（缺失或不合规项："
+            String prompt = "以下测试脚本未通过动作 JSON v2 格式校验（缺失或不合规项："
                     + gapText + "）。保留脚本中已有的有效动作，只补齐缺项后重新输出完整脚本，"
                     + "只输出一个合规的 JSON 对象，不输出任何其它文本。"
                     + "\n草案：\n" + (working.length() <= cap ? working : working.substring(0, cap));
@@ -1796,7 +1796,7 @@ public class AiGenServiceImpl implements AiGenService {
                         taskId, round, transportDown.getMessage());
                 return null;
             }
-            recordProcessEvent(taskId, "step", groupTag + " 环用尽格式类残余，按缺项定向补写第 "
+            recordProcessEvent(taskId, "step", groupTag + " 格式类问题未完成校验，按缺项清单补写第 "
                     + round + "/" + budget + " 轮：" + gapText);
             working = out == null || out.isBlank() ? working : out;
         }
@@ -1916,8 +1916,8 @@ public class AiGenServiceImpl implements AiGenService {
         clampPersistedConfidenceOnStage2HonestMarks(message, caseId,
                 generated.confidence(), savedDraft);
         recordProcessEvent(message.taskId(), "step", groups.size() > 1
-                ? "AI 脚本已写入用例（caseId " + caseId + "），" + groups.size() + " 个步骤组合并落库"
-                : "AI 脚本已写入用例（caseId " + caseId + "），整单一次生成收敛");
+                ? "AI 脚本已写入用例（caseId " + caseId + "），" + groups.size() + " 个步骤组合并保存"
+                : "AI 脚本已写入用例（caseId " + caseId + "），整单一次生成并通过校验");
         log.info("AI 脚本落库 caseId={} 步骤组数={}（片宽={}）", caseId, groups.size(), sliceWidth);
     }
 
@@ -1961,7 +1961,7 @@ public class AiGenServiceImpl implements AiGenService {
                         message.taskId(), caseId, rejected.getMessage());
                 recordProcessEvent(message.taskId(), "step",
                         "用例 " + caseId + " 含「需人工精化」标注的无据步骤，置信度顶格下调回写被并发编辑"
-                                + "拒绝（乐观锁），当前值保持不变，请在评审时人工复核该标注步骤");
+                                + "拒绝，当前值保持不变，请在评审时人工复核该标注步骤");
             }
         }
     }
@@ -1986,10 +1986,10 @@ public class AiGenServiceImpl implements AiGenService {
         for (int attempt = 0; attempt <= cap; attempt++) {
             if (rejection != null) {
                 recordProcessEvent(scope.message().taskId(), "step",
-                        "落库被脚本静态校验拒，自动进入修复轮（第 " + attempt + "/" + cap
+                        "保存未通过脚本校验，自动进入修复轮（第 " + attempt + "/" + cap
                                 + " 轮）：" + rejection);
                 current = JsonOutputExtractor.extractJson(askStage2(scope, view,
-                        List.of("落库被脚本静态校验拒：" + rejection)));
+                        List.of("保存未通过脚本校验：" + rejection)));
             }
             try {
                 coreGateway.saveScript(caseId, "v2", current, 1, scope.message().operatorId());
@@ -2000,7 +2000,7 @@ public class AiGenServiceImpl implements AiGenService {
             } catch (ServiceException rejected) {
                 if (attempt >= cap) {
                     recordProcessEvent(scope.message().taskId(), "error",
-                            "脚本修复轮用尽（" + cap + " 轮）仍被校验拒，转人工："
+                            "脚本自动修复用尽（" + cap + " 轮）仍未通过校验，请人工处理："
                                     + rejected.getMessage());
                     throw rejected;
                 }
@@ -2066,9 +2066,9 @@ public class AiGenServiceImpl implements AiGenService {
         // job drawer ledger — named rounds/model calls, converged or not.
         // The store is fail-soft by contract; a null door is a silent no-op.
         recordProcessEvent(scope.message().taskId(), "step",
-                groupTag + " 推理确认环结束：共 " + ring.roundsUsed() + " 轮、模型调用 "
+                groupTag + " 逐项核验结束：共 " + ring.roundsUsed() + " 轮、模型调用 "
                         + ring.modelCalls() + " 次，"
-                        + (ring.converged() ? "已收敛" : "未收敛"));
+                        + (ring.converged() ? "全部条目核验通过" : "部分条目未完成核验"));
         if (ring.converged()) {
             return ring.draft();
         }
@@ -2089,7 +2089,7 @@ public class AiGenServiceImpl implements AiGenService {
         // The red event names the residual claims before the throw — the
         // exception still propagates, the event never swallows it.
         recordProcessEvent(scope.message().taskId(), "error",
-                groupTag + " 拒收：" + rejectCause);
+                groupTag + " 本轮结果未采用：" + rejectCause);
         throw new ServiceException(rejectCause, BizErrorCode.AI_FORMAT_ERROR);
     }
 
@@ -2098,11 +2098,11 @@ public class AiGenServiceImpl implements AiGenService {
             com.sixbean.testpike.aiservice.llm.pipeline.DeliberationOutcome ring) {
         boolean styleTracked = ring.residualClaims().stream().anyMatch(f -> f.contains("姿势"));
         return styleTracked
-                ? "AI 脚本姿势不符合团队规范（推理确认环 " + ring.roundsUsed()
-                        + " 轮残余：" + String.join("；", ring.residualClaims())
+                ? "AI 脚本姿势不符合团队规范（重试 " + ring.roundsUsed()
+                        + " 轮后仍有未完成核验项：" + String.join("；", ring.residualClaims())
                         + "，违规步已点名请人工整改）"
-                : "AI 脚本格式校验失败（推理确认环 " + ring.roundsUsed()
-                        + " 轮残余：" + String.join("；", ring.residualClaims()) + "）";
+                : "AI 脚本格式校验失败（重试 " + ring.roundsUsed()
+                        + " 轮后仍有未完成核验项：" + String.join("；", ring.residualClaims()) + "）";
     }
 
     /**
@@ -2135,13 +2135,13 @@ public class AiGenServiceImpl implements AiGenService {
                 } catch (ServiceException rejected) {
                     if (attempt > retryLimit) {
                         recordProcessEvent(taskId, "error",
-                                tag + " 重试 " + attempt + " 次仍未收敛，整单不落库："
+                                tag + " 重试 " + attempt + " 次仍未通过校验，本用例未保存："
                                         + rejected.getMessage());
                         throw new ServiceException("步骤生成失败的组：" + tag + "（"
                                 + rejected.getMessage() + "），其余组的产物未写入",
                                 BizErrorCode.AI_FORMAT_ERROR);
                     }
-                    recordProcessEvent(taskId, "step", tag + " 未收敛，按重试从该组续跑（第 "
+                    recordProcessEvent(taskId, "step", tag + " 未完成校验，从该组重试续跑（第 "
                             + (attempt + 1) + " 次，共允许 " + (retryLimit + 1) + " 次）");
                 }
             }
@@ -2283,7 +2283,7 @@ public class AiGenServiceImpl implements AiGenService {
     private String composeStage2System(AiGenMessage message, LlmEndpointConfig primary,
                                        SkillStage stage) {
         String scriptSystemBase = "你是测试脚本专家，请按动作 JSON v2 格式输出可执行脚本（标记 "
-                + LlmExtractMarkers.STAGE2_ACTION + "；元素定位用 CSS 单策略，04 契约）。";
+                + LlmExtractMarkers.STAGE2_ACTION + "；元素定位用 CSS 单策略，按动作 JSON v2 格式）。";
         return skillBridge == null ? scriptSystemBase
                 : skillBridge.composeSystem(scriptSystemBase, stage,
                         message.projectId(), message.taskId(), primary);
@@ -2580,14 +2580,14 @@ public class AiGenServiceImpl implements AiGenService {
                 + "/console.assert/net.assert/http.request"
                 + (sqlGenOn ? "/sql.assert/sql.query" : "") + "；"
                 + scriptLimitResolver.promptConstraintSegment() + "\n"
-                + "locator 结构示例（04 契约 §2.3，定位类动作 chain 至少 1 项——缺 chain 判不合格）：\n"
+                + "locator 结构示例（动作 JSON v2 格式要求，定位类动作 chain 至少 1 项——缺 chain 判不合格）：\n"
                 + "\"target\":{\"css\":\"#login-btn\",\"chain\":[\"css\"]}\n"
-                + "顶层 env 结构示例（04 契约规则 2，env 与 caseId 并列必填、三键缺一不可）：\n"
+                + "顶层 env 结构示例（动作 JSON v2 格式要求，env 与 caseId 并列必填、三键缺一不可）：\n"
                 + "\"env\":{\"ENV\":\"<环境code>\",\"PACK\":\"<行业包>\",\"DATA\":\"<数据池>\"}\n"
-                + "goto 黄金样例（04 契约 §2.1，goto 的 url 必填——写顶层 \"url\" 或 target.url，"
+                + "goto 黄金样例（动作 JSON v2 格式要求，goto 的 url 必填——写顶层 \"url\" 或 target.url，"
                 + "地址取需求给出的完整 URL 或 {{ENV:键名}} 占位，禁放进 value/description）：\n"
                 + "{\"action\":\"goto\",\"url\":\"{{ENV:BASE_URL}}/login\"}\n"
-                + "断言映射规则（04 契约 §2.1.1 matchType，按预期结果语义选择）：\n"
+                + "断言映射规则（动作 JSON v2 格式的 matchType，按预期结果语义选择）：\n"
                 + "- 单字段区间语义（大于X小于Y/在X~Y之间/不低于X）→ matchType=range，"
                 + "bounds 开闭映射：严格不等（大于/小于）=open、含等（不低于/不超过）=closed、"
                 + "\"X以上Y以下\"混用=left-open/right-open；金额页带 ¥/千分位时 strip 按页面单位惯例\n"
@@ -2620,12 +2620,12 @@ public class AiGenServiceImpl implements AiGenService {
                     coreGateway.getSysConfig(FIDELITY_GATE_KEY), true)
                 && com.sixbean.testpike.aiservice.llm.domain.component.SysConfigBooleans.parse(
                     coreGateway.getSysConfig(NO_TRUTH_HONEST_MARK_KEY), true)) {
-            sb.append("无据诚实标注纪律：若无页面探查候选段且接口契约/元素台账未命中，步骤中的 URL、"
+            sb.append("无据诚实标注纪律：若无页面探查候选段且接口定义/元素台账未命中，步骤中的 URL、"
                     + "定位符与期望值字面均无真值依据——必须在该步 description 末尾标注「需人工精化」"
                     + "（与 SQL 步「检索无据标注」同一纪律）；未标注的无据字面值会被忠实核对检出并退回"
                     + "定向修订。候选段在场时定位以候选原文为准，禁另造。\n");
         }
-        sb.append("四层联合校验映射（04 契约 §2.1.2，步骤/预期含界面/接口/落库语义时按此选动作）：\n");
+        sb.append("四层联合校验映射（动作 JSON v2 格式要求，步骤/预期含界面/接口/数据库写入语义时按此选动作）：\n");
         sb.append("- 界面报错语义（控制台不应有错误/无 JS 报错）→ console.assert，"
                 + "level 默认 [error]，已知无害噪音进 ignorePatterns（glob，禁滥用白名单掩盖真错）\n");
         sb.append("- 请求观测语义（应发请求/不该发请求/接口返回码）→ net.assert，"
@@ -2642,17 +2642,17 @@ public class AiGenServiceImpl implements AiGenService {
                 + "http.request(poll)=轮询等待；B10 expect+matchType=取值判定不等待"
                 + "（元素出现即判一次，值不稳定先加 wait 步）\n");
         if (sqlGenOn) {
-            sb.append("- 落库核对语义（数据写入表/状态落库）→ sql.assert + retry（本族=轮询等待，"
-                    + "UI 操作后接落库校验必须用本族，禁取值判定凑）；conn=连接名 "
+            sb.append("- 数据库写入核对语义（数据写入表/状态保存到数据库）→ sql.assert + retry（本族=轮询等待，"
+                    + "界面操作后接数据库写入校验必须用本族，禁取值判定凑）；conn=连接名 "
                     + "{{ENV:DB_SIT}} 形态，sql 首关键字只读 SELECT，参数 :name 具名绑定强制"
                     + "（禁把占位文本硬编进 SQL）；表名列名以下方「表结构参考」检索段为据，"
                     + "禁凭记忆猜——检索无据时该步 description 标注「需人工精化」\n");
             sb.append("- setup 造数取回自增 id → sql.query + saveAs（只读取值入变量域）\n");
             sb.append("- sql.exec（造数/清理 DML）AI 禁自动产：只许人工显式编写，产物中出现即校验拒\n");
         } else {
-            sb.append("- 落库核对语义：本系统 SQL 生成开关当前关闭——禁硬编 SQL 产物，"
+            sb.append("- 数据库写入核对语义：本系统 SQL 生成开关当前关闭——禁硬编 SQL 产物，"
                     + "该步输出 expect 界面断言并在 description 末尾标注"
-                    + "「落库校验需人工补充 SQL 模板通道」；sql.exec AI 禁自动产（恒拒）\n");
+                    + "「数据库写入校验需人工补充 SQL 模板通道」；sql.exec AI 禁自动产（恒拒）\n");
         }
         sb.append("非 UI 断言黄金样例（输入→期望产物骨架对照）：\n");
         sb.append("样例5 console 噪音白名单：预期「下单流程无 JS 错误，第三方埋点报错除外」→ "
@@ -2666,7 +2666,7 @@ public class AiGenServiceImpl implements AiGenService {
                 + "\"body\":{\"sku\":\"TEST-01\"},\"expect\":{\"status\":200},\"saveAs\":\"resp1\"}，"
                 + "后续步骤值写 \"value\":\"{{VAR:resp1.data.orderNo}}\"（先声明后引用）\n");
         if (sqlGenOn) {
-            sb.append("样例8 sql 轮询区间：预期「订单状态 30s 内落库为 PAID」→ ")
+            sb.append("样例8 sql 轮询区间：预期「订单状态 30s 内保存为 PAID」→ ")
                     .append("{\"action\":\"sql.assert\",\"conn\":\"{{ENV:DB_SIT}}\",\"sql\":")
                     .append("\"SELECT status FROM t_order WHERE order_no = :orderNo\",")
                     .append("\"params\":{\"orderNo\":\"{{VAR:resp1.data.orderNo}}\"},")
@@ -2823,7 +2823,7 @@ public class AiGenServiceImpl implements AiGenService {
                 () -> coreGateway.promptTemplateLatestByStatus(STAGE1_TEMPLATE_NAME,
                         STAGE1_TEMPLATE_DOMAIN, ChatBehaviorDirectives.PUBLISHED_STATUS),
                 contract,
-                "用例生成 stage1 行为指令模板读路径不可用，本轮生成回退内置契约")
+                "用例生成 stage1 行为指令模板读路径不可用，本轮生成改用内置指令模板")
                 + "\n" + langInstruction(lang);
     }
 

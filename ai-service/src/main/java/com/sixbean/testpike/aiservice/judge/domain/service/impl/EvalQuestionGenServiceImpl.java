@@ -118,7 +118,7 @@ public class EvalQuestionGenServiceImpl implements EvalQuestionGenService {
         return BehaviorKernelAssembly.assembleHeadFromGateway(coreGateway,
                 KEY_DIRECTIVES_ENABLED, TEMPLATE_NAME, TEMPLATE_DOMAIN,
                 buildSystemPrompt(),
-                "行为指令模板读路径不可用，本轮 AI 造题回退内置契约")
+                "行为指令模板读路径不可用，本轮 AI 造题回退内置指令模板")
                 // : recall block appended at the assembled-head tail so
                 // both the template-row path and the built-in fallback carry the
                 // count contract; OFF state stays byte-identical to the pre- head.
@@ -466,9 +466,10 @@ public class EvalQuestionGenServiceImpl implements EvalQuestionGenService {
                 jobStore.landGroup(documentId, runToken, writeJsonQuiet(cumulative),
                         landed, groups.size(), promptTokens, completionTokens);
                 processEvents.record(JOB_KIND, String.valueOf(documentId), runToken, "step",
-                        "第" + landed + "/" + groups.size() + "组完成，累计问答对 "
-                                + cumulative.size() + " 条（tokens " + promptTokens + "/"
-                                + completionTokens + "）", null);
+                        "评测集 AI 造题｜第" + landed + "/" + groups.size() + "组完成，累计问答对 "
+                                + cumulative.size() + " 条",
+                        "documentId=" + documentId + " promptTokens=" + promptTokens
+                                + " completionTokens=" + completionTokens);
             }
             if (merged.isEmpty()) {
                 String cause = "文档中未生成可回答的问答对，请确认上传的是含事实内容的文档";

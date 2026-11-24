@@ -1,6 +1,6 @@
 <template>
  
-  <el-dialog draggable
+  <el-dialog
     v-model="visible"
     :show-close="false"
     width="640px"

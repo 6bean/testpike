@@ -159,8 +159,8 @@ public class ActionJsonValidator {
             if (action.equals("expect")) {
                 String violation = ExpectMatchContract.expectViolation(step);
                 if (violation != null) {
-                    errors.add(stepLabel + " expect 步 matchType 契约违例：" + violation
-                            + "——无法精确判定时回退 contains 并在 description 标注「需人工精化」");
+                    errors.add(stepLabel + " expect 步 matchType 格式不符：" + violation
+                            + "——无法精确判定时改用 contains 并在 description 标注「需人工精化」");
                 }
             }
         }
@@ -415,7 +415,7 @@ public class ActionJsonValidator {
             default -> null;
         };
         if (violation != null) {
-            errors.add(stepLabel + " " + action + " 步契约违例：" + violation);
+            errors.add(stepLabel + " " + action + " 步格式不符：" + violation);
         }
     }
 

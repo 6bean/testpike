@@ -3,7 +3,7 @@
     <div class="page-card" data-test="case-detail-root">
       
       <div class="detail-header">
-        <el-button link type="primary" :icon="ArrowLeft" data-test="detail-back" @click="goBack">{{ t('common.back') }}</el-button>
+        <el-button v-if="!embedded" link type="primary" :icon="ArrowLeft" data-test="detail-back" @click="goBack">{{ t('common.back') }}</el-button>
         <div v-if="detail" class="header-main">
           <div class="header-title-row">
             <h2 class="page-title" style="margin: 0" data-test="detail-title">{{ detail.title }}</h2>
@@ -1063,7 +1063,7 @@
     </div>
 
  
-    <el-dialog draggable v-model="versionDiffVisible" :title="versionDiffTitle" width="800px" destroy-on-close data-test="version-diff-dialog">
+    <el-dialog v-model="versionDiffVisible" :title="versionDiffTitle" width="800px" destroy-on-close data-test="version-diff-dialog">
       <el-alert
         v-if="versionDiff?.truncated"
         type="warning"
@@ -1090,7 +1090,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable v-model="scriptVersionDiffVisible" :title="scriptVersionDiffTitle" width="800px" destroy-on-close data-test="script-version-diff-dialog">
+    <el-dialog v-model="scriptVersionDiffVisible" :title="scriptVersionDiffTitle" width="800px" destroy-on-close data-test="script-version-diff-dialog">
       <el-alert
         v-if="scriptVersionDiff?.corrupted"
         type="error"
@@ -1120,7 +1120,7 @@
     <SimilarityHintDialog ref="similarityDialogRef" />
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="reasonVisible"
       :title="reasonAction === 'need_change' ? t('case.needChangeTitle') : t('case.rejectTitle')"
       width="480px"
@@ -1145,7 +1145,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable v-model="linkVisible" :title="t('caseDetail.linkDefect')" width="480px" destroy-on-close data-test="defect-link-dialog">
+    <el-dialog v-model="linkVisible" :title="t('caseDetail.linkDefect')" width="480px" destroy-on-close data-test="defect-link-dialog">
       <el-form label-width="90px">
         <el-form-item :label="t('caseDetail.colDefectKey')" required>
           <el-input
@@ -1172,7 +1172,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="envSelectVisible"
       :title="t(envSelectMode === 'quick' ? 'exec.envSelectTitleQuick' : 'exec.envSelectTitle')"
       width="640px"
@@ -1217,7 +1217,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="quickResultVisible"
       :title="t('exec.quickResultTitle')"
       width="640px"
@@ -1250,7 +1250,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="cloneVisible"
       :title="t('caseDetail.cloneTitle')"
       width="640px"
@@ -1280,7 +1280,7 @@
     </el-dialog>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="historyCompareVisible"
       :title="t('exec.historyCompareTitle')"
       width="900px"
@@ -1348,7 +1348,7 @@
     />
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="trialVisible"
       :title="t('exec.taskDetail')"
       width="640px"
@@ -1532,9 +1532,18 @@ const router = useRouter()
 const auth = useAuthStore()
 const appStore = useAppStore()
 
+// Embedding props (shared case-detail door): the link-cases dialog on the
+// requirement page mounts this same page inside a dialog instead of a second
+// read-only detail implementation. `embedded` drops the routed-page chrome
+// (the back button) and the id comes from the door instead of the route.
+const props = withDefaults(defineProps<{
+  embedded?: boolean
+  caseId?: number | string | null
+}>(), { embedded: false, caseId: null })
+
 
 const SCRIPT_REASON_ROLLBACK = '\u7528\u4f8b\u56de\u6eda\u91cd\u6302'
-const caseId = Number(route.params.id)
+const caseId = Number(props.embedded ? props.caseId : route.params.id)
 const loading = ref(true)
 const saving = ref(false)
 

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog draggable
+  <el-dialog
     v-model="visible"
     :title="t('case.similarityTitle')"
     width="880px"

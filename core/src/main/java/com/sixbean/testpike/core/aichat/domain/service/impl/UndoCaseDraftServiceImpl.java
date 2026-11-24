@@ -103,8 +103,11 @@ public class UndoCaseDraftServiceImpl implements UndoCaseDraftService {
         Object anchorRaw = applied.get("base_version");
         if (!(targetRaw instanceof Number caseAnchor) || !(anchorRaw instanceof Number base)) {
             throw new ServiceException(
-                    "最近一次已接受的用例写入没有可回退的版本锚点（新建用例没有前置版本，"
-                            + "撤销不会代为删除用例），请在用例页面对该用例明确处理",
+                    "撤销已拒绝：最近一次已接受的用例写入缺少可回退的版本锚点（targetId 或 baseVersion 为空——"
+                            + "新建用例没有前置版本，撤销不会代为删除用例）——"
+                            + "如需弃用该用例，请到左侧菜单「用例管理」搜索用例编号后点行操作「删除」；"
+                            + "如需回到更早版本，请在右侧对话坞说「回滚用例 <编号> 到版本 <版本号>」"
+                            + "（示例：回滚用例 1024 到版本 2；入口：左侧菜单「用例管理」 / 右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long caseId = caseAnchor.longValue();
@@ -112,13 +115,18 @@ public class UndoCaseDraftServiceImpl implements UndoCaseDraftService {
         CaseInfo current = caseService.get(caseId);
         if (current.projectId() != projectId) {
             throw new ServiceException(
-                    "该撤销指向的用例不属于当前会话所在项目，回滚草案登记已拒绝",
+                    "用例 " + caseId + " 不属于当前会话所在项目 " + projectId
+                            + "（该用例归属项目 " + current.projectId() + "），回滚草案登记已拒绝——"
+                            + "请在顶栏「选择项目」切换到用例归属的项目后，在右侧对话坞重新发起撤销"
+                            + "（入口：顶栏「选择项目」 → 右侧对话坞 → 草案卡）",
                     BizErrorCode.FORBIDDEN);
         }
         if (current.version() == preAcceptVersion) {
             throw new ServiceException(
-                    "用例当前已是接受前的版本 " + preAcceptVersion
-                            + "，没有需要撤销的内容，本次未登记回滚草案",
+                    "用例 " + caseId + " 当前已是接受前的版本 " + preAcceptVersion
+                            + "，没有需要撤销的内容，本次未登记回滚草案——"
+                            + "如需回滚到其他版本，请在右侧对话坞说「回滚用例 " + caseId
+                            + " 到版本 <版本号>」（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         ObjectNode payload = objectMapper.createObjectNode();
@@ -142,7 +150,8 @@ public class UndoCaseDraftServiceImpl implements UndoCaseDraftService {
                         .addValue("seq", draftSeqAllocator.nextSeq(caseId)),
                 Long.class);
         if (cardId == null) {
-            throw new ServiceException("撤销草案登记失败（台账未返回编号）",
+            throw new ServiceException("撤销草案登记失败（未生成草案卡片编号，用例数据未被改动）——"
+                    + "请在右侧对话坞重新说「撤销上一次改动」重试（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
         return cardId;
@@ -158,7 +167,9 @@ public class UndoCaseDraftServiceImpl implements UndoCaseDraftService {
                         .addValue("applied", DraftConfirmationServiceImpl.STATUS_APPLIED));
         if (rows.isEmpty()) {
             throw new ServiceException(
-                    "当前会话还没有已接受的用例写入，没有可撤销的内容",
+                    "当前会话还没有已接受的用例写入，没有可撤销的内容——"
+                            + "请先让 AI 生成用例草案并在草案卡点「应用草案」"
+                            + "（入口：右侧对话坞 → 草案卡 → 「应用草案」），有写入后即可撤销",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return rows.get(0);

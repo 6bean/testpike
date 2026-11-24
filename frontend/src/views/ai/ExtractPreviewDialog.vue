@@ -1,5 +1,5 @@
 <template>
-  <el-dialog draggable
+  <el-dialog
     :model-value="modelValue"
     :title="t('document.extractDialogTitle', { name: doc?.name || '' })"
     width="960px"

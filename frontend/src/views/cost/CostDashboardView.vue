@@ -174,7 +174,7 @@
     </div>
 
     
-    <el-dialog v-model="budgetDialog" :title="t('cost.budgetDialog')" width="480px" data-test="cost-budget-dialog" draggable>
+    <el-dialog v-model="budgetDialog" :title="t('cost.budgetDialog')" width="480px" data-test="cost-budget-dialog">
       <el-form label-width="130px">
         <el-form-item :label="t('cost.budgetYuan')">
           <el-input-number v-model="budgetFormYuan" :min="0" :precision="2" :step="10" style="width: 100%" data-test="cost-budget-yuan" />
@@ -192,7 +192,7 @@
     </el-dialog>
 
  
-    <el-dialog v-model="overrideDialog" :title="t('cost.overrideDialog')" width="480px" data-test="cost-override-dialog" draggable>
+    <el-dialog v-model="overrideDialog" :title="t('cost.overrideDialog')" width="480px" data-test="cost-override-dialog">
       <el-alert type="warning" :closable="false" show-icon :title="t('cost.overrideWarning')" class="override-warning" />
       <el-form label-width="90px">
         <el-form-item :label="t('cost.overrideReason')" required>

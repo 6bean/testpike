@@ -84,6 +84,13 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.3</version>
+                    <configuration>
+                        <!-- Byte Buddy attaches the Mockito agent while the test JVM is
+                             already running, which JDK 21 reports as a dynamic-attach
+                             warning in every test fork. Allowing that attach keeps test
+                             output free of warnings; production runtime is untouched. -->
+                        <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
+                    </configuration>
                 </plugin>
                 <!-- -parameters：保留方法参数名（Spring SpEL #参数名 / @PathVariable 解析必需，
                      Spring Framework 6.2 起不再从字节码 LocalVariableTable 兜底） -->

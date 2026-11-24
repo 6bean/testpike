@@ -156,7 +156,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="detailVisible"
       :title="t('audit.detailTitle', { id: detail?.id ?? '' })"
       width="800px"

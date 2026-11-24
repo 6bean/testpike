@@ -102,7 +102,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="assignVisible"
       :title="`${t('user.assignRoles')} · ${assignTarget?.displayName ?? assignTarget?.username ?? ''}`"
       width="480px"
@@ -120,7 +120,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="editVisible"
       :title="editingId ? t('user.edit') : t('user.create')"
       width="640px"
@@ -160,7 +160,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="resetVisible"
       :title="`${t('user.resetPassword')} · ${resetTarget?.displayName ?? resetTarget?.username ?? ''}`"
       width="480px"
@@ -176,7 +176,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="importVisible" :title="t('user.import')" width="640px" destroy-on-close data-test="user-import-dialog">
+    <el-dialog v-model="importVisible" :title="t('user.import')" width="640px" destroy-on-close data-test="user-import-dialog">
       <div class="import-tip">
         {{ t('user.importTip') }}
         <el-link type="primary" data-test="user-import-template" @click="downloadTemplate">{{ t('user.downloadTemplate') }}</el-link>

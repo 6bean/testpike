@@ -153,7 +153,7 @@ def test_f6_requirement_link_cases_and_409(logged_in, api_client, collectors, un
         ".el-checkbox").click()
     page.locator('[data-test="req-candidate-table"] tbody tr').nth(1).locator(
         ".el-checkbox").click()
-    expect(page.locator('[data-test="req-link-submit"]')).to_have_text("关联所选（2）")
+    expect(page.locator('[data-test="req-link-submit"]')).to_have_text("关联选中用例（2）")
     page.locator('[data-test="req-link-submit"]').click()
     expect(page.locator(".el-message").filter(has_text="关联成功")).to_be_visible(timeout=5000)
     expect(page.locator('[data-test="req-linked-count"]')).to_contain_text("2")

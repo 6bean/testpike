@@ -54,7 +54,8 @@ public final class SessionTokenService {
             redis.opsForValue().set(LOGOUT_KEY_PREFIX + jti, "1", Duration.ofSeconds(remainingSeconds));
         } catch (RuntimeException e) {
             log.error("登出吊销失败（Redis 不可用）jti={}", jti, e);
-            throw new ServiceException("系统繁忙，登出未完全生效，请稍后重试", BizErrorCode.SERVICE_UNAVAILABLE);
+            throw new ServiceException("系统繁忙，登出未完全生效——请稍后点击右上角头像菜单中的「退出登录」"
+                    + "重新退出一次；本次会话将在访问令牌到期后自动失效", BizErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 
@@ -90,7 +91,8 @@ public final class SessionTokenService {
             throw e;
         } catch (RuntimeException e) {
             log.error("refresh 签发失败（Redis 不可用）userId={}", userId, e);
-            throw new ServiceException("系统繁忙，暂无法建立会话，请稍后重试", BizErrorCode.SERVICE_UNAVAILABLE);
+            throw new ServiceException("系统繁忙，暂无法建立会话——请稍后点击右上角头像菜单中的「退出登录」，"
+                    + "再到「登录页」重新登录", BizErrorCode.SERVICE_UNAVAILABLE);
         }
         return token;
     }
@@ -98,7 +100,9 @@ public final class SessionTokenService {
     
     public RotateOutcome rotateRefresh(String token, long refreshTtlDays) {
         if (!isLegalRefresh(token)) {
-            throw new ServiceException("会话已过期，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录会话凭证无效（长度 "
+                    + (token == null ? "空" : token.length()) + "，应为 43 位）"
+                    + "——请在「登录页」重新登录后继续操作", BizErrorCode.UNAUTHORIZED);
         }
         String key = REFRESH_KEY_PREFIX + sha256Hex(token);
         String raw;
@@ -106,20 +110,25 @@ public final class SessionTokenService {
             raw = redis.opsForValue().getAndDelete(key);
         } catch (RuntimeException e) {
             log.error("refresh 轮换失败（Redis 不可用）", e);
-            throw new ServiceException("系统繁忙，请稍后重试", BizErrorCode.SERVICE_UNAVAILABLE);
+            throw new ServiceException("系统繁忙，登录会话续期未完成——请稍后点击右上角头像菜单中的「退出登录」，"
+                    + "再到「登录页」重新登录", BizErrorCode.SERVICE_UNAVAILABLE);
         }
         if (raw == null) {
-            throw new ServiceException("会话已过期，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录会话已过期或已注销——请在「登录页」重新登录后继续操作",
+                    BizErrorCode.UNAUTHORIZED);
         }
         JSONObject obj = parseQuietly(raw);
         long userId = obj == null ? 0 : obj.getLongValue("userId");
         Long consumedAt = obj == null ? null : obj.getLong("consumedAt");
         if (userId <= 0) {
-            throw new ServiceException("会话已过期，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录会话记录异常（无法识别归属用户）——请在「登录页」重新登录",
+                    BizErrorCode.UNAUTHORIZED);
         }
         if (consumedAt != null) {
             if (System.currentTimeMillis() - consumedAt <= REPLAY_GRACE_MILLIS) {
-                throw new ServiceException("会话已过期，请重新登录", BizErrorCode.UNAUTHORIZED);
+                throw new ServiceException("该登录凭证在 " + REPLAY_GRACE_MILLIS
+                        + " 毫秒内被重复使用，本次续期已终止——请在「登录页」重新登录",
+                        BizErrorCode.UNAUTHORIZED);
             }
             revokeAllSessions(userId);
             return new RotateOutcome(userId, true);
@@ -168,7 +177,9 @@ public final class SessionTokenService {
             redis.delete(indexKey);
         } catch (RuntimeException e) {
             log.error("全会话吊销失败（Redis 不可用）userId={}", userId, e);
-            throw new ServiceException("系统繁忙，请稍后重试", BizErrorCode.SERVICE_UNAVAILABLE);
+            throw new ServiceException("系统繁忙，未能注销账号（用户号 " + userId
+                    + "）的全部登录会话——请稍后点击右上角头像菜单中的「退出登录」重试",
+                    BizErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 

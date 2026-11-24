@@ -62,7 +62,7 @@ public final class TaskFailureEventFormatter {
      * stays byte-identical for the L3 grep anchors.
      */
     private static final String SUGGESTION_MODEL_OUTPUT_FORMAT =
-            "模型输出格式经系统自动重生成与字段补全后仍未收敛，直接点重试即可（无需调整输入内容）；"
+            "模型输出格式经系统自动重生成与字段补全后仍未通过校验，直接点重试即可（无需调整输入内容）；"
                     + "连续同因失败请到 系统设置→模型接入 更换模型后立即生效";
 
     /**
@@ -71,7 +71,7 @@ public final class TaskFailureEventFormatter {
      * match the system's real actions, not the neighbouring stage's).
      */
     private static final String SUGGESTION_MODEL_SCRIPT_FORMAT =
-            "脚本格式经系统自动重生成后仍未收敛，直接点重试即可（无需调整输入内容）；"
+            "脚本格式经系统自动重生成后仍未通过校验，直接点重试即可（无需调整输入内容）；"
                     + "连续同因失败请到 系统设置→模型接入 更换模型后立即生效";
 
     /** Text face separating the script-stage format failure from the case draft stage. */

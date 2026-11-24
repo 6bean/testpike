@@ -61,7 +61,11 @@
       </el-table-column>
       <el-table-column :label="t('siteProfile.colActions')" width="186" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :icon="Compass" data-test="profile-survey-btn"
+          <el-button v-if="runningRunOf(row.id)" link type="primary" :icon="Compass"
+            data-test="profile-progress-btn" @click="openDetail(runningRunOf(row.id)!)">
+            {{ t('siteProfile.progressAction') }}
+          </el-button>
+          <el-button v-else link type="primary" :icon="Compass" data-test="profile-survey-btn"
             :loading="dispatchingId === row.id" @click="dispatch(row)">
             {{ t('siteProfile.surveyAction') }}
           </el-button>
@@ -295,6 +299,14 @@ function latestRunOf(profileId: number): SiteSurveyRunRow | undefined {
   return runs.value.find((r) => r.profileId === profileId)
 }
 
+/** The run a profile still has in flight, if any: the row action then
+ *  shows progress instead of starting a second crawl (the server refuses
+ *  a duplicate dispatch of the same profile). */
+function runningRunOf(profileId: number): SiteSurveyRunRow | undefined {
+  const latest = latestRunOf(profileId)
+  return latest && latest.status === 'running' ? latest : undefined
+}
+
 const form = reactive({
   name: '',
   startUrl: '',
@@ -430,6 +442,9 @@ async function dispatch(row: SiteProfileRow) {
     if (run) await openDetail(run)
   } catch (e) {
     ElMessage.error(bizErrorMsg(e, t('siteProfile.dispatchFail')))
+    // A refused duplicate still has an in-flight run on screen: reload so the
+    // row action flips from the survey entry to the progress entry.
+    await loadRuns()
   } finally {
     dispatchingId.value = null
   }

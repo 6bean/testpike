@@ -456,7 +456,8 @@ public class DocExtractServiceImpl implements DocExtractService {
             // the stage ledger starts ticking at run entry so
             // the preview page shows "which step, since when" from the first
             // second (a 38-minute silent spinner was the live incident).
-            recordStageQuiet(documentId, extractToken, "start", "提取启动");
+            recordStageQuiet(documentId, extractToken, "start",
+                    "提取启动｜文档「" + extractDocumentTitle(documentId) + "」｜正在解析分块并逐组提取需求点");
             // F5 budget chain, re-scoped by the compression
             // decision window is now model-adaptive — effective tokens = routed
             // catalog row input limit × ai.doc.budget-safety-factor (hot K8 key,
@@ -580,7 +581,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                     documentId, capacityRefusal.getMessage());
                             recordProcessEventQuiet(documentId, extractToken, "step",
                                     "概览未生成：" + capacityRefusal.getMessage()
-                                            + "；需求点仍按逐组原文直提入库，不受影响",
+                                            + "；需求点仍按逐组原文提取并保存，不受影响",
                                     java.util.Map.of("groupCount", rawGroups.size()));
                         }
                         if (reducePlan != null) {
@@ -805,7 +806,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             // denominator row for the same bytes.
             fidelityMeter.bookReusedSourceTokens(estimatePackageTokens(bucket, estimator));
             recordStageQuiet(documentId, extractToken, "bucket-" + bucketNo,
-                    "最终桶 " + bucketNo + "/" + bucketTotal + "（未变桶复用缓存结果）");
+                    "归并结果 " + bucketNo + "/" + bucketTotal + "（内容未变，复用上次结果）");
             return cached;
         }
         List<Map<String, Object>> items = runFinalExtractPass(bucket, bucketNo, bucketTotal,
@@ -1138,7 +1139,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         for (int i = 0; i < total; i++) {
             collected.addAll(computedGroups.get(i));
             recordStageQuiet(documentId, extractToken, "group-" + (i + 1),
-                    "直提组 " + (i + 1) + "/" + total);
+                    "提取组 " + (i + 1) + "/" + total);
         }
         List<Map<String, Object>> folded =
                 com.sixbean.testpike.common.util.TitleIdempotentMerge.foldFirstSeenByTitle(
@@ -1182,7 +1183,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                                     List<?> landedInOrder, long total) {
         long done = landedInOrder.stream().filter(java.util.Objects::nonNull).count();
         return new ServiceException(
-                "需求点提取超出任务时长预算（ai.doc.extract-deadline-seconds，可在系统设置调整），已完成 "
+                "需求点提取超出任务时长上限（ai.doc.extract-deadline-seconds，可在系统设置调整），已完成 "
                         + done + "/" + total + " " + unit + "；再次发起提取即可重试",
                 BizErrorCode.AI_TIMEOUT);
     }
@@ -1235,7 +1236,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         String kernelRoundsRaw = coreGateway.getSysConfig(
                 com.sixbean.testpike.aiservice.llm.pipeline.DeliberationLoop.GOVERNANCE_KEY);
         recordStageQuiet(documentId, extractToken, "merge-ring",
-                "归并建议推理确认环 " + clusters.size() + " 簇");
+                "归并建议已确认，共 " + clusters.size() + " 组");
         Map<String, Map<String, Object>> replacements = new java.util.LinkedHashMap<>();
         for (List<Map<String, Object>> cluster : clusters) {
             // correction ledger (live doc 9084): this ring launched 63
@@ -1351,7 +1352,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             String extractToken, long documentId,
             com.sixbean.testpike.aiservice.doc.domain.component.ExtractFidelityMeter fidelityMeter) {
         StringBuilder prompt = new StringBuilder()
-                .append("逐组原文直提把同一需求「").append(clusterTitle)
+                .append("逐组原文提取把同一需求「").append(clusterTitle)
                 .append("」在多组重复报出。请把下列冲突条目").append(MERGE_INSTRUCTION)
                 .append("：title 保持原样，acceptanceCriteria 汇总全部可测试约束不丢义，")
                 .append("evidence 逐字摘自任一成员的原文证据，输出形态 {\"requirements\":[一个条目]}。")
@@ -1431,7 +1432,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         if (items != null) {
             // one stage row per finished final bucket (j/m).
             recordStageQuiet(documentId, extractToken, "bucket-" + bucketNo,
-                    "最终桶 " + bucketNo + "/" + bucketTotal);
+                    "归并结果 " + bucketNo + "/" + bucketTotal);
         }
         return items;
     }
@@ -1545,7 +1546,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     // after collection — the serial spectrum saw the same
                     // row content in the same order.
                     recordStageQuiet(documentId, extractToken, "group-" + seq,
-                            "封组 " + seq + "/" + groups.size());
+                            "分组完成 " + seq + "/" + groups.size());
                 }
                 continue;
             }
@@ -1560,7 +1561,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 // row — the progress face must read the same whether the
                 // group was re-burned or skipped from cache.
                 recordStageQuiet(documentId, extractToken, "group-" + seq,
-                        "封组 " + seq + "/" + groups.size() + "（缓存续跑）");
+                        "分组完成 " + seq + "/" + groups.size() + "（复用上次结果）");
             }
         }
         return summaries;
@@ -1753,8 +1754,8 @@ public class DocExtractServiceImpl implements DocExtractService {
             log.info("F2 密度下限闸 documentId={} 实收={} 下限={} 源token={}",
                     documentId, merged.size(), densityExpected, sourceTokens);
             recordStageQuiet(documentId, extractToken, "density-floor",
-                    "产出下限校验 实收 " + merged.size() + " 条 下限 " + densityExpected
-                            + " 条（源 " + sourceTokens + " tokens），已启动定向补充挖掘");
+                    "产出低于预期，已启动定向补充提取：实收 " + merged.size() + " 条，应不少于 " + densityExpected
+                            + " 条");
         }
         String kernelRoundsRaw = coreGateway.getSysConfig(
                 com.sixbean.testpike.aiservice.llm.pipeline.DeliberationLoop.GOVERNANCE_KEY);
@@ -1781,8 +1782,8 @@ public class DocExtractServiceImpl implements DocExtractService {
                     documentId, round, gaps.size(), deficit);
             // one stage row per reconcile round (round/total/pending-gaps).
             recordStageQuiet(documentId, extractToken, "reconcile-" + round,
-                    "复核轮 " + round + "/" + rounds + " 未覆盖 " + gaps.size()
-                            + " 块 尚缺 " + deficit + " 条");
+                    "完整性复核 " + round + "/" + rounds + "：仍有 " + gaps.size()
+                            + " 段原文未覆盖，还需补充 " + deficit + " 条");
             // : an empty block list with the loop still open is the
             // pure output-shortfall face — mine the shown package again under
             // the dimension directive instead of proposing over an empty gap
@@ -1839,7 +1840,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                             if (parsed != null && parsed.size() < roundLedgerGap) {
                                 disputes.add("本轮提案条目数 " + parsed.size()
                                         + " 少于覆盖账本缺口 " + roundLedgerGap
-                                        + " 条，请只针对缺口补齐条目（禁止合并或收敛产出）");
+                                        + " 条，请只针对缺口补齐条目（禁止合并条目或重复输出）");
                                 log.info("F2 复核计数断言 documentId={} 第{}轮 提案条目={} 账本缺口={}",
                                         documentId, roundNo, parsed.size(), roundLedgerGap);
                             }
@@ -1873,7 +1874,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     log.info("F2 复核轮挂账恢复 documentId={} 第{}轮续期 {}s 剩余 {} 轮",
                             documentId, round, resumeSeconds, rounds - round);
                     recordStageQuiet(documentId, extractToken, "reconcile-resume",
-                            "复核轮挂账恢复 续期 " + resumeSeconds + "s 剩余 "
+                            "完整性复核已延期 " + resumeSeconds + " 秒，继续剩余 "
                                     + (rounds - round) + "/" + rounds + " 轮");
                     round--;
                     continue;
@@ -1971,6 +1972,25 @@ public class DocExtractServiceImpl implements DocExtractService {
                     documentId, gaps.size(), deficit, residualChapters);
         }
         return merged;
+    }
+
+    /**
+     * Display title for the extraction start frame: an on-screen row must
+     * name the document it works on (which page + what action + on which
+     * object). Falls back to the plain id label when the read door is
+     * unreachable — naming something concrete beats naming nothing.
+     */
+    private String extractDocumentTitle(long documentId) {
+        try {
+            Object name = coreGateway.getDocument(documentId).get("name");
+            if (name != null && !String.valueOf(name).isBlank()) {
+                return String.valueOf(name);
+            }
+        } catch (Exception unreadable) {
+            log.warn("提取启动帧读文档名不可用 documentId={}: {}", documentId,
+                    unreadable.getMessage());
+        }
+        return "文档 " + documentId;
     }
 
     /**
@@ -2216,11 +2236,11 @@ public class DocExtractServiceImpl implements DocExtractService {
                 .toList();
         int held = items.size() - anchored.size();
         if (held > 0) {
-            log.warn("F2 证据锚落库闸拦截 documentId={} 拦截条数={} 入库条数={} 开关={}",
+            log.warn("F2 证据锚校验未通过被拦 documentId={} 拦截条数={} 入库条数={} 开关={}",
                     documentId, held, anchored.size(), KEY_ANCHOR_REQUIRED_ENABLED);
             recordProcessEventQuiet(documentId, extractToken, "step",
-                    "证据锚落库闸拦下 " + held + " 条需求点：证据摘录回指不到原文块，"
-                            + "未入库；可在系统设置调整开关 " + KEY_ANCHOR_REQUIRED_ENABLED,
+                    "证据校验拦截 " + held + " 条需求点：证据摘录在原文中找不到对应段落，"
+                            + "未保存；如摘录无误，可在系统设置调整开关 " + KEY_ANCHOR_REQUIRED_ENABLED,
                     java.util.Map.of("heldCount", held, "landedCount", anchored.size()));
         }
         return anchored;
@@ -2271,7 +2291,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             // reads like a live log, machine part (token counts, model, latency)
             // lands in detail beside it.
             recordProcessEventQuiet(documentId, extractToken, "thinking",
-                    function + " 完成，可见输出片段：" + visibleDigest(result.content()),
+                    "模型应答完成，输出片段：" + visibleDigest(result.content()),
                     java.util.Map.of(
                             "model", java.util.Objects.toString(result.model(), ""),
                             "provider", java.util.Objects.toString(result.provider(), ""),
@@ -2287,7 +2307,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             // the exception itself keeps propagating untouched (the event never
             // swallows or softens the job's own failure semantics).
             recordProcessEventQuiet(documentId, extractToken, "error",
-                    function + " 失败：" + java.util.Objects.toString(e.getMessage(),
+                    "模型调用失败：" + java.util.Objects.toString(e.getMessage(),
                             e.getClass().getSimpleName()),
                     java.util.Map.of(
                             "errorCode", java.util.Objects.toString(planeErrorCode(e), ""),
@@ -2495,9 +2515,9 @@ public class DocExtractServiceImpl implements DocExtractService {
                 || se.getCode() != BizErrorCode.AI_TIMEOUT) {
             return "";
         }
-        if (reason.contains("时长预算")) {
+        if (reason.contains("时长上限")) {
             return "；如需调整，在系统设置-参数配置修改 ai.doc.extract-deadline-seconds"
-                    + "（提取任务时长预算，单位秒），保存即生效，无需重启";
+                    + "（提取任务时长上限，单位秒），保存即生效，无需重启";
         }
         return "；如需调整，在系统设置-参数配置修改 ai.doc.llm-timeout-seconds"
                 + "（提取链单次调用超时上限，留空沿用全局 llm.timeout-seconds），保存即生效，无需重启";
@@ -2525,7 +2545,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 () -> coreGateway.promptTemplateLatestByStatus(TEMPLATE_NAME, TEMPLATE_DOMAIN,
                         ChatBehaviorDirectives.PUBLISHED_STATUS),
                 buildSystemPrompt(),
-                "需求点提取行为指令模板读路径不可用，本轮提取回退内置契约");
+                "需求点提取行为指令模板读路径不可用，本轮提取改用内置指令模板");
     }
 
     /**
@@ -2595,8 +2615,8 @@ public class DocExtractServiceImpl implements DocExtractService {
                 // the per-run budget digit moved to the tail so every
                 // summary call shares one byte-identical head — the provider prefix
                 // cache can only hit the longest constant run at the very front.
-                + "【长度契约】摘要总长不得超过 " + summaryBudgetChars
-                + " 字（超出将被系统截断丢弃，请务必在预算内保留最高价值内容）。";
+                + "【长度上限】摘要总长不得超过 " + summaryBudgetChars
+                + " 字（超出将被系统截断丢弃，请务必在上限内保留最高价值内容）。";
     }
 
     private String buildSummaryUserPrompt(List<Map<String, Object>> group) {

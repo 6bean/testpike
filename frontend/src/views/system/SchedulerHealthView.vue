@@ -90,7 +90,7 @@
       </div>
 
       
-      <el-dialog v-model="runDialogVisible" :title="t('schedulerHealth.dialogTitle')" width="640px" draggable
+      <el-dialog v-model="runDialogVisible" :title="t('schedulerHealth.dialogTitle')" width="640px"
         data-test="scheduler-run-dialog">
         <el-select v-model="selectedJob" :placeholder="t('schedulerHealth.dialogSelectPlaceholder')"
           filterable style="width: 100%" :loading="jobsLoading" data-test="scheduler-run-job-select">

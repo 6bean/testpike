@@ -465,7 +465,7 @@ public class ExploreServiceImpl implements ExploreService {
         return switch (status) {
             case ExploreSessionView.STATUS_RUNNING -> "进行中";
             case ExploreSessionView.STATUS_DONE -> "已完成";
-            case ExploreSessionView.STATUS_BUDGET_STOP -> "预算熔断";
+            case ExploreSessionView.STATUS_BUDGET_STOP -> "达到上限自动停止";
             case ExploreSessionView.STATUS_PARTIAL -> "部分完成";
             case ExploreSessionView.STATUS_CANCELLED -> "已取消";
             default -> "状态码" + status;
@@ -483,7 +483,7 @@ public class ExploreServiceImpl implements ExploreService {
     @Override
     public ExploreSessionView updateStatus(long sessionId, int status) {
         if (!VALID_STATUSES.contains(status)) {
-            throw new ServiceException("探索会话状态只能是 1/2/3/4（1=进行中、2=已完成、3=预算熔断、4=部分完成），实际="
+            throw new ServiceException("探索会话状态只能是 1/2/3/4（1=进行中、2=已完成、3=达到上限自动停止、4=部分完成），实际="
                     + status + "：如需结束会话请在「探索详情」页点击「终止探索」，不要直接改状态值",
                     BizErrorCode.VALIDATION_ERROR);
         }
@@ -623,27 +623,54 @@ public class ExploreServiceImpl implements ExploreService {
             int poolCount = poolItemCount(input.candidatePoolJson());
             String ingest;
             if (input.candidatePoolJson() == null || input.candidatePoolJson().isBlank()) {
-                ingest = "本步无候选池";
+                ingest = "本步未采集到元素";
             } else if (outcomes.isEmpty()) {
-                ingest = "入账 0";
+                ingest = "本步无变化";
             } else {
-                Map<String, Integer> byAction = new LinkedHashMap<>();
+                // Outcome counts read through the enum's business label: the tail
+                // drawer shows what happened to the elements, not a constant name.
+                Map<String, Integer> byLabel = new LinkedHashMap<>();
                 for (WebElementSurveyCollector.ItemOutcome outcome : outcomes) {
-                    byAction.merge(outcome.action().name(), 1, Integer::sum);
+                    byLabel.merge(outcome.action().screenLabel(), 1, Integer::sum);
                 }
-                StringBuilder note = new StringBuilder("入账 ");
-                byAction.forEach((action, count) ->
-                        note.append(action).append('=').append(count).append(' '));
-                ingest = note.toString().strip();
+                StringBuilder note = new StringBuilder();
+                byLabel.forEach((label, count) -> note
+                        .append(note.isEmpty() ? "" : "｜").append(label).append(' ').append(count));
+                ingest = note.toString();
             }
+            String counter = surveyPageCounter(session.getId());
             taskEvents.step(surveyStreamKind(session),
                     String.valueOf(session.getId()), String.valueOf(session.getId()),
-                    "步骤 " + input.seq() + "｜页面 " + (page == null ? session.getStartUrl() : page)
+                    "步骤 " + input.seq() + counter + "｜页面 "
+                            + (page == null ? session.getStartUrl() : page)
                             + "｜候选 " + poolCount + "｜" + ingest,
                     null);
         } catch (Exception bookkeepingFailure) {
             log.warn("测绘步骤帧写入失败（不影响步进事实）sessionId={} seq={}: {}",
                     session.getId(), input.seq(), bookkeepingFailure.getMessage());
+        }
+    }
+
+    /**
+     * Page progress for one survey step frame. The crawl's page cap comes
+     * from the dispatch snapshot, so the on-screen row can say which page of
+     * at most how many is being worked on. Returns an empty string when the
+     * cap is unreadable — the step fact still books, just without a
+     * denominator (never fails the write-back over a display detail).
+     */
+    private String surveyPageCounter(long sessionId) {
+        try {
+            ExploreSessionView now = loadSession(sessionId);
+            JsonNode snapshot = objectMapper.readTree(readSnapshotText(sessionId));
+            int cap = snapshot.path("maxPages").asInt(0);
+            if (cap <= 0) {
+                return "";
+            }
+            Integer visitedBox = now.getPagesVisited();
+            int visited = visitedBox == null || visitedBox < 1 ? 1 : Math.min(visitedBox, cap);
+            return "｜第 " + visited + "/" + cap + " 页";
+        } catch (Exception unreadable) {
+            return "";
         }
     }
 
@@ -659,7 +686,7 @@ public class ExploreServiceImpl implements ExploreService {
         }
         String reason = switch (status) {
             case ExploreSessionView.STATUS_DONE -> "测绘完成";
-            case ExploreSessionView.STATUS_BUDGET_STOP -> "预算耗尽自动暂停（非失败）";
+            case ExploreSessionView.STATUS_BUDGET_STOP -> "达到采集步数上限自动暂停（非失败）";
             case ExploreSessionView.STATUS_PARTIAL -> "同页连续无进展提前结束";
             default -> null;
         };
@@ -706,7 +733,7 @@ public class ExploreServiceImpl implements ExploreService {
                 .addValue("pid", session.getProjectId())
                 .addValue("mid", "% sessionId=" + session.getId() + " %")
                 .addValue("tail", "% sessionId=" + session.getId()));
-        return "入账候选 " + ((Number) row.get("cand")).longValue()
+        return "累计候选 " + ((Number) row.get("cand")).longValue()
                 + " 条·已确认 " + ((Number) row.get("conf")).longValue() + " 条";
     }
 

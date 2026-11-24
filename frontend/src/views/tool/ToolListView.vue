@@ -180,7 +180,6 @@
 
       
       <el-dialog
-        draggable
         v-model="formVisible"
         :title="editingId ? t('tool.editTitle') : t('tool.create')"
         width="640px"
@@ -299,7 +298,6 @@
 
    
       <el-dialog
-        draggable
         v-model="invVisible"
         :title="t('tool.invTitle', { name: invToolName })"
         width="860px"
@@ -368,7 +366,6 @@
 
    
       <el-dialog
-        draggable
         v-model="runVisible"
         :title="t('tool.testRunTitle', { name: runToolName })"
         width="720px"
@@ -404,7 +401,6 @@
 
    
       <el-dialog
-        draggable
         v-model="invokeVisible"
         :title="t('tool.invokeTitle', { name: invokeToolName })"
         width="720px"
@@ -440,7 +436,6 @@
 
    
       <el-dialog
-        draggable
         v-model="confirmVisible"
         :title="t('tool.confirmTitle')"
         width="520px"

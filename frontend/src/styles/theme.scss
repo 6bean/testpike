@@ -939,3 +939,12 @@ html:not(.dark) .chat-composer-actions .el-button:not(.el-button--primary):not(.
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
+
+/* ---- Requirement-door case numbers: the click-into-detail affordance
+   rides the primary accent emphasis from this one place. In dense tables
+   the mono case-no read identical to plain text, hiding that it is a door.
+   Pages must not copy this rule into scoped styles. ---- */
+.req-case-no-link {
+  color: var(--tp-primary);
+  font-weight: 600;
+}

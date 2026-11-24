@@ -1,5 +1,5 @@
 <template>
-  <el-dialog draggable
+  <el-dialog
     v-model="visible"
     :title="importType === 'case' ? t('importDialog.caseTitle') : t('importDialog.reqTitle')"
     width="640px"

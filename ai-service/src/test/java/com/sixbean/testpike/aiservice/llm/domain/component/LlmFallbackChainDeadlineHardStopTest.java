@@ -143,7 +143,7 @@ class LlmFallbackChainDeadlineHardStopTest {
         verify(factory, times(4)).chatFor(any(), any(), any(Duration.class));
         assertEquals(BizErrorCode.AI_TIMEOUT, ex.getCode(),
                 "硬停错误码=AI_TIMEOUT，禁伪装成供应商异常");
-        assertTrue(ex.getMessage().contains("时长预算"),
+        assertTrue(ex.getMessage().contains("时长上限"),
                 "回写人话须点名时长预算, 实际=" + ex.getMessage());
         assertTrue(now.get() <= deadline.deadlineEpochMillis(),
                 "总墙钟必≤任务时限（假时钟实测 " + now.get() + "ms vs "

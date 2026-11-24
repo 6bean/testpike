@@ -134,6 +134,46 @@ class ChatUsageAttributionTest {
                 () -> attributionService.usageAttribution(currentMonth(), null, 1, 0));
     }
 
+    /**
+     * R63 refusal contract: every parameter refusal names the offending input
+     * value and a reachable repair entry — a repair path that reads as advice
+     * but cannot actually be followed counts as a defect, so the literals here
+     * mirror the cost dashboard's real toolbar (month picker, pager bar) and
+     * the direct-call parameter names.
+     */
+    @Test
+    void refusalsNameTheOffendingValueAndAReachableRepairPath() {
+        ServiceException shape = assertThrows(ServiceException.class,
+                () -> attributionService.usageAttribution("202610", null, 1, 20));
+        assertTrue(shape.getMessage().contains("202610"),
+                "the refusal quotes the received value verbatim");
+        assertTrue(shape.getMessage().contains("请"),
+                "the refusal carries an action word for the next step");
+        assertTrue(shape.getMessage().contains("「成本看板」"),
+                "the refusal names the page whose month picker repairs it");
+
+        ServiceException impossible = assertThrows(ServiceException.class,
+                () -> attributionService.usageAttribution("2026-13", null, 1, 20));
+        assertTrue(impossible.getMessage().contains("2026-13"),
+                "a shaped-but-impossible month is named, not given the generic sentence");
+        assertTrue(impossible.getMessage().contains("请"));
+
+        ServiceException pageLow = assertThrows(ServiceException.class,
+                () -> attributionService.usageAttribution(currentMonth(), null, 0, 20));
+        assertTrue(pageLow.getMessage().contains("0"), "the offending page number is quoted");
+        assertTrue(pageLow.getMessage().contains("「成本看板」"),
+                "the repair points at the pager bar the dashboard actually renders");
+
+        ServiceException sizeLow = assertThrows(ServiceException.class,
+                () -> attributionService.usageAttribution(currentMonth(), null, 1, 0));
+        assertTrue(sizeLow.getMessage().contains("请"));
+        assertTrue(sizeLow.getMessage().contains("1~100"), "the accepted range travels with the refusal");
+
+        ServiceException sizeOver = assertThrows(ServiceException.class,
+                () -> attributionService.usageAttribution(currentMonth(), null, 1, 101));
+        assertTrue(sizeOver.getMessage().contains("101"), "the oversized value is named");
+    }
+
     @Test
     void rowsOrderByWindowTokensDescendingAndThePageHonoursItsSize() {
         // Two conversations in one private segment: the heavier one must lead,

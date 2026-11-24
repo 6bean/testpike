@@ -174,7 +174,6 @@
 
       
       <el-dialog
-        draggable
         v-model="formVisible"
         :title="editingId ? t('skill.editTitle') : t('skill.createTitle')"
         width="640px"

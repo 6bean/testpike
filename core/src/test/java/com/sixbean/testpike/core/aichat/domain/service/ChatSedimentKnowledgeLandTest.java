@@ -172,6 +172,13 @@ class ChatSedimentKnowledgeLandTest {
                         "same-minute re-save reports the duplicate, not a raw internal error");
                 assertTrue(e.getMessage().contains(first.documentName()),
                         "the refusal names what already exists: " + e.getMessage());
+                // R63: the duplicate refusal must also carry an action word and
+                // the literal button the dialog toolbar actually renders.
+                assertTrue(e.getMessage().contains("请"),
+                        "the refusal says what to do next: " + e.getMessage());
+                assertTrue(e.getMessage().contains("「把本对话存为知识文档，供检索与生成参考」"),
+                        "the refusal quotes the real button tooltip as the re-entry: "
+                                + e.getMessage());
             }
         } finally {
             cleanup();
@@ -203,6 +210,13 @@ class ChatSedimentKnowledgeLandTest {
             assertEquals(BizErrorCode.VALIDATION_ERROR, e.getCode());
             assertTrue(e.getMessage().contains("还没有问答内容"),
                     "the refusal tells the user what is missing: " + e.getMessage());
+            // R63: missing Q&A content is only half the answer — the refusal
+            // must say what to do and name the real toolbar button literal.
+            assertTrue(e.getMessage().contains("请"),
+                    "the refusal carries an action word: " + e.getMessage());
+            assertTrue(e.getMessage().contains("「把本对话存为知识文档，供检索与生成参考」"),
+                    "the refusal quotes the button the user will press after chatting: "
+                            + e.getMessage());
             Integer rows = jdbcTemplate.queryForObject(
                     "SELECT count(*) FROM tp_document WHERE project_id = ?", Integer.class,
                     session.projectId());

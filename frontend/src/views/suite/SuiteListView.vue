@@ -115,7 +115,7 @@
       </div>
 
    
-      <el-dialog draggable
+      <el-dialog
         v-model="dialogVisible"
         :title="editing ? t('suite.editTitle') : t('suite.createTitle')"
         width="640px"

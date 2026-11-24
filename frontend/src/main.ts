@@ -15,6 +15,7 @@ import DataTablePage from './components/DataTablePage.vue'
 import i18n from './utils/i18n'
 import { permission } from './directives/permission'
 import { installTableViewportHScrollbar } from './utils/tableViewportHScrollbar'
+import { installDialogDragDefault } from './utils/dialogDragDefault'
 import { installTableFocusReveal } from './utils/tableFocusReveal'
 import { installTableLabelFocusGuard, installTableBodyClickJumpGuard } from './utils/tableLabelFocusGuard'
 import './styles/theme.scss'
@@ -37,6 +38,12 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 app.use(ElementPlus)
+
+// Dialog dragging must work on every dialog (report 2026-11-23): the default
+// flips once here through Element Plus's global-config channel; pages add no
+// per-page draggable flags and no hand-rolled header listeners (S-18 gate).
+// Runs before mount — dialogs resolve the config at render time.
+installDialogDragDefault(app)
 
 app.mount('#app')
 

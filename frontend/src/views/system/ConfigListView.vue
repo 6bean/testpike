@@ -171,7 +171,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="dialogVisible"
       :title="editing ? t('config.editTitle') : t('config.create')"
       width="640px"
@@ -229,7 +229,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable v-model="retentionVisible" :title="t('config.retentionTitle')" width="640px" destroy-on-close data-test="retention-dialog">
+    <el-dialog v-model="retentionVisible" :title="t('config.retentionTitle')" width="640px" destroy-on-close data-test="retention-dialog">
       <p class="retention-tip">
         {{ t('config.retentionTipA') }}
         {{ t('config.retentionTipB') }}<b>{{ t('config.retentionIrreversible') }}</b>{{ t('config.retentionTipC') }}

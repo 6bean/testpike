@@ -3,7 +3,6 @@
     :model-value="modelValue"
     :title="t('appauto.rerun.title')"
     width="640px"
-    draggable
     destroy-on-close
     data-test="engine-rerun-dialog"
     @update:model-value="emit('update:modelValue', $event)"

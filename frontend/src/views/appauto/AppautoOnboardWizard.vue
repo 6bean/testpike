@@ -3,7 +3,6 @@
     v-model="visible"
     :title="t('appauto.onboard.title')"
     width="800px"
-    draggable
     destroy-on-close
     data-test="onboard-wizard"
   >

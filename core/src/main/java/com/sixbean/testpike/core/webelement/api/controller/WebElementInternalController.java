@@ -133,9 +133,10 @@ public class WebElementInternalController {
                 // R62 segment b contract: one session = one run tail, token is
                 // the session id so later step/terminal frames join this tail.
                 String.valueOf(sessionId),
-                WebElementSurveyCollector.SURVEY_GOAL_PREFIX + url + "（会话 " + sessionId + "，操作人 "
-                        + operatorId + "）",
-                "manual survey door; viewport tiers follow the declared key when set");
+                WebElementSurveyCollector.SURVEY_GOAL_PREFIX + "已发起｜" + url
+                        + "｜正在采集页面元素，完成后自动归档（会话 " + sessionId
+                        + "，操作人 " + operatorId + "）",
+                "url=" + url + " sessionId=" + sessionId + " operatorId=" + operatorId);
         return Response.builderSuccess(new SurveyResultView(sessionId, url));
     }
 

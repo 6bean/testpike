@@ -496,7 +496,6 @@ watch(() => props.modelValue, (open) => {
     :model-value="props.modelValue"
     :title="t('apitest.specImport.title')"
     width="960"
-    draggable
     data-test="spec-import-dialog"
     @update:model-value="closeWizard"
   >

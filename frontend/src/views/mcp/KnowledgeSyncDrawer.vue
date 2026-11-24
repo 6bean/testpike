@@ -95,7 +95,6 @@
          service; 40001 plain messages ride BizError to the toast and the
          dialog stays open for correction. -->
     <el-dialog
-      draggable
       v-model="formVisible"
       :title="editingId ? t('mcp.syncFormTitleEdit') : t('mcp.syncFormTitleCreate')"
       width="640px"

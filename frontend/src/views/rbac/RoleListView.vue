@@ -66,7 +66,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="dialogVisible"
       :title="editing ? t('rbac.editRole') : t('rbac.createRole')"
       width="480px"
@@ -110,7 +110,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="permsVisible"
       :title="`${t('rbac.permConfig')} · ${permsTarget?.name ?? ''}`"
       width="760px"

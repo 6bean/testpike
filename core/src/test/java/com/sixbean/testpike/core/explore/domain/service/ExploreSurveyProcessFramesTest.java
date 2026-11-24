@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -111,16 +112,26 @@ class ExploreSurveyProcessFramesTest {
                 "{\"ok\":true}", null, null, "无候选池步", null));
 
         List<Map<String, Object>> frames = streamOf(sessionId);
-        assertEquals(2, frames.size(), "每探索步骤一条汇总帧");
+        // The stream may also carry a notice frame (e.g. the naming-model
+        // degradation note), so the step fact is counted by its frame head.
+        List<String> stepFrames = frames.stream()
+                .map(f -> String.valueOf(f.get("summary")))
+                .filter(s -> s.startsWith("步骤 "))
+                .toList();
+        assertEquals(2, stepFrames.size(), "每探索步骤一条汇总帧，实际流=" + frames);
         for (Map<String, Object> frame : frames) {
             assertEquals(String.valueOf(sessionId), frame.get("run_token"),
                     "一步会话一条尾流：run_token 恒为会话号");
-            String summary = String.valueOf(frame.get("summary"));
-            assertTrue(summary.startsWith("步骤 "), "帧头=步序，实际=" + summary);
+        }
+        for (String summary : stepFrames) {
             assertTrue(summary.contains("候选"), "帧含候选数，实际=" + summary);
         }
-        assertTrue(String.valueOf(frames.get(0).get("summary")).contains("入账"),
-                "带池步含入账增量，实际=" + frames.get(0).get("summary"));
+        assertTrue(stepFrames.get(0).contains("新增元素 1"),
+                "带池步应说明本步新增了多少元素，实际=" + stepFrames.get(0));
+        assertFalse(stepFrames.get(0).contains("入账") || stepFrames.get(0).contains("CREATED="),
+                "步骤帧仍带内部记账说法或枚举常量名，实际=" + stepFrames.get(0));
+        assertTrue(stepFrames.get(1).contains("本步未采集到元素"),
+                "无候选池的步骤应说明这一步没采到元素，实际=" + stepFrames.get(1));
     }
 
     @Test
@@ -147,9 +158,10 @@ class ExploreSurveyProcessFramesTest {
 
         List<Map<String, Object>> frames = streamOf(sessionId);
         String last = String.valueOf(frames.get(frames.size() - 1).get("summary"));
-        assertTrue(last.contains("预算耗尽"), "终态帧=人话原因，实际=" + last);
-        assertTrue(last.contains("入账候选"), "终态帧=入账计数，实际=" + last);
-        assertTrue(last.contains("1"), "候选入账计数出现在帧内，实际=" + last);
+        assertTrue(last.contains("达到采集步数上限"), "终态帧应点名是什么上限到了，实际=" + last);
+        assertTrue(last.contains("累计候选"), "终态帧应给出候选计数，实际=" + last);
+        assertTrue(last.contains("1"), "候选计数出现在帧内，实际=" + last);
+        assertFalse(last.contains("入账"), "终态帧仍带内部记账说法，实际=" + last);
     }
 
     @Test

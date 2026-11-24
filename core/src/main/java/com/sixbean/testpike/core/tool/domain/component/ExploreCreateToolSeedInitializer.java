@@ -124,7 +124,7 @@ public class ExploreCreateToolSeedInitializer implements ApplicationRunner {
         var info = toolService.create(SEED_OPERATOR_ID, new ToolCreateInput(
                 null, intent, 2, "自主探索",
                 "在当前项目发起一次自主探索会话（web 从起始网址逛页面，移动形态按包名+环境）；"
-                        + "确认后走探索页同一创建链——预算熔断、目标字数上限、起始地址合规底线"
+                        + "确认后走探索页同一创建链——达到上限自动停止、目标字数上限、起始地址合规底线"
                         + "（内网与元数据地址会被拒绝）与移动形态环境白名单照常在创建时复核，"
                         + "不通过会被拒绝并提示原因；归属项目取当前会话项目，载荷无法指向其他项目；"
                         + "确认即开始探索并占用项目 AI 预算，探索可在探索页随时取消",

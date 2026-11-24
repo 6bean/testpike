@@ -84,13 +84,6 @@ class SchedulerLockCoverageTest {
 
     
     private Path locateRepoRoot() {
-        Path dir = Path.of("").toAbsolutePath();
-        while (dir != null) {
-            if (Files.isDirectory(dir.resolve("core")) && Files.isDirectory(dir.resolve("ai-service"))) {
-                return dir;
-            }
-            dir = dir.getParent();
-        }
-        throw new IllegalStateException("未能从 " + Path.of("").toAbsolutePath() + " 上溯定位仓库根");
+        return com.sixbean.testpike.core.support.RepoRootLocator.locate();
     }
 }

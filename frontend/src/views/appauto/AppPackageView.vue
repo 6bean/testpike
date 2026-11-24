@@ -133,7 +133,6 @@
       
       <el-dialog
         v-model="createVisible"
-        draggable
         :title="t('appauto.appPackage.createTitle')"
         width="520px"
         data-test="package-create-dialog"
@@ -201,7 +200,6 @@
       
       <el-dialog
         v-model="uploadVisible"
-        draggable
         :title="t('appauto.appPackage.uploadTitle')"
         width="480px"
         data-test="package-upload-dialog"

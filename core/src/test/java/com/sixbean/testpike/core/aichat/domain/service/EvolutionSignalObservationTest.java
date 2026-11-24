@@ -176,8 +176,23 @@ class EvolutionSignalObservationTest {
 
     @Test
     void malformedMonthIsRefusedFailClosed() {
-        assertThrows(ServiceException.class, () -> signalService.observe("2026/10", null));
-        assertThrows(ServiceException.class, () -> signalService.observe("2026-13", null));
+        // R63 three elements: the refusal quotes the received value, carries an
+        // action word, and travels with a correct-write example for the month
+        // parameter (this rollup is called through the API, no page owns it).
+        ServiceException shaped = assertThrows(ServiceException.class,
+                () -> signalService.observe("2026/10", null));
+        assertTrue(shaped.getMessage().contains("2026/10"),
+                "the refusal quotes the received month verbatim: " + shaped.getMessage());
+        assertTrue(shaped.getMessage().contains("请"),
+                "the refusal carries an action word: " + shaped.getMessage());
+        assertTrue(shaped.getMessage().contains("正确写法示例"),
+                "the refusal shows the correct write form: " + shaped.getMessage());
+
+        ServiceException impossible = assertThrows(ServiceException.class,
+                () -> signalService.observe("2026-13", null));
+        assertTrue(impossible.getMessage().contains("2026-13"),
+                "a shaped-but-impossible month is named too: " + impossible.getMessage());
+        assertTrue(impossible.getMessage().contains("请"));
     }
 
     @Test

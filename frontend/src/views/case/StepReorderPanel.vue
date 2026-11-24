@@ -23,7 +23,7 @@
     </div>
 
  
-    <el-dialog draggable
+    <el-dialog
       v-model="diffVisible"
       :title="t('stepReorder.diffTitle')"
       width="800px"
@@ -56,7 +56,7 @@
       </template>
     </el-dialog>
  
-    <el-dialog draggable
+    <el-dialog
       v-model="aliasVisible"
       :title="t('stepReorder.renameTitle', { n: aliasStepNo })"
       width="480px"

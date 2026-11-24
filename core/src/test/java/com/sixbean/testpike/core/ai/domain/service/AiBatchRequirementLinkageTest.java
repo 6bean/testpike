@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -178,7 +179,9 @@ class AiBatchRequirementLinkageTest {
                         List.of(new AiBatchItem("控制器需求文本", requirementId, "doc:3.2#p1"))), 5L);
         createdBatchIds.add((Long) ((java.util.Map<?, ?>) response.getData()).get("batchId"));
         ArgumentCaptor<AiGenMessage> captor = ArgumentCaptor.forClass(AiGenMessage.class);
-        verify(aiGenPublisher, times(1)).publish(captor.capture());
+        // The controller publishes through the two-argument overload that also carries
+        // the window-feed flag; this test asserts the envelope, not the feed routing.
+        verify(aiGenPublisher, times(1)).publish(captor.capture(), anyBoolean());
         assertEquals(requirementId, captor.getValue().requirementId(),
                 "MQ envelope carries the requirement link");
         assertEquals("控制器需求文本", captor.getValue().requirementText());
@@ -189,9 +192,10 @@ class AiBatchRequirementLinkageTest {
         Response<?> response = controller.create(
                 new AiBatchCreateRequest(projectA, List.of("旧形态文本"), null), 5L);
         Long batchId = (Long) ((java.util.Map<?, ?>) response.getData()).get("batchId");
+        // Two-argument overload: the second value is the window-feed flag, not asserted here.
         createdBatchIds.add(batchId);
         ArgumentCaptor<AiGenMessage> captor = ArgumentCaptor.forClass(AiGenMessage.class);
-        verify(aiGenPublisher, times(1)).publish(captor.capture());
+        verify(aiGenPublisher, times(1)).publish(captor.capture(), anyBoolean());
         assertNull(captor.getValue().requirementId(), "legacy form keeps the envelope unlinked");
         assertEquals("旧形态文本", captor.getValue().requirementText());
     }

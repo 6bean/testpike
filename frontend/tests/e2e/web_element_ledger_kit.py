@@ -5,6 +5,7 @@ fixture purge and the group/inner row locators, per the shared-logic rule.
 import os
 
 import psycopg2
+from playwright.sync_api import expect
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                          "..", "..", ".."))
@@ -44,6 +45,22 @@ def expand_group(page, page_key):
     icon = group_row(page, page_key).locator(".el-table__expand-icon")
     if "expand-icon--expanded" not in (icon.get_attribute("class") or ""):
         icon.click()
+
+
+def create_profile_via_ui(page, profile_name, start_url):
+    """Single source (R40) for creating a site profile through the drawer
+    form: opens the create form, fills name and start address, saves and
+    waits for the ledger row, returning that row locator."""
+    page.locator("[data-test='profile-create-btn']").click()
+    form = page.locator("[data-test='profile-form']")
+    expect(form).to_be_visible()
+    form.locator("[data-test='profile-field-name']").fill(profile_name)
+    form.locator("[data-test='profile-field-start-url']").fill(start_url)
+    form.locator("[data-test='profile-save-btn']").click()
+    row = page.locator("[data-test='profile-table'] tr.el-table__row",
+                       has_text=profile_name).first
+    expect(row).to_be_visible(timeout=10000)
+    return row
 
 
 def inner_rows(page, page_key):

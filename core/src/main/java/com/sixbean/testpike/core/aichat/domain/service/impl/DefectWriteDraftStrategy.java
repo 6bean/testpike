@@ -87,7 +87,9 @@ public class DefectWriteDraftStrategy implements DraftWriteStrategy {
         String title = DraftPayloadReads.text(body, "title");
         if (title == null) {
             throw new ServiceException(
-                    "AI 缺陷草案缺少缺陷标题，无法建单（请重新让 AI 生成提案）",
+                    "AI 缺陷草案缺少缺陷标题（草案载荷 title 为空），无法建单"
+                            + "——请在右侧对话坞重新让 AI 生成带标题的缺陷提案，本卡无需再确认；"
+                            + "也可在左侧菜单「缺陷库」页直接新建缺陷",
                     BizErrorCode.VALIDATION_ERROR);
         }
         var created = defectLibraryService.create(operatorId, new DefectCreateInput(
@@ -114,7 +116,9 @@ public class DefectWriteDraftStrategy implements DraftWriteStrategy {
         String title = DraftPayloadReads.text(body, "title");
         if (title == null) {
             throw new ServiceException(
-                    "AI 缺陷编辑草案缺少缺陷标题，改名未执行（请重新让 AI 生成提案）",
+                    "AI 缺陷编辑草案缺少缺陷标题（草案载荷 title 为空），缺陷 #" + defectId + " 的改名未执行"
+                            + "——请在右侧对话坞重新让 AI 生成带标题的编辑提案，本卡无需再确认；"
+                            + "也可在左侧菜单「缺陷库」页打开该缺陷直接编辑",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Integer baseVersion = ((Number) draftRow.get("base_version")).intValue();
@@ -140,7 +144,10 @@ public class DefectWriteDraftStrategy implements DraftWriteStrategy {
             // A payload that moved away from the anchor the card was emitted
             // with is a tampered snapshot — refuse instead of guessing.
             throw new ServiceException(
-                    "AI 缺陷流转草案的目标缺陷与草案卡不一致，流转未执行（请重新让 AI 生成提案）",
+                    "AI 缺陷流转草案的目标缺陷与草案卡锚点不一致（草案载荷 defectId=" + defectId
+                            + "，草案卡 targetId=" + anchored + "），流转未执行"
+                            + "——本卡请勿再确认，请在右侧对话坞重新让 AI 生成流转提案；"
+                            + "也可在左侧菜单「缺陷库」页对该缺陷点「流转」按钮直接操作",
                     BizErrorCode.VALIDATION_ERROR);
         }
         requireSameProject(defectId, projectId);
@@ -156,7 +163,11 @@ public class DefectWriteDraftStrategy implements DraftWriteStrategy {
     private void requireSameProject(long defectId, long projectId) {
         long ownerProjectId = defectLibraryService.get(defectId).projectId();
         if (ownerProjectId != projectId) {
-            throw new ServiceException("该草案指向的缺陷不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException(
+                    "该草案指向的缺陷（缺陷 #" + defectId + "，归属项目 #" + ownerProjectId
+                            + "）不属于当前会话所在项目（#" + projectId + "），确认写入已拒绝"
+                            + "——请先在顶栏「选择项目」切换到该项目，"
+                            + "再回到右侧对话坞重新生成提案或直接进入左侧菜单「缺陷库」页处理该缺陷",
                     BizErrorCode.FORBIDDEN);
         }
     }

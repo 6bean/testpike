@@ -16,7 +16,7 @@
   <el-dialog
     :model-value="modelValue"
     append-to-body
-    draggable
+    align-center
     width="720px"
     :title="titleText"
     data-test="extract-source-dialog"
@@ -135,8 +135,10 @@ const props = withDefaults(
     supplementing?: boolean
     /** Recorded verbatim excerpt for the fallback face ('' = nothing stored). */
     fallbackEvidence?: string
+    /** Owning object named in the door title ('' = title carries only the chunk seq). */
+    subject?: string
   }>(),
-  { gapReason: '', gapReasonTitle: '', canSupplement: false, supplementing: false, fallbackEvidence: '' },
+  { gapReason: '', gapReasonTitle: '', canSupplement: false, supplementing: false, fallbackEvidence: '', subject: '' },
 )
 
 const emit = defineEmits<{
@@ -164,7 +166,10 @@ const showFallback = computed(() =>
 )
 
 const titleText = computed(() => {
-  if (chunk.value) return t('document.extractSourceTitle', { seq: chunk.value.seq })
+  if (chunk.value)
+    return props.subject
+      ? t('document.extractSourceTitleWithSubject', { subject: props.subject, seq: chunk.value.seq })
+      : t('document.extractSourceTitle', { seq: chunk.value.seq })
   if (showFallback.value) return t('document.extractSourceFallbackTitle')
   return t('document.extractSourceLoading')
 })

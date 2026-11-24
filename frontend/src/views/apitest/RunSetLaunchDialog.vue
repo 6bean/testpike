@@ -128,7 +128,6 @@ async function launch(): Promise<void> {
 
 <template>
   <el-dialog
-    draggable
     :model-value="props.modelValue"
     :title="t('apitest.runSet.dialogTitle', { name: props.collectionName })"
     width="720px"

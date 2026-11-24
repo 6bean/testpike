@@ -125,17 +125,18 @@ public class SiteSurveyRunInternalController {
         Long sessionId = ledger.sessionOfRun(runId);
         if (sessionId == null) {
             throw new ServiceException(
-                    "整站测绘派发落账异常：运行行未绑定探索会话，请重新发起整站测绘；"
-                            + "若反复出现，请到「系统设置 → 服务日志」按关键词 site-survey 查看派发记录。",
+                    "整站测绘未能发起｜本次运行未关联到测绘会话，过程明细无法展示。"
+                            + "请重新发起整站测绘；若反复出现，请到「系统设置 → 服务日志」按关键词 site-survey 查看记录。",
                     BizErrorCode.INTERNAL_ERROR);
         }
         aiGenPublisher.publishExploreRun(new ExploreRunMessage(sessionId, projectId, operatorId));
         taskEvents.step(AiTaskEventTrimSweeper.KIND_WEB_ELEMENT_SURVEY_SITE,
                 String.valueOf(sessionId),
                 String.valueOf(sessionId),
-                WebElementSurveyCollector.SITE_SURVEY_GOAL_PREFIX + profileId
-                        + "（会话 " + sessionId + "，操作人 " + operatorId + "）",
-                "whole-site survey dispatch door; tail follows the one cursor contract");
+                WebElementSurveyCollector.SITE_SURVEY_GOAL_PREFIX + "已发起｜站点档案 " + profileId
+                        + "｜正在解析起始地址，随后逐页采集页面元素（会话 " + sessionId
+                        + "，操作人 " + operatorId + "）",
+                "profileId=" + profileId + " sessionId=" + sessionId + " operatorId=" + operatorId);
         return Response.builderSuccess(runId);
     }
 }

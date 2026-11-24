@@ -90,7 +90,7 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
     @Override
     public String open(long projectId, CaptureSessionInput input) {
         if (input == null) {
-            throw new ServiceException("缺少采集会话参数，请从登录态页重新发起采集。",
+            throw new ServiceException("缺少采集会话参数——请在「登录态账本」页重新发起采集；也可在该页手工新建一条登录态后直接使用。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String mode = normalizeMode(input.mode());
@@ -217,7 +217,8 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
         if (payload == null) {
             throw new ServiceException("采集会话已过期或不存在——采集窗口由参数 "
                     + SessionGovernanceKeys.KEY_CAPTURE_TIMEOUT_MINUTES
-                    + " 控制（当前 " + governanceKeys.captureTimeoutMinutes() + " 分钟），请重新发起采集。",
+                    + " 控制（当前 " + governanceKeys.captureTimeoutMinutes()
+                    + " 分钟），请在「登录态账本」页重新发起采集。",
                     BizErrorCode.NOT_FOUND);
         }
         long projectId = payload.get("projectId") instanceof Number n ? n.longValue() : 0L;
@@ -237,34 +238,42 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
     @Override
     public String stageScreenshotEntries(CaptureSlotStageInput input) {
         if (input == null || input.channel() == null || input.channel().isBlank()) {
-            throw new ServiceException("截图解析结果暂存缺少渠道标识，暂存已拒绝。",
+            throw new ServiceException("截图解析结果暂存缺少渠道标识，暂存已拒绝——请在「AI 对话」中重新粘贴截图后再确认。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.sessionId() <= 0) {
-            throw new ServiceException("截图解析结果暂存缺少归属会话，暂存已拒绝。",
+            throw new ServiceException("截图解析结果暂存缺少归属会话（会话标识 "
+                    + input.sessionId() + " 无效），暂存已拒绝——"
+                    + "请在「AI 对话」中重新粘贴截图后再确认。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<CaptureCommittedEntry> entries = input.entries();
         if (entries == null || entries.isEmpty()) {
-            throw new ServiceException("截图解析结果没有任何可暂存条目，暂存已拒绝（请重新粘贴截图）。",
+            throw new ServiceException("截图解析结果没有任何可暂存条目，暂存已拒绝——"
+                    + "请在「AI 对话」中重新粘贴可解析的登录态截图（如浏览器 DevTools 的 Application 面板）。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (entries.size() > CaptureSlotStageInput.MAX_ENTRIES) {
             throw new ServiceException("截图解析结果超过单次上限 " + CaptureSlotStageInput.MAX_ENTRIES
-                    + " 条，暂存已拒绝（请按面板分区分别截图）。", BizErrorCode.VALIDATION_ERROR);
+                    + " 条，暂存已拒绝——请按面板分区分别截图（如 Cookie 表、Local Storage 表各截一张），"
+                    + "再在「AI 对话」中分批粘贴。", BizErrorCode.VALIDATION_ERROR);
         }
         Set<String> names = new LinkedHashSet<>();
         List<Map<String, Object>> rows = new ArrayList<>(entries.size());
+        int rowIndex = 0;
         for (CaptureCommittedEntry entry : entries) {
+            rowIndex++;
             if (entry == null || entry.name() == null || entry.name().isBlank()) {
-                throw new ServiceException("截图解析结果含空白名称行，暂存已拒绝。",
+                throw new ServiceException("截图解析结果第 " + rowIndex + " 行名称为空，暂存已拒绝——"
+                        + "请在「AI 对话」中放大该面板后重新截图粘贴。",
                         BizErrorCode.VALIDATION_ERROR);
             }
             // The checklist on the draft card authorizes by name — a duplicated
             // name would let one check silently cover two rows.
             if (!names.add(entry.name())) {
                 throw new ServiceException("截图解析结果存在同名条目「" + entry.name()
-                        + "」，勾选授权会产生歧义，暂存已拒绝。", BizErrorCode.VALIDATION_ERROR);
+                        + "」，勾选授权会产生歧义，暂存已拒绝——请使条目名称唯一（改名或去掉重复行），"
+                        + "再在「AI 对话」中重新粘贴截图。", BizErrorCode.VALIDATION_ERROR);
             }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("kind", entry.kind());
@@ -342,15 +351,17 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
             }
         }
         if (selected.isEmpty()) {
-            throw new ServiceException("勾选的候选条目不存在或已过期——请在候选列表勾选有效条目后重新确认入册；"
-                    + "列表为空时请重新发起采集。", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("勾选的候选条目不存在或已过期——请在「AI 对话」中重新勾选有效条目后确认入册；"
+                    + "列表为空时请在「登录态账本」页重新发起采集。", BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> payload = store.load(sessionId);
         if (payload == null || windowElapsed(payload)) {
             if (payload != null) {
                 store.remove(sessionId);
             }
-            throw new ServiceException("采集会话已过期，请重新发起采集。", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("采集会话已过期——采集窗口由参数 "
+                    + SessionGovernanceKeys.KEY_CAPTURE_TIMEOUT_MINUTES
+                    + " 控制，请在「登录态账本」页重新发起采集。", BizErrorCode.NOT_FOUND);
         }
         payload.put("commitSelection", List.copyOf(selected));
         payload.put("status", STATUS_COMMIT_REQUESTED);
@@ -470,7 +481,8 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
         try {
             return objectMapper.writeValueAsString(row);
         } catch (JsonProcessingException e) {
-            throw new ServiceException("候选条目无法记录，请重新发起采集。", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("候选条目无法记录（内部暂存写入失败）——截图采集请在「AI 对话」中重新粘贴，"
+                    + "浏览器采集请在「登录态账本」页重新发起。", BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -485,8 +497,9 @@ public class CaptureSessionServiceImpl implements CaptureSessionService {
         }
         String mode = raw.trim();
         if (!MODE_LOCAL_DIRECT.equals(mode) && !MODE_HOST_WINDOW.equals(mode)) {
-            throw new ServiceException("采集方式仅支持 " + MODE_LOCAL_DIRECT + " 或 "
-                    + MODE_HOST_WINDOW + "。", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("采集方式无法识别，请改成正确写法示例 mode="
+                    + MODE_LOCAL_DIRECT + "（本机直连）或 mode="
+                    + MODE_HOST_WINDOW + "（服务端窗口）。", BizErrorCode.VALIDATION_ERROR);
         }
         return mode;
     }

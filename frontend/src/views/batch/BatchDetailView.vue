@@ -154,7 +154,7 @@
       </el-table>
 
    
-      <el-dialog draggable v-model="addVisible" :title="t('batch.addCasesTitle')" width="800px" data-test="batch-add-dialog">
+      <el-dialog v-model="addVisible" :title="t('batch.addCasesTitle')" width="800px" data-test="batch-add-dialog">
         <div class="picker-toolbar">
           <el-input v-model="caseKeyword" size="small" style="width: 220px" data-test="batch-add-keyword"
             :placeholder="t('batch.caseSearchPlaceholder')" clearable @keyup.enter="loadCasesToAdd(1)" />
@@ -183,7 +183,7 @@
       </el-dialog>
 
    
-      <el-dialog draggable v-model="startResultVisible" :title="t('batch.startResultTitle')" width="640px" data-test="batch-start-result-dialog">
+      <el-dialog v-model="startResultVisible" :title="t('batch.startResultTitle')" width="640px" data-test="batch-start-result-dialog">
         <p class="start-message" data-test="batch-start-message">{{ startResult?.message || t('batch.startOk') }}</p>
         <el-descriptions v-if="startResult" :column="2" border class="start-meta">
           <el-descriptions-item :label="t('batch.status')">{{ startResult.statusLabel }}</el-descriptions-item>
@@ -208,7 +208,7 @@
         </template>
       </el-dialog>
       
-      <el-dialog draggable v-model="recoverVisible" :title="t('batch.recoverTitle')" width="640px" data-test="batch-recover-dialog">
+      <el-dialog v-model="recoverVisible" :title="t('batch.recoverTitle')" width="640px" data-test="batch-recover-dialog">
         <p class="start-message" data-test="batch-recover-message">{{ recoverResult?.message || '-' }}</p>
         <el-descriptions v-if="recoverResult" :column="2" border class="start-meta">
           <el-descriptions-item :label="t('batch.status')">{{ recoverResult.batchStatusLabel }}</el-descriptions-item>

@@ -70,7 +70,7 @@
 
     <!-- create dialog: name + scope multi (allow-create) + GA1 project pin +
          optional expiry; validation authority is core, the form only hints shape -->
-    <el-dialog draggable v-model="createVisible" :title="t('apiToken.createDialogTitle')" width="640px" destroy-on-close data-test="token-create-dialog">
+    <el-dialog v-model="createVisible" :title="t('apiToken.createDialogTitle')" width="640px" destroy-on-close data-test="token-create-dialog">
       <el-form :model="form" label-width="100px">
         <el-form-item :label="t('apiToken.colName')" required>
           <el-input
@@ -154,8 +154,7 @@
       width="640px"
       :close-on-click-modal="false"
       :show-close="false"
-      data-test="token-plaintext-dialog"
-     draggable>
+      data-test="token-plaintext-dialog">
       <el-alert
         type="warning"
         :closable="false"

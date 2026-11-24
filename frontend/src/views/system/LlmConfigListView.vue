@@ -90,7 +90,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="dialogVisible"
       :title="editing ? t('llmConfig.editTitle') : t('llmConfig.create')"
       width="640px"
@@ -183,7 +183,7 @@
     </el-dialog>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="ledgerVisible"
       :title="t('llmConfig.goldenLedger')"
       width="980px"

@@ -113,7 +113,7 @@ class DocExtractBudgetAbortAttributionTest {
         ArgumentCaptor<String> reason = ArgumentCaptor.forClass(String.class);
         verify(coreGateway).markExtractionFailed(eq(DOC_ID), reason.capture(), eq(TOKEN));
         String written = reason.getValue();
-        assertTrue(written.contains("时长预算"),
+        assertTrue(written.contains("时长上限"),
                 "预算耗尽的终文案必须点名任务时长预算, 实际=" + written);
         assertTrue(written.contains("0/2 组"),
                 "终文案必须带已完成组数账（本例两组全灭=0/2）, 实际=" + written);
@@ -205,7 +205,7 @@ class DocExtractBudgetAbortAttributionTest {
         long elapsedMillis = (System.nanoTime() - start) / 1_000_000L;
 
         String written = thrown.getMessage();
-        assertTrue(written.contains("时长预算"),
+        assertTrue(written.contains("时长上限"),
                 "终文案仍是预算词汇（诚实归因零漂移）, 实际=" + written);
         assertTrue(written.contains("0/6 组"),
                 "六组全部未落地时完成账必须诚实为 0/6, 实际=" + written);

@@ -454,7 +454,7 @@ public class SpecDraftExtractServiceImpl implements SpecDraftExtractService {
                 () -> coreGateway.promptTemplateLatestByStatus(TEMPLATE_NAME,
                         TEMPLATE_DOMAIN, ChatBehaviorDirectives.PUBLISHED_STATUS),
                 buildSystemPrompt() + recallSegment(),
-                "行为指令模板读路径不可用，本轮抽取回退内置契约");
+                "行为指令模板读路径不可用，本轮抽取改用内置指令模板");
     }
 
     /**

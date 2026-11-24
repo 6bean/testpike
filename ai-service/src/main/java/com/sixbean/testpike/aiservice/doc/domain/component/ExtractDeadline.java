@@ -113,7 +113,7 @@ public final class ExtractDeadline {
         long remainingMillis = deadlineEpochMillis - nowMillis.getAsLong();
         if (remainingMillis <= 0) {
             throw new ServiceException(
-                    "需求点提取超出任务时长预算（默认 " + DEFAULT_SECONDS
+                    "需求点提取超出任务时长上限（默认 " + DEFAULT_SECONDS
                             + " 秒，可在系统设置调整），本次调用已中止；再次发起提取即可重试",
                     BizErrorCode.AI_TIMEOUT);
         }

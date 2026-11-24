@@ -69,7 +69,7 @@ class ScriptMechanicalGapFillerTest {
         assertEquals(1, steps.size(), "sql step dropped");
         assertEquals("goto", steps.get(0).path("action").asText());
         assertEquals(1, result.notes().size());
-        assertTrue(result.notes().get(0).contains("降级为界面断言"), result.notes().get(0));
+        assertTrue(result.notes().get(0).contains("本步数据库校验已跳过"), result.notes().get(0));
     }
 
     /** console.assert carries no locator: dropping the stray target changes nothing else. */
@@ -108,7 +108,7 @@ class ScriptMechanicalGapFillerTest {
         var result = filler.fill(draft, List.of());
         assertEquals(0, steps(result.script()).size());
         assertEquals(1, result.notes().size());
-        assertTrue(result.notes().get(0).contains("摘除"), result.notes().get(0));
+        assertTrue(result.notes().get(0).contains("本步网络断言已跳过"), result.notes().get(0));
     }
 
     /** Dotted DATA placeholder normalises to the underscore identifier form. */

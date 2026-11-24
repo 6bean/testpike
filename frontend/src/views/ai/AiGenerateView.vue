@@ -286,6 +286,13 @@
                 <span v-if="batch.cancelled > 0" class="batch-cancelled-count" data-test="ai-gen-batch-cancelled-count">{{ t('aiGenerate.cancelledCount', { n: batch.cancelled }) }}</span>
               </span>
             </div>
+            <!-- Stalled marker: progress re-reads keep failing (an expired
+                 sign-in being the proven cause) and the numbers above are
+                 frozen; say so with the repair entry instead of waiting
+                 silently. -->
+            <span v-if="mode === 'batch' && batchReadStalled" class="batch-poll-stalled" data-test="ai-gen-poll-stalled">
+              {{ t('aiGenerate.pollStalledTip', { n: batchPollFailures }) }}
+            </span>
           </div>
           <template v-if="mode === 'single'">
           <template v-if="task">
@@ -663,7 +670,7 @@ const mode = ref<'single' | 'batch'>('single')
 const batchRows = ref<BatchRow[]>([{ text: '' }])
 const batchSubmitting = ref(false)
 const batchIdRef = ref<number | null>(null)
-const { batch, startPolling: startBatchPolling } = useAiBatchPolling(batchIdRef)
+const { batch, pollFailures: batchPollFailures, readStalled: batchReadStalled, startPolling: startBatchPolling } = useAiBatchPolling(batchIdRef)
 // Aggregated live tail of the batch's sub-task ledgers .
 const { events: batchTailEvents, live: batchTailLive, expired: batchTailExpired, assessExpiry: assessBatchTailExpiry } = useGenBatchEventTail(batch)
 // R67 revisit door: once the batch settles, the still-in-flight window read

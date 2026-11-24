@@ -131,7 +131,6 @@
          single-sourced from the header context (ownership-echo iron rule: no
          second project selector in the dialog). -->
     <el-dialog
-      draggable
       v-model="formVisible"
       :title="t('skill.memoryCreateTitle')"
       width="640px"

@@ -96,7 +96,7 @@
     </div>
 
     
-    <el-dialog draggable
+    <el-dialog
       v-model="dialogVisible"
       :title="editing ? t('project.edit') : t('project.create')"
       width="480px"

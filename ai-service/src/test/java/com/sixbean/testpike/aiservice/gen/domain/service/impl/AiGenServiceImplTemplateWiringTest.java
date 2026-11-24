@@ -136,7 +136,7 @@ class AiGenServiceImplTemplateWiringTest {
         String stage2 = stage2Users.get(0);
         assertTrue(stage2.contains("请将以下测试用例转换为动作 JSON v2："),
                 "stage2 默认骨架缺失：\n" + stage2);
-        assertTrue(stage2.contains("断言映射规则（04 契约 §2.1.1"), "stage2 默认映射规则段缺失");
+        assertTrue(stage2.contains("断言映射规则（动作 JSON v2 格式的 matchType"), "stage2 默认映射规则段缺失");
         assertTrue(stage2.contains("时序三分表"), "stage2 默认时序段缺失");
         verify(coreGateway).createCase(eq(OPERATOR_ID), any());
         verify(coreGateway, never()).pinTemplate(anyLong(), anyLong());
@@ -178,7 +178,7 @@ class AiGenServiceImplTemplateWiringTest {
         assertTrue(stage2.contains("【定制S2骨架】"), "定制 stage2 骨架缺失：\n" + stage2);
         assertTrue(stage2.contains("用例标题：登录成功"), "caseBlock 占位符渲染缺失");
         assertTrue(stage2.contains("约束：单用例步骤 ≤"), "scriptLimits 占位符渲染缺失");
-        assertFalse(stage2.contains("断言映射规则（04 契约 §2.1.1"),
+        assertFalse(stage2.contains("断言映射规则（动作 JSON v2 格式的 matchType"),
                 "模板在场时默认契约文本位不得再出现");
         verify(coreGateway, never()).pinTemplate(anyLong(), anyLong());
     }

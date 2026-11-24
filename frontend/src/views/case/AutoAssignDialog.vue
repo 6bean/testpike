@@ -2,7 +2,6 @@
   
   <el-dialog
     v-model="visible"
-    draggable
     :title="t('case.autoAssignPreviewTitle')"
     width="600px"
     data-test="auto-assign-dialog"

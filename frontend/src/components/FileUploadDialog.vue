@@ -1,6 +1,5 @@
 <template>
   <el-dialog
-    draggable
     :model-value="visible"
     :title="title"
     width="640px"

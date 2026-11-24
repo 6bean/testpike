@@ -74,18 +74,34 @@ public class WebElementSurveyCollector {
     public record Evidence(Long sessionId, String screenshotKey, String domSnapshotKey) {
     }
 
-    /** What the ledger door did for one observed element. */
+    /**
+     * What the ledger door did for one observed element, plus the business
+     * wording that frame carries on screen. The label lives here so every
+     * surface reading an outcome (tail drawer frame, replay note) shows the
+     * same words instead of spelling out the enum constant.
+     */
     public enum Action {
         /** New row entered through the create door as a candidate. */
-        CREATED,
+        CREATED("新增元素"),
         /** Candidate row gained missing anchors (plus merged variants). */
-        ANCHORS_EXTENDED,
+        ANCHORS_EXTENDED("补充定位"),
         /** Row already carries this anchor set and variant set: zero writes. */
-        REPLAYED,
+        REPLAYED("重复跳过"),
         /** Confirmed or stale row kept untouched — observation never rewrites assets. */
-        STATE_KEPT,
+        STATE_KEPT("保留已有"),
         /** Retired row (terminal): left as-is, never resurrected. */
-        RETIRED_SKIPPED
+        RETIRED_SKIPPED("跳过已下线");
+
+        private final String screenLabel;
+
+        Action(String screenLabel) {
+            this.screenLabel = screenLabel;
+        }
+
+        /** Wording shown to the operator for this outcome (never the constant name). */
+        public String screenLabel() {
+            return screenLabel;
+        }
     }
 
     public record ItemOutcome(Action action, Long elementId, String name) {

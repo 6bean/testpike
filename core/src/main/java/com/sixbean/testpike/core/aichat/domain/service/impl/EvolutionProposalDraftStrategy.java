@@ -92,8 +92,9 @@ public class EvolutionProposalDraftStrategy implements DraftWriteStrategy {
                 requireAllowed(DraftPayloadReads.text(body, "filename"));
                 return landGrounding(draftId, body, operatorId);
             }
-            default -> throw new ServiceException("未知的自进化提案类型：" + subKind
-                    + "（仅支持提示词模板 / 工具定义 / 接地文档三类）", BizErrorCode.VALIDATION_ERROR);
+            default -> throw new ServiceException("未知的自进化提案类型：「" + subKind
+                    + "」，仅支持「提示词模板」「工具定义」「接地文档」三类；"
+                    + "请在「AI 对话」让助手按正确类型重新生成这条提案后再确认", BizErrorCode.VALIDATION_ERROR);
         }
     }
 

@@ -142,7 +142,6 @@
 
     
     <el-dialog
-      draggable
       v-model="applyVisible"
       :title="t('mcp.authApplyTitle', { name: applyTarget?.name || '' })"
       width="560px"
@@ -182,7 +181,6 @@
 
     
     <el-dialog
-      draggable
       v-model="inheritEditVisible"
       :title="t('mcp.authInheritEditTitle')"
       width="460px"

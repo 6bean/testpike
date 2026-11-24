@@ -134,7 +134,7 @@ class AiGenServiceImplSchemaOnlyRerollAndRepairTest {
         stubRouting("0");
         ServiceException hardFail = assertThrows(ServiceException.class,
                 () -> service().generate(message()));
-        assertTrue(hardFail.getMessage().startsWith("AI 输出格式校验失败（推理确认环 "),
+        assertTrue(hardFail.getMessage().startsWith("AI 输出格式校验失败（重试 "),
                 hardFail.getMessage());
         assertEquals(BizErrorCode.AI_FORMAT_ERROR, hardFail.getCode());
         assertEquals(0, repairCalls.size(), "budget 0 = the repair never rides the wire");

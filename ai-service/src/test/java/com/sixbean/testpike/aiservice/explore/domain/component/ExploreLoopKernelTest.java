@@ -21,6 +21,7 @@ import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.aiservice.tool.domain.component.ToolDispatcher;
 import com.sun.net.httpserver.HttpExchange;
+import com.sixbean.testpike.aiservice.support.CoreStubHttp;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -96,6 +97,9 @@ class ExploreLoopKernelTest {
         server.createContext("/evidence/put", ExploreLoopKernelTest::handleEvidencePut);
         server.createContext("/internal/page-write-profiles/",
                 ExploreLoopKernelTest::handleRiskPages);
+        server.createContext("/internal/prompt-templates/", CoreStubHttp::respondAbsentConfig);
+        server.createContext("/internal/projects/", CoreStubHttp::respondAbsentConfig);
+        server.createContext("/internal/configs/", CoreStubHttp::respondAbsentConfig);
         server.start();
     }
 
@@ -344,8 +348,8 @@ class ExploreLoopKernelTest {
         assertTrue(STATUS_BODIES.get(0).contains("\"status\":4"),
                 "预算拒止=部分完成终态 4，实际=" + STATUS_BODIES.get(0));
         assertEquals(1, STATS_BODIES.size(), "终态前 stats 必回写报告");
-        assertTrue(STATS_BODIES.get(0).contains("上下文预算拒止"),
-                "报告必须点名拒止原因（用户可读面），实际=" + STATS_BODIES.get(0));
+        assertTrue(STATS_BODIES.get(0).contains("本次自动浏览提前结束"),
+                "报告必须点名提前结束的原因（用户可读面），实际=" + STATS_BODIES.get(0));
         verify(chain, never()).chat(any(), anyLong(), any());
     }
 

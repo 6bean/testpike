@@ -124,7 +124,7 @@
       </el-tabs>
 
       
-      <el-dialog draggable v-model="createVisible" :title="t('tag.createTitle')" width="480px" append-to-body data-test="tag-create-dialog">
+      <el-dialog v-model="createVisible" :title="t('tag.createTitle')" width="480px" append-to-body data-test="tag-create-dialog">
         <!-- ownership echo (iron rule 1): read-only, single-sourced from the
  header project context — the tag lands on the visible segment -->
         <ProjectOwnerEcho />
@@ -145,7 +145,7 @@
       </el-dialog>
 
       
-      <el-dialog draggable v-model="renameVisible" :title="t('tag.renameTitle')" width="480px" append-to-body>
+      <el-dialog v-model="renameVisible" :title="t('tag.renameTitle')" width="480px" append-to-body>
         <el-form ref="renameFormRef" :model="renameForm" :rules="nameRules" label-width="80px" scroll-to-error>
           <el-form-item :label="t('tag.name')" prop="newName">
             <el-input v-model="renameForm.newName" data-test="tag-rename-input" maxlength="50" />
@@ -158,7 +158,7 @@
       </el-dialog>
 
       
-      <el-dialog draggable v-model="mergeVisible" :title="t('tag.mergeTitle')" width="480px" append-to-body>
+      <el-dialog v-model="mergeVisible" :title="t('tag.mergeTitle')" width="480px" append-to-body>
         <el-alert type="info" :closable="false" class="merge-hint" :title="t('tag.mergeHint')" />
         <el-form label-width="80px">
           <el-form-item :label="t('tag.fromTag')">

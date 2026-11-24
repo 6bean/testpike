@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
-import {
-  addFavorite, listFavorites, removeFavorite,
-  type FavoriteEntityType,
-} from '@/api/favorite'
+import { listFavorites, type FavoriteEntityType } from '@/api/favorite'
 import { FAVORITE_SET_INJECT_KEY, type FavoriteSetInject } from '@/composables/useFavoriteSet'
-import { BizError } from '@/api/request'
+import { useFavoriteToggle } from '@/composables/useFavoriteToggle'
 
 const props = withDefaults(defineProps<{
   entityType: FavoriteEntityType
@@ -30,7 +26,7 @@ const sharedIds = computed(() =>
 const favorited = ref(
   sharedIds.value ? sharedIds.value.has(props.entityId) : (props.preset ?? false),
 )
-const busy = ref(false)
+const { busy, toggle: runToggle } = useFavoriteToggle()
 
 
 async function refresh(): Promise<void> {
@@ -43,25 +39,11 @@ async function refresh(): Promise<void> {
   }
 }
 
-async function toggle(): Promise<void> {
-  if (busy.value || !props.entityId) return
-  busy.value = true
-  try {
-    if (favorited.value) {
-      await removeFavorite(props.entityType, props.entityId)
-      favorited.value = false
-      ElMessage.success(t('favorite.removedToast'))
-    } else {
-      await addFavorite(props.entityType, props.entityId)
-      favorited.value = true
-      ElMessage.success(t('favorite.addedToast'))
-    }
-    emit('change', props.entityId, favorited.value)
-  } catch (e) {
-    if (e instanceof BizError) ElMessage.error(e.message || t('favorite.failedFallback'))
-  } finally {
-    busy.value = false
-  }
+async function toggleSelf(): Promise<void> {
+  const next = await runToggle(props.entityType, props.entityId, favorited.value)
+  if (next === null) return
+  favorited.value = next
+  emit('change', props.entityId, next)
 }
 
 watch(
@@ -85,7 +67,7 @@ defineExpose({ refresh })
     :class="{ 'fav-on': favorited }"
     :data-test="`favorite-${entityType}-${entityId}`"
     :title="favorited ? t('favorite.unfavAria') : t('favorite.favAria')"
-    @click.stop="toggle"
+    @click.stop="toggleSelf"
   >
     <el-icon :size="18">
       <StarFilled v-if="favorited" data-test="favorite-star-on" />

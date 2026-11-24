@@ -42,14 +42,22 @@ public class ChatUsageAttributionServiceImpl implements ChatUsageAttributionServ
     public ChatSessionUsagePageView usageAttribution(String month, Long projectId,
                                                      int page, int pageSize) {
         if (month == null || !MONTH_KEY.matcher(month).matches()) {
-            throw new ServiceException("月份参数必须是 yyyy-MM（如 2026-10）",
+            throw new ServiceException("月份参数不合法："
+                    + (month == null ? "收到空值" : "收到「" + month + "」")
+                    + "，请改成 yyyy-MM 形式的月份（正确写法示例 2026-10），"
+                    + "或前往「成本看板」页用顶部的月份选择器重新选择",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (page < 1) {
-            throw new ServiceException("页码从 1 开始", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("页码不合法：收到第 " + page
+                    + " 页，页码最小为 1；请改用「成本看板」页会话列表底部的分页条翻页，"
+                    + "直连接口时把 page 参数改成 1 及以上",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
-            throw new ServiceException("每页条数只能是 1~" + MAX_PAGE_SIZE,
+            throw new ServiceException("每页条数只能是 1~" + MAX_PAGE_SIZE
+                    + "：收到 " + pageSize + "；「成本看板」页固定按每页 20 条请求，"
+                    + "直连接口时请把 pageSize 改成 1~100 内的数值（示例 20）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         YearMonth window = parseMonth(month);
@@ -99,7 +107,9 @@ public class ChatUsageAttributionServiceImpl implements ChatUsageAttributionServ
             return YearMonth.parse(month, DateTimeFormatter.ofPattern("yyyy-MM"));
         } catch (DateTimeParseException e) {
             // A syntactically shaped but impossible month (2026-13) lands here.
-            throw new ServiceException("月份参数必须是 yyyy-MM（如 2026-10）",
+            throw new ServiceException("月份不存在：收到「" + month
+                    + "」，请改成真实存在的月份（正确写法示例 2026-10），"
+                    + "或前往「成本看板」页用顶部的月份选择器重新选择",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

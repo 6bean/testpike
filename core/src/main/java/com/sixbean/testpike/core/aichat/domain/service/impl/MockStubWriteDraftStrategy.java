@@ -98,7 +98,9 @@ public class MockStubWriteDraftStrategy implements DraftWriteStrategy {
         long spaceId = body.path("spaceId").asLong(0L);
         if (spaceId <= 0) {
             throw new ServiceException(
-                    "AI Mock 规则草案缺少所属空间编号，无法创建（请重新让 AI 生成提案）",
+                    "AI Mock 规则草案缺少「所属空间」（spaceId 为空），无法创建——"
+                            + "请在对话里指明目标空间（示例「在默认空间新建一条Mock规则」），"
+                            + "系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The space-existence check and every shape decision belong to the
@@ -106,7 +108,10 @@ public class MockStubWriteDraftStrategy implements DraftWriteStrategy {
         // cannot be trusted for.
         long spaceProjectId = mockSpaceService.get(spaceId).projectId();
         if (spaceProjectId != projectId) {
-            throw new ServiceException("该草案指向的 Mock 空间不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("草案指向的 Mock 空间（编号 " + spaceId
+                    + "）不属于当前会话所在项目（项目编号 " + projectId
+                    + "），确认写入已拒绝——请通过顶栏「选择项目」切到该空间所在项目后再接受草案，"
+                    + "或在当前项目让 AI 重新生成规则（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.FORBIDDEN);
         }
         long stubId = mockStubService.create(spaceId, readInput(body, null, false));
@@ -124,7 +129,11 @@ public class MockStubWriteDraftStrategy implements DraftWriteStrategy {
         var current = mockStubService.get(stubId);
         long spaceProjectId = mockSpaceService.get(current.spaceId()).projectId();
         if (spaceProjectId != projectId) {
-            throw new ServiceException("该草案指向的规则不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("草案指向的 Mock 规则（编号 " + stubId
+                    + "，所在空间编号 " + current.spaceId()
+                    + "）不属于当前会话所在项目（项目编号 " + projectId
+                    + "），确认写入已拒绝——请通过顶栏「选择项目」切到该规则所在项目后再接受草案，"
+                    + "或在当前项目让 AI 重新创建规则（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.FORBIDDEN);
         }
         if (current.version() != null && current.version() != baseVersion) {

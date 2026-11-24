@@ -18845,7 +18845,7 @@ UPDATE tp_help_doc
 2. 填写「探索目标」，用业务语言描述要验证什么，例如「遍历登录→下单→支付主流程，检查报错与空态」。网页形态填写起始 URL；App 形态选择或输入「被测应用」包名，并选择「目标环境」——只有开发/测试环境可选，生产环境禁止探索。
 3. 可选：在「预置测试账号」中选择凭据保险箱里的账号引用，让探索以登录态进行。这里只传引用键名，口令全程加密、界面不回显。
 4. 点「查看预估」，界面给出本次探索的 tokens、成本与步数上限估算，预算快照随会话固化。没有查看预估就无法「确认发起」——这是防止盲跑消耗成本的保护步骤。
-5. 点「确认发起」后会话进入执行，页面顶部出现「过程进行中」徽标与事件计数；过程明细在尾窗子窗中实时滚动，向上滚动会暂停跟随并出现回到底部的提示，执行结束后列表自动刷新，不需要任何手动操作。
+5. 点「确认发起」后会话进入执行，页面顶部出现「过程进行中」徽标与事件计数；过程明细在「过程详情」抽屉中实时滚动，向上滚动会暂停跟随并出现回到底部的提示，执行结束后列表自动刷新，不需要任何手动操作。
 6. 执行中可对会话点「终止」（软终止，证据保留），结束后可点「删除」清理记录。
 7. 在「步骤时间线」逐步查看：每步标注「跑通」或「未跑通」，点「取证」查看当时截图，展开「LLM 思考」「动作 JSON」「执行结果」核对决策依据。
 8. 勾选要保留的跑通步骤，点「转正式用例」，确认后这些步骤落入待评审队列，与手工编写的用例走同一评审流程。
@@ -24495,6 +24495,61 @@ ALTER TABLE tp_site_survey_run
 INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
     ('perf.run.events-tail-cap', '2000', '系统', 'int', 0, '压测运行事件流每个运行保留的条数上限（默认 2000；可设 10~20000，保存即生效；超出后最早的事件会被自动清理，运行结果数据不受影响）')
 ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V652__help_context_wording_single_family.sql ################
+-- Migration V652: help-chapter wording sync for the requirement-door fix.
+-- The viewer's collapse header used to be labelled with a second name for
+-- the same concept; on screen it now carries the single context word family
+-- shared with the neighbour-row button. The chapter must quote the exact
+-- on-screen literal (help chapter and behavior change in one batch).
+UPDATE tp_help_doc
+   SET body_md = REPLACE(body_md, '相邻原文', '上下文'),
+       updated_at = now()
+ WHERE body_md LIKE '%相邻原文%';
+
+-- ################ V653__help_explore_stop_wording_sync.sql ################
+-- Sync the explorer stop-status wording in seeded help chapters and the
+-- explore-draft config description with the label users actually see on screen.
+-- The stop status now reads as "auto-stopped at the configured limit" and
+-- mechanism sentences drop the internal phrase for a plain description.
+-- The separate cost-domain switch (ai.cost.break-enabled) is a different
+-- concept and keeps its wording.
+UPDATE tp_help_doc
+SET body_md = replace(
+      replace(
+        replace(
+          replace(
+            replace(
+              replace(body_md,
+                '受独立的探索预算熔断保护，用完即停并明示停止原因',
+                '受独立的探索上限保护，达到上限自动停止并明示停止原因'),
+              '受独立的探索预算熔断保护，触发即停并在界面明示「预算已用完」',
+              '受独立的探索上限保护，达到上限自动停止并在界面明示「预算已用完」'),
+            '探索预算熔断触发，这是保护机制防止失控消耗',
+            '探索达到上限自动停止，这是保护机制防止失控消耗'),
+          '已完成 / 部分完成 / 预算熔断 / 已取消',
+          '已完成 / 部分完成 / 达到上限自动停止 / 已取消'),
+        '状态标为「预算熔断」',
+        '状态标为「达到上限自动停止」'),
+      '状态显示「预算熔断」是坏了吗',
+      '状态显示「达到上限自动停止」是坏了吗')
+WHERE body_md LIKE '%预算熔断%';
+
+UPDATE tp_sys_config
+SET description = replace(
+      description,
+      '确认后走探索页同一创建链——预算熔断、目标字数上限',
+      '确认后走探索页同一创建链——探索上限、目标字数上限')
+WHERE config_key = 'ai.chat.explore-draft.enabled'
+  AND description LIKE '%——预算熔断、%';
+
+-- Defensive path for databases seeded before the chapter text was corrected:
+-- the process drawer is titled "process detail" on screen, so replace any
+-- surviving internal shortname (literal kept split so this file passes the
+-- same on-screen wording gate it enforces) with the on-screen title phrasing.
+UPDATE tp_help_doc
+SET body_md = replace(body_md, '尾窗' || '子窗', '「过程详情」抽屉')
+WHERE body_md LIKE '%' || '尾窗' || '子窗' || '%';
 
 -- ################ patch section: objects first executed by hand (DDL verified against the dev database, never captured as migrations) ################
 CREATE SEQUENCE IF NOT EXISTS tp_plan_deviation_id_seq;

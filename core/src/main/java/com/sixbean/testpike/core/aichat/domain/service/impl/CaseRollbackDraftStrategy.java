@@ -60,13 +60,18 @@ public class CaseRollbackDraftStrategy implements DraftWriteStrategy {
         long projectId = sessionService.findById(sessionId).projectId();
         Object targetRaw = draftRow.get("target_id");
         if (!(targetRaw instanceof Number caseAnchor)) {
-            throw new ServiceException("回滚草案缺少目标用例，无法确认写入（请重新让 AI 定位要回滚的用例）",
+            throw new ServiceException("回滚草案缺少目标用例（targetId 为空），确认写入已拒绝——"
+                    + "请在右侧对话坞重新说「回滚用例 <用例编号>」（示例：回滚用例 1024），"
+                    + "系统会重新出回滚草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long caseId = caseAnchor.longValue();
         CaseInfo current = caseService.get(caseId);
         if (current.projectId() != projectId) {
-            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("用例 " + caseId + " 不属于当前会话所在项目 " + projectId
+                    + "（该用例归属项目 " + current.projectId() + "），回滚确认写入已拒绝——"
+                    + "请在顶栏「选择项目」切换到用例归属的项目后，在右侧对话坞重新发起回滚"
+                    + "（入口：顶栏「选择项目」 → 右侧对话坞 → 草案卡）",
                     BizErrorCode.FORBIDDEN);
         }
         int targetVersion = readTargetVersion(draftRow);
@@ -111,7 +116,9 @@ public class CaseRollbackDraftStrategy implements DraftWriteStrategy {
         JsonNode target = body == null ? null : body.get("targetVersion");
         int version = target == null || target.isNull() ? 0 : target.asInt(0);
         if (version < 1) {
-            throw new ServiceException("回滚草案缺少有效的目标版本号（需 ≥1），无法确认写入",
+            throw new ServiceException("回滚草案缺少有效的目标版本号（targetVersion 缺失或小于 1），无法确认写入——"
+                    + "请在右侧对话坞说清版本号（示例：回滚用例 1024 到版本 3），"
+                    + "系统会重新出草案卡（入口：右侧对话坞 → 草案卡）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return version;
