@@ -82,7 +82,7 @@ public final class ExpectMatchContract {
     public static String regexPatternViolation(JsonNode step) {
         JsonNode pattern = step.get("pattern");
         if (pattern == null || pattern.isNull() || pattern.asText().isBlank()) {
-            return "正则断言必须给定 pattern";
+            return "正则断言还差匹配模式：请在断言表单填写正则表达式 pattern（例 ^ok$）";
         }
         String value = pattern.asText();
         if (value.length() > PATTERN_MAX_LENGTH) {

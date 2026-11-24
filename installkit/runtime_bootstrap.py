@@ -138,7 +138,7 @@ def cmd_check(args):
     minimum = requirement_from_recipes(args.state_dir)
     version = current_node_version()
     need_text = "node>=%d.%d" % minimum if minimum else "node 在位即可"
-    print("运行时需求：%s（来源=引擎配方 runtime_requires 单源）" % need_text)
+    print("运行时需求：%s（来源=引擎配方 runtime_requires 声明）" % need_text)
     if version is None:
         print("缺运行时 node——本机 PATH 探测不到 node 命令")
     elif satisfies(version, minimum):
@@ -185,7 +185,7 @@ def cmd_ensure(args):
             return proc.returncode
     after = current_node_version()
     if after is None:
-        print("补齐命令已跑完但 node 仍探测不到——可能需要重开 shell 使 PATH 生效（人话：重开终端再体检）")
+        print("补齐命令已跑完但 node 仍探测不到——请重开终端后重跑体检（PATH 需新会话生效）")
         return 0
     if satisfies(after, minimum):
         print("运行时补齐完成（node v%d.%d.%d）" % after)
@@ -198,7 +198,7 @@ def cmd_ensure(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="runtime_bootstrap.py",
-                                     description="引擎运行时 bootstrap 单源件（需求=配方声明，装法=画像命令表）")
+                                     description="引擎运行时 bootstrap（需求=配方声明，装法=画像命令表）")
     sub = parser.add_subparsers(dest="command", required=True)
     p_check = sub.add_parser("check", help="只读报告：配方 runtime 需求 vs 本机探测")
     p_needs = sub.add_parser("needs", help="位点闸：本次装机/换装是否有运行时需求（S1/S4 消费）")
@@ -206,7 +206,7 @@ def main(argv=None):
     for p in (p_check, p_ensure):
         p.add_argument("--state-dir", required=True, help="配方 recipe-*.json 所在状态目录")
         p.add_argument("--assume-pm", default=None,
-                       help="显式包管理画像（apt/dnf/apk/brew/winget/choco；缺省单源自动判定）")
+                       help="显式包管理画像（apt/dnf/apk/brew/winget/choco；缺省自动判定）")
     p_ensure.add_argument("--yes", action="store_true", help="显式同意执行补齐命令")
     p_needs.add_argument("--state-dir", required=True)
     p_needs.add_argument("--answers-file", default="",

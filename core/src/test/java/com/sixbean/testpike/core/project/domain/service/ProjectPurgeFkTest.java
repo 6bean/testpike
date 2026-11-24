@@ -1,6 +1,7 @@
 package com.sixbean.testpike.core.project.domain.service;
 
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,10 +46,9 @@ class ProjectPurgeFkTest {
                 "t268fk-skill-" + code);
         jdbcTemplate.update("INSERT INTO tp_project_skill (project_id, skill_id) VALUES (?, ?)",
                 projectId, skillId);
-        jdbcTemplate.update("INSERT INTO tp_explore_session (project_id, goal_text, start_url, budget_snapshot) "
+        long sessionId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_explore_session (project_id, goal_text, start_url, budget_snapshot) "
                         + "VALUES (?, '级联验证', 'http://x', '{}'::jsonb)", projectId);
-        long sessionId = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_explore_session WHERE project_id = ?",
-                Long.class, projectId);
         jdbcTemplate.update("INSERT INTO tp_explore_step (session_id, seq) VALUES (?, 1)", sessionId);
         jdbcTemplate.update("INSERT INTO tp_cost_budget (project_id, budget_cents) VALUES (?, 100)", projectId);
         jdbcTemplate.update("INSERT INTO tp_project_plugin (project_id, plugin_id, param_snapshot) "
@@ -107,8 +107,12 @@ class ProjectPurgeFkTest {
                 Long.class, projectId, "t268fk-sc-" + code);
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) "
                 + "VALUES (?, ?, 10, '[\"SHADOW_TABLE\"]'::jsonb)", projectId, envId);
-        jdbcTemplate.update("INSERT INTO tp_perf_run (scenario_id, project_id, pressure_snapshot) "
-                + "VALUES (?, ?, '{}'::jsonb)", scenarioId, projectId);
+        // The run id comes from the INSERT itself: re-querying the newest row
+        // by ORDER BY id DESC would bind the fixture to another fixture's run
+        // on a shared database.
+        long runId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_perf_run (scenario_id, project_id, pressure_snapshot) "
+                        + "VALUES (?, ?, '{}'::jsonb)", scenarioId, projectId);
         // A-13 vision fixture proved the accident shape: tp_perf_approval carries a
         // scenario_id FK onto tp_perf_scenario (the D8 auto-launch leg), so a purge
         // whose approval delete runs AFTER the scenario delete dies on
@@ -132,8 +136,6 @@ class ProjectPurgeFkTest {
                 Long.class, projectId, "t375fk-ds-" + code);
         jdbcTemplate.update("UPDATE tp_perf_scenario SET dataset_id = ? WHERE id = ?",
                 datasetId, scenarioId);
-        long runId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_perf_run WHERE project_id = ? ORDER BY id DESC LIMIT 1", Long.class, projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_metric (run_id, project_id, second_offset, rps, p95_ms, error_rate) "
                 + "VALUES (?, ?, 1, 10, 100, 0)", runId, projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_sample (run_id, project_id, second_offset, event_kind, detail) "

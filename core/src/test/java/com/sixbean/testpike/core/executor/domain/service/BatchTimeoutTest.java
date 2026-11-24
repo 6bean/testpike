@@ -179,6 +179,11 @@ class BatchTimeoutTest {
                 minutes, taskId);
     }
 
+    private int executorStatus(long executorId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT status FROM tp_executor WHERE id = ?", Integer.class, executorId);
+    }
+
     private int taskStatus(long taskId) {
         Integer status = jdbcTemplate.queryForObject(
                 "SELECT status FROM tp_exec_task WHERE id = ?", Integer.class, taskId);
@@ -301,10 +306,15 @@ class BatchTimeoutTest {
 
         jdbcTemplate.update("UPDATE tp_executor SET last_heartbeat = now() - interval '40 seconds' WHERE id = ?",
                 deadId);
-        assertEquals(1, executorService.detectOfflineAndNotify(), "失联执行器被 N3 判离线");
+        // The sweep counts the whole fleet: when suites share one database,
+        // earlier classes legitimately leave stale executors behind, so the
+        // global number is only a lower bound here. This fixture's executor
+        // and task are asserted individually (offline state, task rebound).
+        assertTrue(executorService.detectOfflineAndNotify() >= 1, "失联执行器被 N3 判离线");
+        assertEquals(3, executorStatus(deadId), "本夹具执行器落离线态(3)");
 
         int moved = execTaskService.redistributeTasksOfOfflineExecutors();
-        assertEquals(1, moved, "离线执行器名下在跑任务重派（不悬空）");
+        assertTrue(moved >= 1, "离线执行器名下在跑任务重派（不悬空）");
         assertEquals(1, taskStatus(claimed.taskId()), "任务回待派发(1)");
         String newToken = jdbcTemplate.queryForObject(
                 "SELECT claim_token FROM tp_exec_task WHERE id = ?", String.class, claimed.taskId());

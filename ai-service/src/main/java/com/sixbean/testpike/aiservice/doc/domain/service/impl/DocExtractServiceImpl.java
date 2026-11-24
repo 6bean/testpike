@@ -2143,17 +2143,6 @@ public class DocExtractServiceImpl implements DocExtractService {
                 extractToken, level, summary, detailJson);
     }
 
-    /** First visible lines of a model answer, whitespace-collapsed, capped to
-     *  a one-line tail-friendly digest (visible output only — the hidden
-     *  chain-of-thought is never persisted, open-source redaction posture). */
-    private static String visibleDigest(String content) {
-        if (content == null || content.isBlank()) {
-            return "(无可见输出)";
-        }
-        String collapsed = content.replaceAll("\\s+", " ").trim();
-        return collapsed.length() <= 140 ? collapsed : collapsed.substring(0, 140) + "…";
-    }
-
     /**
  * ring proposer/reviser segment for one gap round: a single model pass
  * over the gap chunks with the disputes rendered through the shared
@@ -2291,7 +2280,8 @@ public class DocExtractServiceImpl implements DocExtractService {
             // reads like a live log, machine part (token counts, model, latency)
             // lands in detail beside it.
             recordProcessEventQuiet(documentId, extractToken, "thinking",
-                    "模型应答完成，输出片段：" + visibleDigest(result.content()),
+                    "模型应答完成，输出片段：" + com.sixbean.testpike.aiservice.taskstream
+                            .domain.component.ProcessEventDigest.digest(result.content()),
                     java.util.Map.of(
                             "model", java.util.Objects.toString(result.model(), ""),
                             "provider", java.util.Objects.toString(result.provider(), ""),

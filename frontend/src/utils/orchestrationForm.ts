@@ -87,7 +87,7 @@ function rangeViolation(row: Row): string | null {
 function regexPatternViolation(row: Row): string | null {
   const pattern = row.pattern
   if (pattern == null || String(pattern).trim() === '') {
-    return '正则断言必须给定 pattern'
+    return '正则断言还差匹配规则：请在 expect 填写正则表达式（例 ^ok$）'
   }
   const value = String(pattern)
   if (value.length > PATTERN_MAX_LENGTH) {

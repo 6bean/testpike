@@ -76,7 +76,7 @@ def test_w1c_assertion_builder_flow(logged_in, collectors, api_client, uniq, w1c
     page.locator('[data-test="api-test-page"] .tp-page-desc').click()
     err = page.locator('[data-test="assertion-error-0"]')
     expect(err).to_be_visible(timeout=5000)
-    expect(err).to_contain_text("必须给定 path")
+    expect(err).to_contain_text("还差字段路径")
     expect(page.locator('[data-test="assertion-example-0"]')).to_contain_text("$.data.id 等于 10086")
 
     page.locator('[data-test="apitest-save-btn"]').click()

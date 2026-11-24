@@ -30,8 +30,14 @@ usage() {
   --unattended                         全程零追问走默认值（与交互问答同一代码路径，CI/管道环境不挂死）
 环境变量取值位（配置键+出厂缺省，改 .env/导出即可热更，脚本永不提权）：
   INSTALLKIT_UNIT_DOMAIN=user|system   service-agent 单元域（缺省 user=免 sudo 用户域；system=/etc/systemd/system 全机域）
+  TP_DOCKER_RELAY=on|off               装机镜像改道总闸（缺省 on：镜像缺失且官方仓库不可达时自动经加速器取件）
+  TP_DOCKER_MIRRORS=<地址>[,<地址>...] 加速器候选与顺序（缺省 docker.m.daocloud.io,docker.1ms.run,docker.1panel.live；填内网仓库即走内网）
+  TP_DOCKER_ACCELERATE=on|off          是否允许在 daemon.json 可写时合并 registry-mirrors 并重启引擎（缺省 on；有他系统容器在跑则不重启，只给出命令）
+  TP_DOCKER_PROBE_TIMEOUT_S=6          仓库可达性探测超时（秒）
+  TP_DOCKER_DIRECT_TIMEOUT_S=120       单个镜像直连拉取超时（秒），超时即转加速器
+  TP_DOCKER_RELAY_TIMEOUT_S=900        经加速器拉取超时（秒）
   --help                               本说明
-全部场景幂等可重跑、中断可续（步骤位点文件）、全程日志落盘、失败即人话原因。
+全部场景幂等可重跑、中断可续（步骤位点文件）、全程日志落盘、失败即给出原因与修复入口。
 USAGE
 }
 
@@ -58,7 +64,7 @@ run_step() {
         echo "[$(date +%T)] 教学：步骤[$desc]失败。修复后原样重跑同一条命令即断点续跑：bash installkit/install.sh --scenario=$SCENARIO"
         echo "[$(date +%T)] 教学：拿不准原因时先跑体检修复（幂等补装缺件）：bash installkit/install.sh --scenario=repair；本日志=$LOG_FILE"
     } >> "$LOG_FILE"
-    echo "步骤[$desc]失败——原因见上方人话输出；修复后重跑同一命令即从断点续跑；体检修复用 --scenario=repair" >&2
+    echo "步骤[$desc]失败——原因与修复入口见上方输出与本日志；修复后重跑同一命令即从断点续跑；体检修复用 --scenario=repair" >&2
     return 1
 }
 
@@ -471,6 +477,12 @@ case "$SCENARIO" in
         # 只读探测零副作用=不走位点记账（重跑必重探，记账会让二次 repair 跳过真探测）。
         say "体检报告（宿主=$(detect_host)，缺件=提示级点名非阻断）："
         "$PY" "$DIR/doctor.py" --state-dir "$STATE_DIR" --host "$(detect_host)" || rc=1
+        # 镜像可达性同属体检面：缺件直接改道取回（加速器候选可热更），
+        # 每次 repair 都真探（不走位点记账，否则二次体检静默跳过真探测）。
+        if [ "$rc" = 0 ] && [ -f "$DIR/../docker-compose.yml" ]; then
+            "$PY" "$DIR/image_relay.py" ensure --compose-file "$DIR/../docker-compose.yml" \
+                || say "镜像未能全部备齐——按上方给出的出路处理后重跑同一命令"
+        fi
  # 刀3 缺件点名→自动补齐闭环（运行时支路）：体检报告的 missing_runtime 段
         # 不再只是「报」——repair 是用户显式跑的修复命令=显式同意，带 --yes 直接按本机画像
         # 补齐（nvm 免 sudo 主路，坑①交互密码风险面规避）；补齐先于补装（引擎件装完

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
@@ -67,15 +68,12 @@ class PerfRunTargetVersionPinningTest {
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "版本钉注测试项目_" + uniq, "PFVERO" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '开发-版本A', 1, 'http://perf-a.local/api')", projectId);
-        envAId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '测试-版本B', 2, 'http://perf-b.local/api')", projectId);
-        envBId = lastId("tp_project_env");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "版本钉注测试项目_" + uniq, "PFVERO" + uniq);
+        envAId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '开发-版本A', 1, 'http://perf-a.local/api')", projectId);
+        envBId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '测试-版本B', 2, 'http://perf-b.local/api')", projectId);
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -107,10 +105,6 @@ class PerfRunTargetVersionPinningTest {
                     + "(SELECT id FROM tp_project WHERE code LIKE '" + prefix + "%')");
             jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE '" + prefix + "%'");
         }
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

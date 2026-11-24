@@ -581,15 +581,20 @@ class ExecTaskServiceTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> execTaskService.create(new ExecTaskCreateInput(pid, caseId, "v2", ACTION_JSON, 999999L)));
-        assertTrue(ex.getMessage().contains("环境不存在或不属于该项目"),
+        assertTrue(ex.getMessage().contains("环境不存在或不属于当前项目"),
                 "错误信息应人话且不泄露: " + ex.getMessage());
 
         long pidB = createProject();
         long caseB = createApprovedCase(pidB);
         ServiceException ex2 = assertThrows(ServiceException.class,
                 () -> execTaskService.create(new ExecTaskCreateInput(pidB, caseB, "v2", ACTION_JSON, envId)));
-        assertTrue(ex2.getMessage().contains("环境不存在或不属于该项目"),
-                "跨项目环境必须 400 人话: " + ex2.getMessage());
+        // ProjectEnvRefusals.envMissing is the single wording source: a foreign-project
+        // env id gets the byte-identical refusal as a non-existent one (existence
+        // zero-leak) and points to the project env tab for recovery.
+        assertTrue(ex2.getMessage().contains("环境不存在或不属于当前项目")
+                && ex2.getMessage().contains("「环境配置」")
+                && ex2.getMessage().equals(ex.getMessage()),
+                "cross-project env must reuse the shared refusal wording: " + ex2.getMessage());
     }
 
     @Test

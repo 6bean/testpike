@@ -58,6 +58,12 @@ class ProcessEventWordingGuardTest {
             "recordProcessEvent(", "processEvents.record(",
             "recordProcessEventQuiet(");
 
+    /** Validator throw/return sites write straight into an on-screen message
+     *  (form hint or tail-frame error line), so their literals follow the same
+     *  business-wording contract as producer frames (core script-domain sweep). */
+    private static final List<String> VALIDATOR_MESSAGE_MARKERS = List.of(
+            "new ServiceException(", "return \"");
+
     private static final List<String> INTERNAL_BOOKKEEPING_WORDS = List.of(
             "落账", "游标", "封账", "零出站", "拒止",
             "循环", "预算", "黑名单", "派发",
@@ -69,7 +75,16 @@ class ProcessEventWordingGuardTest {
             "入账", "候选池",
             // shared gap-filler notes render through the gen tail frames (W8):
             // the removal verb must stay phrased as what the operator sees.
-            "机械摘除");
+            "机械摘除",
+            // tool-catalog and blank-step residues joined with the W10a sweep:
+            // container jargon for deferred tools, and the implementer-view
+            // placeholder wording for a step that returned nothing.
+            "未常驻", "无可见输出",
+            // validator message faces joined the ratchet with the core
+            // script-domain sweep: the translated-tone must-give verb reads
+            // like a compiler error, not a fix instruction (sample terms stay
+            // in the word list, never in comments).
+            "必须给定");
 
     /** Four or more consecutive English words inside one literal = implementer narration. */
     private static final Pattern ENGLISH_PROSE_RUN =
@@ -82,6 +97,15 @@ class ProcessEventWordingGuardTest {
      */
     private static final Pattern SQL_STATEMENT_SHAPE =
             Pattern.compile("(?i)\\b(SELECT|INSERT|UPDATE|DELETE)\\b.{0,200}\\b(FROM|INTO|SET|WHERE)\\b");
+
+    /**
+     * Clause-headed SQL fragments (an ORDER BY builder returning " ORDER BY
+     * id DESC") are assembly-face code strings that never reach an operator
+     * frame; they stay silent under the English-prose rule just like full
+     * golden-sample statements.
+     */
+    private static final Pattern SQL_CLAUSE_SHAPE =
+            Pattern.compile("(?i)^\\s*(ORDER BY|GROUP BY|HAVING|LIMIT|OFFSET|WHERE \\S|SET \\S|JOIN \\S)");
 
     @Test
     void processEventProducersCarryNoImplementerWording() throws IOException {
@@ -100,7 +124,10 @@ class ProcessEventWordingGuardTest {
                 repo.resolve("ai-service/src/main/java/com/sixbean/testpike/aiservice/perfinsight"),
                 // The shared failure-event formatter renders on-screen too
                 // (taskstream face joins the full sweep at W6).
-                repo.resolve("ai-service/src/main/java/com/sixbean/testpike/aiservice/taskstream"));
+                repo.resolve("ai-service/src/main/java/com/sixbean/testpike/aiservice/taskstream"),
+                // tool face joins the ratchet with W10a: the catalog note and the
+                // search-tool description render through function-call frames.
+                repo.resolve("ai-service/src/main/java/com/sixbean/testpike/aiservice/tool"));
         List<String> violations = new ArrayList<>();
         for (Path face : faces) {
             try (var walk = Files.walk(face)) {
@@ -123,6 +150,67 @@ class ProcessEventWordingGuardTest {
         }
         assertTrue(violations.isEmpty(),
                 "过程事件上屏文案含实现者话术（业务三要素缺失或禁词命中）:\n" + String.join("\n", violations));
+    }
+
+    @Test
+    void coreScriptDomainValidatorMessagesCarryNoImplementerWording() throws IOException {
+        Path repo = locateRepoRoot();
+        // Faces joined this ratchet as their wording landed (W19): the three
+        // validators that write hints and tail-frame error lines directly.
+        List<Path> files = List.of(
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/script"
+                        + "/domain/component/NonUiStepValidator.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/apitest"
+                        + "/domain/component/ApiAssertionFormContract.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfStepActionGate.java"),
+                // W20 sweep: the shared action-contract refusals render through
+                // the same step forms and tail frames, so the six common files
+                // that carried must-give style wording join the ratchet pinned
+                // on this face list.
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/util/ActionJsonValidator.java"),
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/util/CodeStepContract.java"),
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/util/SqlStatementContract.java"),
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/util/ExpectMatchContract.java"),
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/util/NonUiActionContract.java"),
+                repo.resolve("common/src/main/java/com/sixbean/testpike/common"
+                        + "/mock/MockMatchEngine.java"),
+                // Perf dispatch family and the script-limit / promotion
+                // refusals join here: their ServiceException texts render as
+                // operator-facing refusals and tail-frame error lines too.
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/service/impl/PerfScenarioServiceImpl.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfCapacityPreflight.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfEngineRoutingSupport.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfRunDispatchSupport.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfRunDispatcher.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/PerfDatasetHealthCheck.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/domain/component/GatlingAdapter.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/perf"
+                        + "/api/controller/PerfArtifactInternalController.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/script"
+                        + "/domain/component/ScriptLimitGuard.java"),
+                repo.resolve("core/src/main/java/com/sixbean/testpike/core/apitest"
+                        + "/domain/component/PromotionRefusals.java"));
+        List<String> violations = new ArrayList<>();
+        for (Path file : files) {
+            violations.addAll(detect(file.getFileName() + ":",
+                    Files.readString(file), VALIDATOR_MESSAGE_MARKERS));
+        }
+        assertTrue(violations.isEmpty(),
+                "校验器上屏文案含实现者话术（直译腔/禁词命中，缺业务三要素）:\n"
+                        + String.join("\n", violations));
     }
 
     @Test
@@ -305,6 +393,41 @@ class ProcessEventWordingGuardTest {
     }
 
     @Test
+    void toolCatalogFramesCarryNoContainerJargon() throws IOException {
+        String src = Files.readString(locateRepoRoot().resolve(
+                "ai-service/src/main/java/com/sixbean/testpike/aiservice/tool"
+                        + "/domain/component/FcToolCatalog.java"));
+        assertFalse(src.contains("未常驻"),
+                "工具目录帧仍带请求容器黑话（常驻是装载形态，用户只需知道怎么用）");
+        assertTrue(src.contains("当前会话没有的能力"),
+                "工具检索说明应点名能力边界（当前会话没有的能力先检索）");
+        assertTrue(src.contains("需先检索后使用"),
+                "工具目录注记必须给业务动作语义（需先检索后使用）");
+    }
+
+    @Test
+    void blankStepDigestIsSharedAndReadsAsBusiness() throws IOException {
+        Path repo = locateRepoRoot();
+        String shared = Files.readString(repo.resolve("ai-service/src/main/java/com/sixbean"
+                + "/testpike/aiservice/taskstream/domain/component/ProcessEventDigest.java"));
+        assertTrue(shared.contains("本步骤没有返回内容"),
+                "空步骤占位行应使用业务说法（本步骤没有返回内容）");
+        assertFalse(shared.contains("无可见输出"),
+                "占位行仍带实现者视角说法（可见与否属内部渲染形态）");
+        for (String face : List.of(
+                "ai-service/src/main/java/com/sixbean/testpike/aiservice/explore"
+                        + "/domain/component/ExploreLoopKernel.java",
+                "ai-service/src/main/java/com/sixbean/testpike/aiservice/doc"
+                        + "/domain/service/impl/DocExtractServiceImpl.java")) {
+            String src = Files.readString(repo.resolve(face));
+            assertTrue(src.contains("ProcessEventDigest.digest("),
+                    "摘要帧必须消费共享单源件（同逻辑第二份实现=复制即漂移）");
+            assertFalse(src.contains("无可见输出"),
+                    "过程事件摘要行仍带实现者视角占位说法");
+        }
+    }
+
+    @Test
     void guardFlagsPlantedViolationAndPassesAcceptedBaseline() {
         // Positive direction: planted violation (the retired door narration plus
         // a Chinese bookkeeping verb) must be detected.
@@ -326,6 +449,16 @@ class ProcessEventWordingGuardTest {
         assertTrue(detect("PlantedGap:", plantedGapNote).stream()
                         .anyMatch(h -> h.contains("机械摘除")),
                 "共享缺项补写件的旧话术未入禁词族=防回潮缺口（W8）");
+        String plantedCatalogNote = "taskEvents.step(kind, ref, ref,\n"
+                + "        \"工具目录（未常驻，需要时先检索）：\", null);";
+        assertTrue(detect("PlantedCatalog:", plantedCatalogNote).stream()
+                        .anyMatch(h -> h.contains("未常驻")),
+                "工具目录的容器黑话未入禁词族=防回潮缺口（W10a）");
+        String plantedBlankStep = "processEvents.record(kind, ref, ref, \"step\",\n"
+                + "        \"(无可见输出)\", null);";
+        assertTrue(detect("PlantedBlank:", plantedBlankStep).stream()
+                        .anyMatch(h -> h.contains("无可见输出")),
+                "空步骤的旧占位说法未入禁词族=防回潮缺口（W10a）");
 
         // Negative direction: the accepted batch frame shape (Chinese business
         // three elements + short key=value machine detail) must stay silent.
@@ -386,6 +519,43 @@ class ProcessEventWordingGuardTest {
                 """;
         assertTrue(detect("ProseSample:", proseSample).stream().anyMatch(h -> h.contains("直译腔英文整句")),
                 "普通英文整句未命中直译腔判据=豁免分支吞掉了真违例");
+
+        // Validator-face direction (W19): a planted translated-tone validator
+        // throw must be flagged by the widened marker set, and the accepted
+        // business three-element hint must stay silent.
+        String plantedThrow = "throw new ServiceException(\"http.request 必须给定 url\", "
+                + "BizErrorCode.VALIDATION_ERROR);";
+        assertTrue(detect("PlantedValidator:", plantedThrow, VALIDATOR_MESSAGE_MARKERS)
+                        .stream().anyMatch(h -> h.contains("必须给定")),
+                "校验器直译腔上屏串未入检出面=防回潮缺口（W19）");
+        String acceptedThrow = "throw new ServiceException(\"HTTP 请求步骤还差访问地址："
+                + "请在该步骤的地址栏填写完整网址（含 http:// 前缀）\", BizErrorCode.VALIDATION_ERROR);";
+        assertTrue(detect("AcceptedValidator:", acceptedThrow, VALIDATOR_MESSAGE_MARKERS).isEmpty(),
+                "已验收的业务提示形态被误拦=检出器过宽，校验器面夹具失效");
+
+        // Product-name exemption direction (W20b): the bare engineering use
+        // of a list word must still be flagged, and the same word inside
+        // corner brackets (a product name the operator reads) must stay
+        // silent. Bidirectional fixtures so the exemption branch can never
+        // run empty (R43③).
+        String plantedBareLoop = "throw new ServiceException(\"脚本循环超限：45 个，上限 40\", "
+                + "BizErrorCode.SCRIPT_LIMIT_EXCEEDED);";
+        assertTrue(detect("PlantedBareLoop:", plantedBareLoop, VALIDATOR_MESSAGE_MARKERS)
+                        .stream().anyMatch(h -> h.contains("循环")),
+                "裸工程话术被品名豁免分支吞掉=检出器出现新盲区");
+        String plantedQuotedLoop = "throw new ServiceException(\"请在「压力形态」步骤填写「循环次数」\" , "
+                + "BizErrorCode.VALIDATION_ERROR);";
+        assertTrue(detect("PlantedQuotedLoop:", plantedQuotedLoop, VALIDATOR_MESSAGE_MARKERS).isEmpty(),
+                "括注品名形态被误拦=豁免分支失效，用户可见功能名会被错判");
+
+        // Clause-headed SQL exemption direction (W20b): an ORDER BY builder
+        // fragment stays silent, while four-word English prose keeps flagging
+        // (the proseSample above). Exemption branch proven by the paired
+        // direction fixtures, never left running blind (R43③).
+        String sqlClause = "private static String orderClause() {\n"
+                + "        return \" ORDER BY id DESC\";\n}";
+        assertTrue(detect("SqlClause:", sqlClause, VALIDATOR_MESSAGE_MARKERS).isEmpty(),
+                "SQL 子句拼装件被直译腔判据误拦=子句豁免分支失效");
     }
 
     /** Scan source text of one producer; report every forbidden shape.
@@ -396,12 +566,16 @@ class ProcessEventWordingGuardTest {
      *  Developer-log statements inside the window are exempt (log face,
      *  never rendered to the operator). */
     private List<String> detect(String label, String source) {
+        return detect(label, source, PRODUCER_MARKERS);
+    }
+
+    private List<String> detect(String label, String source, List<String> markers) {
         List<String> violations = new ArrayList<>();
         String[] lines = source.split("\n", -1);
         int[] depthBefore = braceDepthBefore(lines);
         boolean[] devLog = devLogLines(lines);
         for (int i = 0; i < lines.length; i++) {
-            if (PRODUCER_MARKERS.stream().noneMatch(lines[i]::contains)) {
+            if (markers.stream().noneMatch(lines[i]::contains)) {
                 continue;
             }
             int start;
@@ -437,13 +611,19 @@ class ProcessEventWordingGuardTest {
                             violations.add(label + (j + 1) + " 禁词族命中[" + phrase + "]: " + literal);
                         }
                     }
+                    // Product-name exemption: a term quoted with corner
+                    // brackets names an on-screen feature the operator sees
+                    // (flow-chart node, form field, allocation strategy) and
+                    // must stay silent; the bare engineering use still flags.
+                    String unbracketed = literal.replaceAll("「[^」]*」", "");
                     for (String word : INTERNAL_BOOKKEEPING_WORDS) {
-                        if (literal.contains(word)) {
+                        if (unbracketed.contains(word)) {
                             violations.add(label + (j + 1) + " 内部簿记词[" + word + "]: " + literal);
                         }
                     }
                     if (!hasCjk(literal) && ENGLISH_PROSE_RUN.matcher(literal).find()
-                            && !SQL_STATEMENT_SHAPE.matcher(literal).find()) {
+                            && !SQL_STATEMENT_SHAPE.matcher(literal).find()
+                            && !SQL_CLAUSE_SHAPE.matcher(literal).find()) {
                         violations.add(label + (j + 1) + " 直译腔英文整句: " + literal);
                     }
                 }

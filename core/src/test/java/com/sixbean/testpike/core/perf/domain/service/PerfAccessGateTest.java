@@ -53,15 +53,19 @@ class PerfAccessGateTest {
         cleanupConfig("perf.budget-margin-minutes");
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        // Ids are read back through RETURNING so a foreign fixture row with an
+        // overridden id can never out-rank max(id) and re-parent these rows.
+        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "压测闸测试项目_" + uniq, "PERFGATE" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '生产-闸测', 4, 'https://erp.prod.internal/api')", projectId);
-        prodEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '开发-闸测', 1, 'http://dev.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
+        prodEnvId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '生产-闸测', 4, 'https://erp.prod.internal/api')",
+                projectId);
+        devEnvId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '开发-闸测', 1, 'http://dev.local/api')",
+                projectId);
     }
 
     @AfterEach
@@ -89,10 +93,6 @@ class PerfAccessGateTest {
         if (id != null) {
             configService.delete(1L, id);
         }
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
 

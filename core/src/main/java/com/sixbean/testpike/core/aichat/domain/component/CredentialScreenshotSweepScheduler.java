@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.aichat.domain.component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -24,12 +25,16 @@ public class CredentialScreenshotSweepScheduler {
     private static final Logger log = LoggerFactory.getLogger(CredentialScreenshotSweepScheduler.class);
 
     private final CredentialScreenshotGovernance governance;
+    private final com.sixbean.testpike.core.sched.domain.component.JobRunner jobRunner;
 
-    public CredentialScreenshotSweepScheduler(CredentialScreenshotGovernance governance) {
+    public CredentialScreenshotSweepScheduler(CredentialScreenshotGovernance governance,
+            com.sixbean.testpike.core.sched.domain.component.JobRunner jobRunner) {
         this.governance = governance;
+        this.jobRunner = jobRunner;
     }
 
     /** Hour-of-day offset 7 keeps the pass off the 03:30 retention cleanup window. */
+    @SchedulerLock(name = "credentialScreenshotSweep", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     @Scheduled(cron = "${testpike.chat.credential-sweep-cron:0 7/15 * * * *}")
     public void sweep() {
         try {
@@ -41,6 +46,7 @@ public class CredentialScreenshotSweepScheduler {
             // A failing pass never kills the schedule; the next pass retries
             // the same rows (delete is idempotent, ledger stays).
             log.warn("凭证截图补扫本轮未完成，下轮续清: {}", ex.toString());
+            jobRunner.alert("credentialScreenshotSweep", ex);
         }
     }
 }

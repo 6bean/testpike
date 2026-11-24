@@ -38,8 +38,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * committed, usable content (afterCommit + success-gate discipline);</li>
  * <li>the doc fan is registered as data: the analysis queue row itself is
  * exempt (the lineage extractor already produces it in-transaction, so
- * the bus must not re-derive it), while the requirement edge runs as
- * SQL over the extractor's own output instead of a third detector.</li>
+ * the bus must not re-derive it), the requirement edge runs as SQL over
+ * the extractor's own output instead of a third detector, and the
+ * extraction-ledger internal tables are registered as extractor-owned
+ * rows alongside them.</li>
  * </ul>
  * Fixtures are owned rows only (run-suffixed names, deleted by id in
  * teardown); the bound queue is exclusive and auto-delete so unrelated bus
@@ -150,15 +152,22 @@ class DocumentLinkageBusAnnouncementTest {
                         + "disposition_strategy, risk_level, exempt "
                         + "FROM tp_change_linkage WHERE upstream_object_type = 'doc' "
                         + "ORDER BY edge_key");
-        assertEquals(2, rows.size(),
-                "doc fan = analysis-queue exempt row + requirement SQL edge row, no more");
+        // The shipped registry grew past the original pair: the extraction
+        // ledger internals (chunk / preview / ledger / stage / fidelity)
+        // joined as extractor-owned rows, so the doc fan counts 7 edges.
+        assertEquals(7, rows.size(),
+                "doc fan = analysis-queue exempt row + requirement SQL edge row + extraction-ledger internals, no more");
 
-        Map<String, Object> exemptRow = rows.get(0);
+        Map<String, Object> exemptRow = rows.stream()
+                .filter(r -> "doc->doc_change_analysis".equals(r.get("edge_key")))
+                .findFirst().orElseThrow();
         assertEquals(3, ((Number) exemptRow.get("detector_kind")).intValue(),
                 "exempt rows carry no detector (kind 3 = no fan, same shape as V514 exempts)");
         assertEquals(((Number) exemptRow.get("exempt")).intValue(), 1);
 
-        Map<String, Object> edge = rows.get(1);
+        Map<String, Object> edge = rows.stream()
+                .filter(r -> "doc->requirement".equals(r.get("edge_key")))
+                .findFirst().orElseThrow();
         assertEquals("requirement", String.valueOf(edge.get("downstream_object_type")));
         assertEquals(2, ((Number) edge.get("detector_kind")).intValue(),
                 "the requirement edge runs as SQL text, not a new bean detector");

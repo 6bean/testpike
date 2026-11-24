@@ -10,26 +10,36 @@ import {
   type MockStubDraftItem,
   type MockStubImportResult,
 } from '@/api/mock'
-import { listApiSpecs, type ApiSpecView } from '@/api/apiSpec'
+import { listApiSpecs, uploadApiSpec, type ApiSpecView } from '@/api/apiSpec'
 import { bizErrorMsg } from '@/utils/bizError'
 
 /**
- * Contract-direct stub wizard — channel A: an uploaded OpenAPI contract
- * becomes mock rules with zero LLM tokens through the core deterministic
- * mapper.
- * Three steps over the two admin doors: pick contract + target space ->
- * GET stub-drafts preview (a proposal, persists nothing) with per-endpoint
- * checkbox selection -> POST import-from-spec (each draft goes through the
- * normal stub save chain; same method+path already covered comes back
- * skipped, so re-import is idempotent and step 3 reports both counts).
- * Shell posture mirrors SpecImportWizard (in-page dialog, no route); the
- * drafts are passed back verbatim — the wizard never rewrites a proposal.
+ * Contract-direct stub wizard — channel A: an OpenAPI contract becomes mock
+ * rules with zero LLM tokens through the core deterministic mapper.
+ * Shared component with two mount points (API-test page + mock space
+ * workbench docs tab) — one file, no fork (mount contract test in
+ * tests/ui/mockStubWizardShared.test.ts).
+ * Step 1 offers both contract sources: upload a new .json/.yaml document
+ * (lands in tp_api_spec through the spec-domain upload single source, so the
+ * version row + audit + later diff surfaces all keep working) or pick an
+ * existing contract version row. When mounted from a space workbench the
+ * destination space arrives via presetSpaceId and the space picker collapses
+ * to a read-only echo — the user picks the contract, the space is where they
+ * already are.
+ * Three steps over the two admin doors: pick contract -> GET stub-drafts
+ * preview (a proposal, persists nothing) with per-endpoint checkbox
+ * selection -> POST import-from-spec (each draft goes through the normal
+ * stub save chain; same method+path already covered comes back skipped, so
+ * re-import is idempotent and step 3 reports both counts). The wizard never
+ * rewrites a proposal.
  */
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   projectId: number | null
-}>()
+  presetSpaceId?: number | null
+  presetSpaceName?: string
+}>(), { presetSpaceId: null, presetSpaceName: '' })
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
@@ -49,6 +59,60 @@ const spacesLoading = ref(false)
 const pickedSpaceId = ref<number | null>(null)
 const step1Error = ref('')
 const previewing = ref(false)
+
+// ---------- step 1a: contract source choice (upload vs existing) ----------
+// Upload runs through the spec-domain single source (same door the contract
+// library uses): the version row lands in tp_api_spec, so history, audit and
+// the later upgrade-diff surface all keep working — no second parser here.
+const sourceMode = ref<'existing' | 'upload'>('existing')
+const fileInput = ref<HTMLInputElement | null>(null)
+const pickedFile = ref<File | null>(null)
+const uploadName = ref('')
+const uploading = ref(false)
+const uploadError = ref('')
+const uploadDone = ref('')
+
+// A manual source switch voids the previous upload receipt, so the persisted
+// hint never goes stale against a fresh file choice. Programmatic switches
+// (the auto-jump after a successful upload) do not emit this event.
+function onSourceModeChange(): void {
+  uploadDone.value = ''
+}
+
+function onFileChange(ev: Event): void {
+  const f = (ev.target as HTMLInputElement).files?.[0] ?? null
+  pickedFile.value = f
+  uploadError.value = ''
+  uploadDone.value = ''
+  if (f && !uploadName.value.trim()) {
+    uploadName.value = f.name.replace(/\.(json|ya?ml)$/i, '')
+  }
+}
+
+async function onUploadSpec(): Promise<void> {
+  if (props.projectId === null || !pickedFile.value) return
+  uploading.value = true
+  uploadError.value = ''
+  uploadDone.value = ''
+  try {
+    const saved = await uploadApiSpec(
+      props.projectId,
+      uploadName.value.trim() || pickedFile.value.name,
+      pickedFile.value,
+    )
+    // The new version row shows up pre-selected in the existing list — the
+    // upload is not a side channel, it joins the audited contract list.
+    specs.value = [saved, ...specs.value.filter((s) => s.id !== saved.id)]
+    pickedSpecId.value = saved.id
+    sourceMode.value = 'existing'
+    uploadDone.value = t('apitest.stubImport.uploadedPicked', { n: saved.endpoints?.length ?? 0 })
+    pickedFile.value = null
+  } catch (e) {
+    uploadError.value = bizErrorMsg(e, t('apitest.stubImport.uploadFail'))
+  } finally {
+    uploading.value = false
+  }
+}
 
 async function loadStep1(): Promise<void> {
   step1Error.value = ''
@@ -86,8 +150,9 @@ function spaceStatusLabel(status: number | null): string {
 
 /** Honest reason the preview button stays disabled (shown as tooltip text). */
 function step1DisabledReason(): string {
+  if (sourceMode.value === 'upload' && !pickedSpecId.value) return t('apitest.stubImport.uploadSpecFirst')
   if (pickedSpecId.value === null) return t('apitest.stubImport.pickSpecFirst')
-  if (pickedSpaceId.value === null) return t('apitest.stubImport.pickSpaceFirst')
+  if (props.presetSpaceId === null && pickedSpaceId.value === null) return t('apitest.stubImport.pickSpaceFirst')
   return ''
 }
 
@@ -197,7 +262,13 @@ watch(
     result.value = null
     keyword.value = ''
     pickedSpecId.value = null
-    pickedSpaceId.value = null
+    sourceMode.value = 'existing'
+    pickedFile.value = null
+    uploadName.value = ''
+    uploadError.value = ''
+    uploadDone.value = ''
+    // Host-provided space (workbench mount) is the destination from the start.
+    pickedSpaceId.value = props.presetSpaceId ?? null
     void loadStep1()
   },
 )
@@ -207,7 +278,7 @@ watch(
   <el-dialog
     :model-value="props.modelValue"
     :title="t('apitest.stubImport.title')"
-    width="900"
+    :class="step === 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
     data-test="stub-direct-dialog"
     @update:model-value="(v: boolean) => { if (!v) closeWizard() }"
   >
@@ -220,9 +291,48 @@ watch(
     <!-- step 1: contract + destination space -->
     <div v-if="step === 0" class="sd-body">
       <p class="sd-hint" data-test="stub-direct-intro">{{ t('apitest.stubImport.intro') }}</p>
-      <h4 class="sd-block-title">{{ t('apitest.stubImport.specBlock') }}</h4>
+      <h4 class="sd-block-title">{{ t('apitest.stubImport.sourceBlock') }}</h4>
+      <el-radio-group v-model="sourceMode" data-test="stub-direct-source-radio" @change="onSourceModeChange">
+        <el-radio value="existing">{{ t('apitest.stubImport.sourceExisting') }}</el-radio>
+        <el-radio value="upload">{{ t('apitest.stubImport.sourceUpload') }}</el-radio>
+      </el-radio-group>
+      <div v-if="sourceMode === 'upload'" class="sd-upload" data-test="stub-direct-upload-panel">
+        <p class="sd-hint">{{ t('apitest.stubImport.uploadHint') }}</p>
+        <div class="sd-upload-row">
+          <input
+            ref="fileInput"
+            type="file"
+            accept=".json,.yaml,.yml"
+            data-test="stub-direct-file-input"
+            @change="onFileChange"
+          >
+          <el-input
+            v-model="uploadName"
+            :placeholder="t('apitest.stubImport.uploadNamePh')"
+            style="width: 220px"
+            data-test="stub-direct-upload-name"
+          />
+          <el-button
+            type="primary"
+            plain
+            :loading="uploading"
+            :disabled="!pickedFile"
+            data-test="stub-direct-upload-btn"
+            @click="onUploadSpec"
+          >
+            {{ t('apitest.stubImport.uploadBtn') }}
+          </el-button>
+        </div>
+        <p v-if="uploadError" class="sd-error" data-test="stub-direct-upload-error">{{ uploadError }}</p>
+      </div>
+      <!-- Success receipt lives OUTSIDE the mode-conditional panel: a finished
+           upload auto-jumps back to the existing-contract view, so a hint kept
+           inside the upload panel would be unmounted the moment it is set and
+           the user would get no visible feedback for the write they triggered. -->
+      <p v-if="uploadDone" class="sd-hint" data-test="stub-direct-upload-done">{{ uploadDone }}</p>
+      <h4 v-if="sourceMode === 'existing'" class="sd-block-title">{{ t('apitest.stubImport.specBlock') }}</h4>
       <el-table border
-        v-if="specs.length > 0"
+        v-if="sourceMode === 'existing' && specs.length > 0"
         v-loading="specsLoading"
         :data="specs"
         size="small"
@@ -248,29 +358,34 @@ watch(
           <template #default="{ row }">{{ row.specFormat }}</template>
         </el-table-column>
       </el-table>
-      <p v-else-if="!specsLoading" class="sd-hint" data-test="stub-direct-no-specs">
+      <p v-else-if="sourceMode === 'existing' && !specsLoading" class="sd-hint" data-test="stub-direct-no-specs">
         {{ t('apitest.stubImport.noSpecs') }}
       </p>
 
-      <h4 class="sd-block-title">{{ t('apitest.stubImport.spaceBlock') }}</h4>
-      <el-select
-        v-model="pickedSpaceId"
-        filterable
-        :placeholder="t('apitest.stubImport.spacePlaceholder')"
-        :loading="spacesLoading"
-        style="width: 320px"
-        data-test="stub-direct-space-select"
-      >
-        <el-option v-for="s in spaces" :key="s.id" :value="s.id" :label="spaceLabel(s)">
-          <span class="sd-option-line">
-            <span>{{ spaceLabel(s) }}</span>
-            <span class="sd-option-status">{{ spaceStatusLabel(s.status) }}</span>
-          </span>
-        </el-option>
-      </el-select>
-      <p v-if="pickedSpaceId !== null && spaces.find((s) => s.id === pickedSpaceId)?.status !== 1"
-         class="sd-hint" data-test="stub-direct-space-note">
-        {{ t('apitest.stubImport.draftSpaceNote') }}
+      <template v-if="presetSpaceId === null">
+        <h4 class="sd-block-title">{{ t('apitest.stubImport.spaceBlock') }}</h4>
+        <el-select
+          v-model="pickedSpaceId"
+          filterable
+          :placeholder="t('apitest.stubImport.spacePlaceholder')"
+          :loading="spacesLoading"
+          style="width: 320px"
+          data-test="stub-direct-space-select"
+        >
+          <el-option v-for="s in spaces" :key="s.id" :value="s.id" :label="spaceLabel(s)">
+            <span class="sd-option-line">
+              <span>{{ spaceLabel(s) }}</span>
+              <span class="sd-option-status">{{ spaceStatusLabel(s.status) }}</span>
+            </span>
+          </el-option>
+        </el-select>
+        <p v-if="pickedSpaceId !== null && spaces.find((s) => s.id === pickedSpaceId)?.status !== 1"
+           class="sd-hint" data-test="stub-direct-space-note">
+          {{ t('apitest.stubImport.draftSpaceNote') }}
+        </p>
+      </template>
+      <p v-else class="sd-hint" data-test="stub-direct-fixed-space">
+        {{ t('apitest.stubImport.fixedSpaceNote', { name: presetSpaceName }) }}
       </p>
       <p v-if="step1Error" class="sd-error" data-test="stub-direct-step1-error">{{ step1Error }}</p>
       <div class="sd-actions">
@@ -375,6 +490,9 @@ watch(
 .sd-body { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .sd-block-title { margin: 6px 0 0; font-size: 13px; }
 .sd-hint { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); }
+.sd-upload { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  border: 1px dashed var(--el-border-color); border-radius: 8px; }
+.sd-upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sd-error { margin: 0; font-size: 12px; color: var(--el-color-danger); }
 .sd-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sd-stat { font-size: 12px; color: var(--el-text-color-secondary); }

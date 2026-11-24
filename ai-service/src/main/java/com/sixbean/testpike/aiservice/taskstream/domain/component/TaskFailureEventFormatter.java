@@ -38,7 +38,10 @@ public final class TaskFailureEventFormatter {
     private static final List<String> MODEL_SIGNATURES = List.of(
             "模型", "大模型", "LLM", "供应商", "provider", "LiteLLM",
             "流式", "stream", "超时", "timeout", "限流", "rate limit",
-            "token", "无可见输出", "空输出");
+            // both blank-step placeholders classify as model-side: the old
+            // wording still exists in persisted rows, the new one is what
+            // producers write since the shared digest landed.
+            "token", "无可见输出", "空输出", "本步骤没有返回内容");
     private static final List<String> VALIDATION_SIGNATURES = List.of(
             "校验", "拒收", "拒绝", "不合", "格式", "解析", "未生成", "为空",
             "不合法", "超限", "上限", "JSON", "json");

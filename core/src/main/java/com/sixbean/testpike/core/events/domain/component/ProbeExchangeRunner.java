@@ -38,7 +38,11 @@ public class ProbeExchangeRunner {
     private static final Pattern LOGIN_BOUNCE = Pattern.compile(
             "(?i)(login|signin|sign-in|sso|auth|cas|passport|account/(login|signin))");
 
+    // Pin HTTP/1.1: the java.net.http default tries a cleartext h2c upgrade,
+    // and servers that ignore the Upgrade header never answer - the probe
+    // would misjudge such targets as unreachable instead of exchanging.
     private final HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(CONNECT_TIMEOUT)
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();

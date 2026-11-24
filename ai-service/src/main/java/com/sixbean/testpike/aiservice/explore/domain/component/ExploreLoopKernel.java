@@ -781,16 +781,8 @@ public class ExploreLoopKernel {
             }
         }
         processEvents.record(PROCESS_JOB_KIND, anchor, anchor, level,
-                eventDigest(summary), detailJson);
-    }
-
-    /** Whitespace-collapsed one-line tail digest (viewer rows read like a log). */
-    private static String eventDigest(String text) {
-        if (text == null || text.isBlank()) {
-            return "(无可见输出)";
-        }
-        String collapsed = text.replaceAll("\\s+", " ").trim();
-        return collapsed.length() <= 140 ? collapsed : collapsed.substring(0, 140) + "…";
+                com.sixbean.testpike.aiservice.taskstream.domain.component
+                        .ProcessEventDigest.digest(summary), detailJson);
     }
 
     /** Observation envelope ok flag (unreadable = not ok). */

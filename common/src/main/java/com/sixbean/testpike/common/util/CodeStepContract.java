@@ -37,7 +37,7 @@ public final class CodeStepContract {
     private static String languageViolation(JsonNode step) {
         JsonNode language = step.get("language");
         if (language == null || language.isNull() || language.asText().isBlank()) {
-            return "code.step 必须给定 language（当前仅支持 " + LANGUAGE_PYTHON + "）";
+            return "代码步骤还差语言选项：请在步骤表单选择语言（当前仅支持 " + LANGUAGE_PYTHON + "）";
         }
         String value = language.asText().trim();
         if (LANGUAGE_PYTHON.equalsIgnoreCase(value)) {
@@ -53,7 +53,7 @@ public final class CodeStepContract {
     
     private static String sandboxViolation(String code) {
         if (code.isBlank()) {
-            return "code.step 必须给定 code（代码正文不得为空）";
+            return "代码步骤还没有代码正文：请在步骤编辑器的代码框填写内容";
         }
         for (CodeStepForbiddenCategory category : FORBIDDEN_CATEGORIES) {
             String hit = category.firstHit(code);
@@ -74,7 +74,7 @@ public final class CodeStepContract {
         if (!timeoutMs.isNumber() || timeoutMs.asLong() < TIMEOUT_MIN_MS
                 || timeoutMs.asLong() > TIMEOUT_MAX_MS) {
             return "code.step 的 timeoutMs 非法（" + timeoutMs.asText() + "）——须为 "
-                    + TIMEOUT_MIN_MS + "-" + TIMEOUT_MAX_MS + " 毫秒（与工具试跑沙箱预算同源上限）";
+                    + TIMEOUT_MIN_MS + "-" + TIMEOUT_MAX_MS + " 毫秒（与工具试跑沙箱的时长上限一致）";
         }
         return null;
     }

@@ -7,6 +7,7 @@ import com.sixbean.testpike.core.program.domain.service.ProgramService;
 import com.sixbean.testpike.core.project.api.dto.ProjectCreateInput;
 import com.sixbean.testpike.core.project.domain.service.MemberService;
 import com.sixbean.testpike.core.project.domain.service.ProjectService;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.ArrayList;
@@ -163,12 +164,10 @@ public final class ProgramLensFixture {
      */
     public long perfEnv(long projectId) {
         long seq = userSeq++;
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, ?, 1, 'http://lens-perf.local/api')",
                 projectId, "lens-perf-env-" + seq);
-        Long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project_env WHERE name = ?",
-                Long.class, "lens-perf-env-" + seq);
-        return id == null ? 0L : id;
     }
 
     /**
@@ -195,13 +194,11 @@ public final class ProgramLensFixture {
 
     /** Data-pool ledger row (tp_perf_dataset anchors on tp_project only) for lens tests. */
     public long perfDataset(long projectId, String name) {
-        jdbcTemplate.update("INSERT INTO tp_perf_dataset (project_id, name, file_name, object_key, "
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_perf_dataset (project_id, name, file_name, object_key, "
                         + "columns_json, row_count, size_bytes) VALUES (?, ?, 'lens.csv', ?, "
                         + "'[\"c1\"]'::jsonb, 1, 10)",
                 projectId, name, "lens-fixture/" + name);
-        Long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_perf_dataset WHERE name = ?",
-                Long.class, name);
-        return id == null ? 0L : id;
     }
 
     /** Remove every row this fixture created (domain rows, grants, memberships, projects). */

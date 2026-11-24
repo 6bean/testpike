@@ -42,8 +42,8 @@ public class ScriptLimitGuard {
         }
         int maxLoop = limitsReader.maxLoop();
         if (counts.loops > maxLoop) {
-            throw new ServiceException("脚本循环超限：" + counts.loops + " 个 loop，上限 " + maxLoop
-                    + "（ai.script.max-loop）", BizErrorCode.SCRIPT_LIMIT_EXCEEDED);
+            throw new ServiceException("脚本「循环」超限：" + counts.loops + " 个，上限 " + maxLoop
+                    + "（ai.script.max-loop，可在「系统设置 > 参数配置」调整）", BizErrorCode.SCRIPT_LIMIT_EXCEEDED);
         }
         int maxDepth = limitsReader.maxNestDepth();
         if (counts.maxDepth > maxDepth) {

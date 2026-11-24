@@ -713,7 +713,7 @@ def run_once(base_url: str, token: str, env: AgentEnv,
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="service_agent.py",
-        description="主机 service-agent：平台服务一键升级/回滚消费面 + 部件版本心跳扩报（03 §2.8/§2.9）")
+        description="主机 service-agent：平台服务一键升级/回滚消费面 + 部件版本心跳上报")
     parser.add_argument("--base-url", default=os.environ.get("SERVICE_AGENT_BASE_URL", ""))
     parser.add_argument("--token", default=os.environ.get("SERVICE_AGENT_TOKEN", ""))
     parser.add_argument("--root", default=os.environ.get("SERVICE_AGENT_INSTALL_ROOT",

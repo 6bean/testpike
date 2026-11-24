@@ -64,7 +64,7 @@ MESSAGES = {
     },
     "doctor.copy_hint": {
         "zh": "复制诊断报告 doctor-report.json 贴给管理员，或到引擎中心「体检」页"
-              "（A1 env-doctor）换取人话修复步骤（报告已做脱敏自检，禁贴含明文密钥的原始日志）",
+              "（A1 env-doctor）换取可读的修复步骤（报告已做脱敏自检，禁贴含明文密钥的原始日志）",
         "en": "Copy the health-check report doctor-report.json to your administrator, "
               "or open the Engine Center health panel (A1 env-doctor) for plain-language "
               "fix steps (the report passes a masking self-check——never paste raw logs "

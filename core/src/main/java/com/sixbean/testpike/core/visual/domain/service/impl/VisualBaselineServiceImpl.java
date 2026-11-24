@@ -1,6 +1,7 @@
 package com.sixbean.testpike.core.visual.domain.service.impl;
 
 import com.sixbean.testpike.common.exception.BizErrorCode;
+import com.sixbean.testpike.core.visual.domain.component.VisualBaselineRefusals;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.executor.domain.component.ArtifactStorage;
 import com.sixbean.testpike.core.visual.api.dto.VisualBaselineCandidateInput;
@@ -42,24 +43,26 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
     @Transactional
     public VisualBaselineInfo recordCandidate(VisualBaselineCandidateInput input) {
         if (input.projectId() == null || input.projectId() <= 0) {
-            throw new ServiceException("项目不能为空", BizErrorCode.VALIDATION_ERROR);
-        }
-        if (input.stepKey() == null || input.stepKey().isBlank()) {
-            throw new ServiceException("基线稳定键（stepKey）不能为空", BizErrorCode.VALIDATION_ERROR);
-        }
-        if (input.stepKey().length() > STEP_KEY_MAX) {
-            throw new ServiceException("基线稳定键超长（上限 " + STEP_KEY_MAX + " 字符）",
+            throw new ServiceException(VisualBaselineRefusals.projectMissing(),
                     BizErrorCode.VALIDATION_ERROR);
         }
+        if (input.stepKey() == null || input.stepKey().isBlank()) {
+            throw new ServiceException(VisualBaselineRefusals.stepKeyBlank(),
+                    BizErrorCode.VALIDATION_ERROR);
+        }
+        if (input.stepKey().length() > STEP_KEY_MAX) {
+            throw new ServiceException(VisualBaselineRefusals.stepKeyTooLong(STEP_KEY_MAX,
+                    input.stepKey().length()), BizErrorCode.VALIDATION_ERROR);
+        }
         if (input.sourceArtifactKey() == null || input.sourceArtifactKey().isBlank()) {
-            throw new ServiceException("来源截图对象键不能为空（执行采集产物先行上传后登记）",
+            throw new ServiceException(VisualBaselineRefusals.sourceKeyBlank(),
                     BizErrorCode.VALIDATION_ERROR);
         }
         checkTolerance(input.diffTolerance());
         Long projectCount = named.queryForObject("SELECT count(*) FROM tp_project WHERE id = :projectId",
                 new MapSqlParameterSource("projectId", input.projectId()), Long.class);
         if (projectCount == null || projectCount == 0L) {
-            throw new ServiceException("基线挂接的项目不存在（project_id=" + input.projectId() + "）",
+            throw new ServiceException(VisualBaselineRefusals.projectNotFound(input.projectId()),
                     BizErrorCode.NOT_FOUND);
         }
         Long id = named.queryForObject(
@@ -87,13 +90,13 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
     public VisualBaselineInfo confirm(long id, Long userId) {
         VisualBaselineInfo current = getById(id);
         if (current.status() != VisualBaselineStatus.PENDING) {
-            throw new ServiceException("仅待确认候选可确认为基线（当前状态："
-                    + current.statusLabel() + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(VisualBaselineRefusals.confirmNotPending(
+                    current.statusLabel()), BizErrorCode.VALIDATION_ERROR);
         }
         byte[] bytes = artifactStorage.readBytesQuietly(current.sourceArtifactKey());
         if (bytes == null || bytes.length == 0) {
-            throw new ServiceException("来源截图字节读取失败或为空，拒绝确认空基线（key="
-                    + current.sourceArtifactKey() + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(VisualBaselineRefusals.sourceBytesEmpty(
+                    current.sourceArtifactKey()), BizErrorCode.VALIDATION_ERROR);
         }
         String safeName = current.stepKey().replaceAll("[^A-Za-z0-9._-]", "-") + ".png";
         String baselineKey = artifactStorage.buildProjectObjectKey(
@@ -118,8 +121,8 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
     public void reject(long id, Long userId) {
         VisualBaselineInfo current = getById(id);
         if (current.status() != VisualBaselineStatus.PENDING) {
-            throw new ServiceException("仅待确认候选可拒绝（当前状态："
-                    + current.statusLabel() + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(VisualBaselineRefusals.rejectNotPending(
+                    current.statusLabel()), BizErrorCode.VALIDATION_ERROR);
         }
         named.update("DELETE FROM tp_visual_baseline WHERE id = :id AND status = "
                         + VisualBaselineStatus.PENDING,
@@ -130,7 +133,7 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
     public VisualBaselineInfo getById(long id) {
         List<VisualBaselineInfo> rows = query(new MapSqlParameterSource("id", id), " WHERE id = :id");
         if (rows.isEmpty()) {
-            throw new ServiceException("基线记录不存在（id=" + id + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(VisualBaselineRefusals.baselineMissing(id), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -164,8 +167,8 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
         String key = current.status() == VisualBaselineStatus.PENDING
                 ? current.sourceArtifactKey() : current.baselineKey();
         if (key == null || key.isBlank()) {
-            throw new ServiceException("该行没有可查看的截图对象（状态：" + current.statusLabel()
-                    + "，id=" + id + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(VisualBaselineRefusals.noViewableShot(
+                    current.statusLabel(), id), BizErrorCode.VALIDATION_ERROR);
         }
         return artifactStorage.grantViewUrl(key);
     }
@@ -189,7 +192,7 @@ public class VisualBaselineServiceImpl implements VisualBaselineService {
 
     private static void checkTolerance(Double tolerance) {
         if (tolerance != null && (tolerance < 0 || tolerance > 1)) {
-            throw new ServiceException("基线容差须在 0~1 之间（差异像素占比；当前 " + tolerance + "）",
+            throw new ServiceException(VisualBaselineRefusals.toleranceInvalid(tolerance),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

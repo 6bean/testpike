@@ -173,7 +173,8 @@ class AppautoRecordFlowServiceTest {
                 "swipe", "scroll", "back", "screenshot", "assertVisible", "assertNotVisible",
                 "assertText", "waitVisible", "extractText",
                 "deepLink", "openUrl", "rotation", "home", "clearData", "grantPermission",
-                "wakeUnlock", "networkProfile", "install", "uninstall", "verifyVersion"),
+                "wakeUnlock", "networkProfile", "install", "uninstall", "verifyVersion",
+                "perf", "launchPerf"),
                 down.allowedVerbs(),
                 "允许动词集=IR 基线∩引擎位图（MOBILEWRIGHT 尽力位两枚 false 在案，裁剪单点 core）");
 

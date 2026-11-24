@@ -243,7 +243,7 @@ class SpecExtractDispatchServiceTest {
             ServiceException e = assertThrows(ServiceException.class,
                     () -> dispatchService.dispatch(1L, docId, null));
             assertEquals(BizErrorCode.VALIDATION_ERROR, e.getCode());
-            assertTrue(e.getMessage().contains("拆分文档"),
+            assertTrue(e.getMessage().contains("拆分为多篇"),
                     "关态必须维持旧字面人话拒：" + e.getMessage());
         } finally {
             configService.delete(1L, created.id());

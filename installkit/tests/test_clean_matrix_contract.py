@@ -236,10 +236,28 @@ def test_greenlight_proof_reads_operator_password_from_environment_only():
 
 def test_pg_existing_failure_routes_through_failure_guide_single_source():
     src = open(os.path.join(ROOT, "installkit", "s1_bootstrap.py"), encoding="utf-8").read()
-    assert "classify_failure" in src and "failure_guide" in src
+    assert "failure_guide" in src and "note_for_failure" in src
+    # Classify+teach pairing belongs inside the guide: a caller that re-pairs it
+    # is a second route that future families would silently miss.
+    assert "classify_failure" not in src, "consumers call the guide, not its internals"
     # the create-database failure branch must classify its stderr (raw tail alone = defect)
     branch = re.search(r"元数据库.*创建失败[\s\S]{0,400}?", src)
-    assert branch and "teach" in src[branch.start():branch.start() + 600]
+    assert branch and "note_for_failure" in src[branch.start():branch.start() + 600]
+
+
+def test_compose_stage_failures_route_through_the_failure_guide():
+    """The bring-up stages used to print only 'the docker output above is the reason'.
+
+    Streaming (rather than capturing) is what makes classification possible at
+    all, so the runner contract is pinned here too: a plain subprocess.run()
+    with inherited stdio loses the text.
+    """
+    src = open(os.path.join(ROOT, "installkit", "s1_bootstrap.py"), encoding="utf-8").read()
+    assert "def _execute_tee" in src and "stderr=subprocess.STDOUT" in src, \
+        "stage output must be echoed live and kept for classification"
+    wiring = re.search(r"def cmd_compose[\s\S]{0,2500}", src)
+    assert wiring and "stage_failure_note" in wiring.group(0) \
+        and "_run_stage(stages[0]" in wiring.group(0)
 
 
 def test_apk_profile_registered_and_matrix_prereq_matches_installer_lines():

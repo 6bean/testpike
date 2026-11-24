@@ -58,7 +58,7 @@ public class PerfRunDispatchSupport {
                         + "WHERE id = :r AND project_id = :p",
                 new MapSqlParameterSource("r", runId).addValue("p", projectId), Integer.class);
         if (exists == null || exists == 0) {
-            throw new ServiceException("压测运行不存在或不属于该项目，无法建派发任务",
+            throw new ServiceException("压测运行不存在或不属于该项目，请到「压测运行」列表核对后重新发起",
                     BizErrorCode.NOT_FOUND);
         }
         return env;

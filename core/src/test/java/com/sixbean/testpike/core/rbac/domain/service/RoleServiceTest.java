@@ -142,11 +142,11 @@ class RoleServiceTest {
 
 
     @Test
-    void roles_返回4内置角色() {
+    void roles_返回5内置角色() {
         List<RoleInfo> roles = roleService.roles();
         List<RoleInfo> builtins = roles.stream().filter(r -> r.builtin() == 1)
                 .collect(java.util.stream.Collectors.toList());
-        assertEquals(4, builtins.size(), "内置 4 角色: " + builtins);
+        assertEquals(5, builtins.size(), "内置 5 角色（V220 起含项目经理）: " + builtins);
         Set<String> codes = builtins.stream().map(RoleInfo::code)
                 .collect(java.util.stream.Collectors.toSet());
         assertTrue(codes.containsAll(Set.of("tester", "test_lead", "developer", "admin")));

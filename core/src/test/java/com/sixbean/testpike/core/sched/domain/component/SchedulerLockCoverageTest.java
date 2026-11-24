@@ -19,9 +19,11 @@ class SchedulerLockCoverageTest {
      *  mock space expiry sweep -> 29, mock hit retention sweep -> 30, document-extract stall sweep -> 31,
      *  MCP knowledge-sync scan -> 32, flaky-probe sweep -> 33, correction distillation daily (ai-service) -> 34,
      *  interface-catalog refresh (the pass-through door's own rebuild, core) -> 35,
-     *  dead-letter auto-replay sweep (core) -> 36.
+     *  dead-letter auto-replay sweep (core) -> 36, login-state keep-alive tick and the
+     *  fresh-install repair batch (watermark sampler, stall sweeper, survey attribution
+     *  job, credential screenshot sweep) -> 48.
      *  Changing this constant = intentional scheduler change. */
-    private static final int EXPECTED_SCHEDULED_TOTAL = 36;
+    private static final int EXPECTED_SCHEDULED_TOTAL = 48;
 
     @Test
     void everyScheduledMethodCarriesSchedulerLock() throws IOException {

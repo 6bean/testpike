@@ -206,25 +206,25 @@ def cmd_list(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="ledger.py",
-                                     description="装机账（只删自装的记账单源件）")
+                                     description="装机账（只登记本机自装的件，卸载以此为界）")
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_rec = sub.add_parser("record", help="装毕记账（(engine,host) 覆盖写）")
     p_rm = sub.add_parser("remove", help="卸载成功销账（账外件诚实声明）")
     for p in (p_rec, p_rm):
         p.add_argument("--state-dir", required=True)
         p.add_argument("--engine", required=True)
-        p.add_argument("--host", default=None, help="宿主画像键（缺省单源自动判定）")
+        p.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
     p_rec.add_argument("--pin", default=None, help="钉版本（缺省取状态目录配方 version_pin）")
     p_list = sub.add_parser("list", help="列账（--json 结构化供脚本消费）")
     p_list.add_argument("--state-dir", required=True)
     p_list.add_argument("--json", action="store_true")
     p_plan = sub.add_parser("refill-plan", help="体检报告×装机账→补装需求 diff")
     p_plan.add_argument("--state-dir", required=True)
-    p_plan.add_argument("--host", default=None, help="宿主画像键（缺省单源自动判定）")
+    p_plan.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
     p_un = sub.add_parser("uninstall-plan",
-                          help="本宿主自装引擎清单（卸载只删自装的判定单源）")
+                          help="本宿主自装引擎清单（卸载只删账内自装件）")
     p_un.add_argument("--state-dir", required=True)
-    p_un.add_argument("--host", default=None, help="宿主画像键（缺省单源自动判定）")
+    p_un.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
     args = parser.parse_args(argv)
     return {"record": cmd_record, "remove": cmd_remove, "list": cmd_list,
             "refill-plan": cmd_refill_plan,

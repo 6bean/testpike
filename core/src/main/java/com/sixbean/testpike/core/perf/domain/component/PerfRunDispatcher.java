@@ -100,8 +100,9 @@ public class PerfRunDispatcher {
         try {
             execTaskService.createPerfRunTask(projectId, objectMapper.writeValueAsString(envelope));
         } catch (JsonProcessingException jsonFailure) {
-            throw new ServiceException("压测运行启动失败：派发信封序列化异常（"
-                    + jsonFailure.getMessage() + "）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("压测运行启动失败：任务参数组织异常（"
+                    + jsonFailure.getMessage() + "），请重新发起压测；反复失败请到「压测场景」检查该场景配置",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 

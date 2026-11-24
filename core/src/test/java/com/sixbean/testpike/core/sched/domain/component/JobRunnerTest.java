@@ -101,11 +101,11 @@ class JobRunnerTest {
                     .filter(JobRunnerTest::hasScheduledAnnotation)
                     .toList();
         }
-        // 27 core scheduler classes since the document-extract stall sweeper, the MCP knowledge-sync
-        // scheduler, the flaky-probe scheduler, the interface-catalog refresher and the dead-letter
-        // auto-replay scheduler joined (each wires jobRunner; the correction-distillation scheduler
+        // 38 core scheduler classes since the keep-alive/keepalive-era schedulers,
+        // the watermark sampler, the stall sweeper and the survey attribution job
+        // joined (each wires jobRunner; the correction-distillation scheduler
         // lives in ai-service and is out of this core-tree count by design).
-        assertEquals(27, schedulers.size(),
+        assertEquals(38, schedulers.size(),
                 "core 含 @Scheduled 的调度类文件数变化=调度器扩缩，同步核对告警接线后更新期望值");
         List<Path> unwired = new ArrayList<>();
         for (Path p : schedulers) {

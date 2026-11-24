@@ -55,7 +55,7 @@ def _ask(stream, question, default_display, default_value=None):
 def _choice(line, mapping, default, label):
     value = mapping.get(line.strip().lower())
     if value is None:
-        print("　↳「%s」不是可选项，已按默认「%s」继续（人话提示不中断装机）" % (line, default))
+        print("　↳「%s」不是可选项，已按默认「%s」继续（仅提示，装机不中断）" % (line, default))
         return default
     print("　↳ %s=%s" % (label, value))
     return value

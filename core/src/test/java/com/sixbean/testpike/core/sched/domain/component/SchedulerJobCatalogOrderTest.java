@@ -19,8 +19,8 @@ class SchedulerJobCatalogOrderTest {
         List<String> viewOrder = new ArrayList<>(view.keySet());
         assertEquals("dailyDigestScan", viewOrder.get(0),
                 "遍历首行应为登记序首行（哈希序会打乱=契约漂移）");
-        assertEquals("webElementLedgerRetentionDaily", viewOrder.get(viewOrder.size() - 1),
-                "遍历末行应为登记序末行（WE T661 j 面留存双回路键追加在末尾=在册同步点）");
+        assertEquals("credentialScreenshotSweep", viewOrder.get(viewOrder.size() - 1),
+                "遍历末行应为登记序末行（run-now 补登记五键追加在末尾=在册同步点）");
 
         int weekly = viewOrder.indexOf("reportWeeklyGenerate");
         int monthly = viewOrder.indexOf("reportMonthlyGenerate");
@@ -36,11 +36,12 @@ class SchedulerJobCatalogOrderTest {
     void healthFirstPageContainsAllDescribedJobsForRunNowPicker() {
         SchedulerJobCatalog catalog = new SchedulerJobCatalog();
         Map<String, String> view = catalog.descriptions();
-        // Catalog size is asserted exactly (40 entries registered after the
-        // ledger retention twin-loop key joined; adding a job key must
+        // Catalog size is asserted exactly (45 entries registered after the
+        // repair batch appended the five missing run-now
+        // keys; adding a job key must
         // update this line together with the E2E first-page pin = intentional
         // sync point — the appended key sits last, so the first page is
         // unaffected).
-        assertEquals(40, view.size(), "调度任务目录登记数（扩键=本行同步勘正+E2E 首屏行位联动）");
+        assertEquals(45, view.size(), "调度任务目录登记数（扩键=本行同步勘正+E2E 首屏行位联动）");
     }
 }

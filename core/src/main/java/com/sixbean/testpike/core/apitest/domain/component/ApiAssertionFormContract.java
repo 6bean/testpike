@@ -113,7 +113,7 @@ public final class ApiAssertionFormContract {
             try {
                 value = Integer.parseInt(window.asText().trim());
             } catch (NumberFormatException e) {
-                return "ws 断言窗口 withinMs 必须是 ≥1 的整数毫秒（上限=信封 timeoutMs 预算，执行器点名），当前值超长";
+                return "消息等待窗口 withinMs 超过该步骤的超时上限（timeoutMs），请把等待毫秒数改小到上限以内";
             }
         } else {
             return "ws 断言窗口 withinMs 必须是 ≥1 的整数毫秒（缺省=3000），当前值「"
@@ -128,7 +128,7 @@ public final class ApiAssertionFormContract {
     private static String wsReceiveViolation(JsonNode row) {
         JsonNode expect = row.get("expect");
         if (expect == null || expect.isNull()) {
-            return "ws.receive 必须给定 expect（窗口内期望命中的消息内容），例 expect=pong";
+            return "消息接收断言还差期望内容：请在 expect 填写窗口内要命中的消息文本（例 expect=pong）";
         }
         String op = row.path("op").asText("");
         if (op.isEmpty()) {
@@ -143,7 +143,7 @@ public final class ApiAssertionFormContract {
         }
         if ("regex".equals(op)) {
             if (!expect.isTextual() || expect.asText().isBlank()) {
-                return "正则断言 expect 必须给定正则串（例 ^ok$）";
+                return "正则断言还差匹配规则：请在 expect 填写正则表达式（例 ^ok$）";
             }
             ObjectNode shaped = row.deepCopy();
             shaped.put("pattern", expect.asText());
@@ -228,7 +228,7 @@ public final class ApiAssertionFormContract {
 
     private static String headerViolation(JsonNode row) {
         if (row.path("name").asText("").isBlank()) {
-            return "Header 断言必须给定头名（name），例 name=Content-Type";
+            return "响应头断言还差头名：请在 name 填写要校验的头名称（例 name=Content-Type）";
         }
         return matchRowViolation(row);
     }
@@ -248,10 +248,10 @@ public final class ApiAssertionFormContract {
                 return pathViolation;
             }
         } else if (row.path("name").asText("").isBlank()) {
-            return "按 " + source + " 提取变量必须给定名称（name），例 name=X-Auth-Token";
+            return "按 " + source + " 提取变量还差名称：请在 name 填写要提取的头或 Cookie 名称（例 name=X-Auth-Token）";
         }
         if (row.get("saveAs") == null || row.get("saveAs").isNull()) {
-            return "变量提取断言必须给定保存变量名 saveAs"
+            return "变量提取断言还差保存变量名：请在 saveAs 填写变量名"
                     + "（例 saveAs=TOKEN，后续请求用 {{VAR:TOKEN}} 引用）";
         }
         return NonUiActionContract.saveAsViolation("变量提取断言", row);
@@ -268,7 +268,7 @@ public final class ApiAssertionFormContract {
         String via = row.path("via").asText("");
         if (via.isBlank()) {
             return "结构校验断言必须选择来源：inline（粘贴 JSON Schema）或 "
-                    + "contract（直引契约 responseSchemas）";
+                    + "contract（引用接口已保存的响应结构样本 responseSchemas）";
         }
         if (!SCHEMA_VIAS.contains(via)) {
             return "结构校验来源仅支持 inline / contract，当前值「" + via + "」";
@@ -284,7 +284,7 @@ public final class ApiAssertionFormContract {
         }
         int status = parseStatusCode(code);
         if (status < 100 || status > 599) {
-            return "结构校验直引 code 必须是 100–599 的响应码（缺省=按实际响应码取契约 schema），"
+            return "结构校验引用的响应码 code 必须是 100–599 的整数（缺省=按实际响应码取对应结构样本），"
                     + "当前值「" + code.asText() + "」";
         }
         return null;
@@ -350,14 +350,14 @@ public final class ApiAssertionFormContract {
             }
             JsonNode expect = row.get("expect");
             if (expect == null || !expect.isTextual() || expect.asText().isBlank()) {
-                return "正则断言 expect 必须给定正则串（例 ^ok$）";
+                return "正则断言还差匹配规则：请在 expect 填写正则表达式（例 ^ok$）";
             }
             ObjectNode shaped = row.deepCopy();
             shaped.put("pattern", expect.asText());
             return ExpectMatchContract.regexPatternViolation(shaped);
         }
         if (row.get("expect") == null || row.get("expect").isNull()) {
-            return "断言必须给定 expect（期望值）";
+            return "断言还差期望值：请在 expect 填写预期返回的内容";
         }
         return null;
     }

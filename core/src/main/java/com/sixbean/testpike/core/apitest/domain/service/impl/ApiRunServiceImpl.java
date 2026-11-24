@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.apitest.domain.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
+import com.sixbean.testpike.core.apitest.domain.component.ApiRunRefusals;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.apitest.api.dto.ApiRunInfo;
 import com.sixbean.testpike.core.apitest.api.dto.ResponseCompareView;
@@ -67,7 +68,8 @@ public class ApiRunServiceImpl implements ApiRunService {
     @Audit(objectType = "apitestRun", action = "create", after = "#result")
     public ApiRunInfo create(Long operatorId, RunCreateInput input) {
         if (input == null || input.requestId() == null || input.requestId() <= 0) {
-            throw new ServiceException("运行必须指定 API 请求", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ApiRunRefusals.runRequestMissing(
+                    input == null ? null : input.requestId()), BizErrorCode.VALIDATION_ERROR);
         }
         Long projectScoped = requestProject(input.requestId());
         Long envId = input.envId();
@@ -93,7 +95,7 @@ public class ApiRunServiceImpl implements ApiRunService {
         List<ApiRunRow> rows = queryRows(" WHERE r.id = :id", new MapSqlParameterSource("id", runId));
         return rows.stream().findFirst()
                 .map(ApiRunServiceImpl::toInfo)
-                .orElseThrow(() -> new ServiceException("运行记录不存在或已清理", BizErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new ServiceException(ApiRunRefusals.runRecordMissing(runId), BizErrorCode.NOT_FOUND));
     }
 
     @Override
@@ -122,16 +124,15 @@ public class ApiRunServiceImpl implements ApiRunService {
                                       String assertDetailJson, String artifactRef,
                                       String errorMsg, String storedVarsJson) {
         if (!RUN_STATUSES.contains(status)) {
-            throw new ServiceException("运行状态仅支持 0=待执行 / 1=通过 / 2=断言失败 / 3=执行错误 / "
-                    + "4=诚实跳过，当前值「"
-                    + status + "」", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ApiRunRefusals.statusUnsupported(status),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         get(runId);
         String detail = normalizeDetail(assertDetailJson);
         String ref = artifactRef == null ? "" : artifactRef.trim();
         if (ref.length() > MAX_ARTIFACT_REF) {
-            throw new ServiceException("工件引用最长 " + MAX_ARTIFACT_REF + " 字",
-                    BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ApiRunRefusals.artifactRefTooLong(MAX_ARTIFACT_REF,
+                    ref.length()), BizErrorCode.VALIDATION_ERROR);
         }
         namedJdbc.update("""
                 UPDATE tp_apitest_run
@@ -235,7 +236,7 @@ public class ApiRunServiceImpl implements ApiRunService {
                 """, new MapSqlParameterSource("runId", String.valueOf(runId)),
                 (rs, rowNum) -> rs.getLong(1));
         if (taskIds.isEmpty()) {
-            throw new ServiceException("该运行未派发执行或派发单已清理，无响应快照可比对",
+            throw new ServiceException(ApiRunRefusals.noDispatchSnapshot(runId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         ExecStepSnapshotView step = execStepSnapshotSupport.listSnapshots(taskIds.get(0))
@@ -243,8 +244,9 @@ public class ApiRunServiceImpl implements ApiRunService {
                 .filter(snapshot -> snapshot.stepNo() == 1)
                 .findFirst()
                 .orElseThrow(() -> new ServiceException(
-                        "该运行的步骤快照缺少响应记录，无法比对", BizErrorCode.VALIDATION_ERROR));
-        return new ResponseSnapshotBody(extractBody(step), step.truncated());
+                        ApiRunRefusals.missingResponseRecord(runId),
+                        BizErrorCode.VALIDATION_ERROR));
+        return new ResponseSnapshotBody(extractBody(runId, step), step.truncated());
     }
 
     /**
@@ -257,10 +259,10 @@ public class ApiRunServiceImpl implements ApiRunService {
      * structured JSON is misclassified into the TEXT lane (false negative).
      * Scalar string bodies keep their original text.
      */
-    private String extractBody(ExecStepSnapshotView snapshot) {
+    private String extractBody(long runId, ExecStepSnapshotView snapshot) {
         String response = snapshot.response();
         if (response == null || response.isBlank()) {
-            throw new ServiceException("该运行的步骤快照缺少响应记录，无法比对",
+            throw new ServiceException(ApiRunRefusals.missingResponseRecord(runId),
                     BizErrorCode.VALIDATION_ERROR);
         }
         try {
@@ -273,7 +275,7 @@ public class ApiRunServiceImpl implements ApiRunService {
             }
             return body.asText();
         } catch (Exception e) {
-            throw new ServiceException("响应快照结构非法（缺 body 字段），无法比对: " + e.getMessage(),
+            throw new ServiceException(ApiRunRefusals.invalidSnapshotBody(e.getMessage()),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -287,7 +289,7 @@ public class ApiRunServiceImpl implements ApiRunService {
                 """, new MapSqlParameterSource("id", requestId),
                 (rs, rowNum) -> rs.getLong(1));
         if (projects.isEmpty()) {
-            throw new ServiceException("API 请求不存在或已删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(ApiRunRefusals.requestMissing(requestId), BizErrorCode.NOT_FOUND);
         }
         return projects.get(0);
     }
@@ -301,11 +303,12 @@ public class ApiRunServiceImpl implements ApiRunService {
         try {
             node = MAPPER.readTree(raw);
         } catch (Exception e) {
-            throw new ServiceException("断言明细不是合法 JSON（执行器回传数组原文），当前值「"
-                    + raw + "」", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ApiRunRefusals.assertDetailNotJson(raw),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (!node.isArray()) {
-            throw new ServiceException("断言明细必须是数组（形如 [{...}]）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ApiRunRefusals.assertDetailNotArray(raw),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         return node.toString();
     }

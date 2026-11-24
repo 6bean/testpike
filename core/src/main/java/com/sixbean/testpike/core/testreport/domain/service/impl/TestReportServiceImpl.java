@@ -14,6 +14,7 @@ import com.sixbean.testpike.core.testreport.api.dto.ReportDetailView;
 import com.sixbean.testpike.core.testreport.api.dto.ReportGenerateInput;
 import com.sixbean.testpike.core.testreport.api.dto.ReportQuery;
 import com.sixbean.testpike.core.testreport.api.dto.ReportRecordInfo;
+import com.sixbean.testpike.core.testreport.domain.component.TestReportRefusals;
 import com.sixbean.testpike.core.testreport.domain.service.TestReportService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
@@ -50,24 +51,28 @@ public class TestReportServiceImpl implements TestReportService {
     @Audit(objectType = "test_report", action = "report_generate", objectId = "#result.id", after = "#result")
     public ReportRecordInfo generate(long operatorId, ReportGenerateInput input) {
         if (input.rangeType() != 1 && input.rangeType() != 2) {
-            throw new ServiceException("报告范围类型不合法（1=计划 2=时间范围）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(TestReportRefusals.rangeTypeInvalid(input.rangeType()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (input.rangeType() == 1) {
             if (input.planId() == null) {
-                throw new ServiceException("按计划生成必须选择计划", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(TestReportRefusals.planRequired(), BizErrorCode.VALIDATION_ERROR);
             }
             List<Long> owner = jdbcTemplate.queryForList(
                     "SELECT project_id FROM tp_exec_plan WHERE id = ?", Long.class, input.planId());
             if (owner.isEmpty()) {
-                throw new ServiceException("所选计划不存在", BizErrorCode.NOT_FOUND);
+                throw new ServiceException(TestReportRefusals.planNotFound(input.planId()), BizErrorCode.NOT_FOUND);
             }
             if (owner.get(0) != input.projectId()) {
-                throw new ServiceException("所选计划不属于当前项目", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(TestReportRefusals.planOtherProject(input.planId(), input.projectId()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
         } else {
             if (input.startTime() == null || input.endTime() == null
                     || input.startTime().isBlank() || input.endTime().isBlank()) {
-                throw new ServiceException("按时间范围生成必须提供起止日期", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException(
+                        TestReportRefusals.timeRangeRequired(input.startTime(), input.endTime()),
+                        BizErrorCode.VALIDATION_ERROR);
             }
         }
 
@@ -79,7 +84,9 @@ public class TestReportServiceImpl implements TestReportService {
         try {
             json = objectMapper.writeValueAsString(toReportJson(detail));
         } catch (Exception e) {
-            throw new ServiceException("报告序列化失败", BizErrorCode.INTERNAL_ERROR, e);
+            throw new ServiceException(
+                    TestReportRefusals.serializeFailed(title, String.valueOf(e.getMessage())),
+                    BizErrorCode.INTERNAL_ERROR, e);
         }
         long id = jdbcTemplate.queryForObject("""
                 INSERT INTO tp_test_report (project_id, plan_id, title, range_type, range_label,
@@ -111,7 +118,7 @@ public class TestReportServiceImpl implements TestReportService {
                 WHERE r.id = ?
                 """, recordRowMapper(), id);
         if (rows.isEmpty()) {
-            throw new ServiceException("报告不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(TestReportRefusals.reportNotFound(id), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -192,7 +199,7 @@ public class TestReportServiceImpl implements TestReportService {
                         rs.getString("range_label"), rs.getString("created_by_name"),
                         rs.getString("created_at"), rs.getString("report_json")), id);
         if (rows.isEmpty()) {
-            throw new ServiceException("报告不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(TestReportRefusals.reportNotFound(id), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -203,7 +210,8 @@ public class TestReportServiceImpl implements TestReportService {
         return switch (format == null ? "" : format.toLowerCase()) {
             case "xlsx" -> buildXlsx(detail);
             case "pdf" -> buildPdf(detail);
-            default -> throw new ServiceException("导出格式不支持（仅支持 xlsx/pdf）", BizErrorCode.VALIDATION_ERROR);
+            default -> throw new ServiceException(TestReportRefusals.exportFormatUnsupported(format),
+                    BizErrorCode.VALIDATION_ERROR);
         };
     }
 
@@ -432,7 +440,8 @@ public class TestReportServiceImpl implements TestReportService {
                     new ReportDetailView.Conclusion(boolOf(conclusion.get("pass")), str(conclusion.get("summary"))),
                     createdByName, createdAt);
         } catch (Exception e) {
-            throw new ServiceException("报告数据解析失败", BizErrorCode.INTERNAL_ERROR, e);
+            throw new ServiceException(TestReportRefusals.dataParseFailed(String.valueOf(e.getMessage())),
+                    BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 
@@ -489,7 +498,8 @@ public class TestReportServiceImpl implements TestReportService {
             EasyExcel.write(out).head(distHead).sheet("缺陷分布").doWrite(distRows);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new ServiceException("Excel 导出失败", BizErrorCode.INTERNAL_ERROR, e);
+            throw new ServiceException(TestReportRefusals.excelExportFailed(String.valueOf(e.getMessage())),
+                    BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 
@@ -498,7 +508,8 @@ public class TestReportServiceImpl implements TestReportService {
         try {
             return PdfHtmlRenderer.render(html);
         } catch (Exception e) {
-            throw new ServiceException("PDF 导出失败", BizErrorCode.INTERNAL_ERROR, e);
+            throw new ServiceException(TestReportRefusals.pdfExportFailed(String.valueOf(e.getMessage())),
+                    BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 

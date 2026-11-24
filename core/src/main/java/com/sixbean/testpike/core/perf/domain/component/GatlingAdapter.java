@@ -145,8 +145,8 @@ public class GatlingAdapter implements EngineAdapter {
             }
             if (!PerfDatasetAllocPolicy.supports("GATLING", allocMode)) {
                 throw new ServiceException("行分配策略 VUSER_EXCLUSIVE 需要每虚拟用户私有行切片，"
-                        + "Gatling 3.13.5 Java DSL 无该形态馈器（降级为循环共行会伪造独占流量口径）——"
-                        + "请改用支持按用户切片的 k6 引擎，或在该场景改用 "
+                        + "Gatling 3.13.5 不具备每用户私有数据行的读取形态（多用户共用数据行会谎报独占流量口径）——"
+                        + "请改用支持按用户切片的 k6 引擎，或在该场景「行分配策略」改用 "
                         + "SEQUENTIAL_EXCLUSIVE/CYCLE 策略", BizErrorCode.VALIDATION_ERROR);
             }
             dataset = datasetRows.load(

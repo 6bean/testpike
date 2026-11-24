@@ -57,7 +57,7 @@ class CaseStepAnchorContractTest {
         projectId = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(MAX(id), 0) + 930000 FROM tp_project", Long.class);
         jdbcTemplate.update("INSERT INTO tp_project (id, name, code) OVERRIDING SYSTEM VALUE VALUES (?, ?, ?)",
-                projectId, "anchor seed project", "ANCH-P-SEED-" + projectId);
+                projectId, "anchor seed project", "ANCH-P-" + projectId);
     }
 
     @Test

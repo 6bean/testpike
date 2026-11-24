@@ -292,6 +292,16 @@ python3 runner.py              # register → heartbeat → claim → subprocess
 > `python3 serve_fixtures.py &` starts local demo target pages (port 8899) so you can run scripts end-to-end
 > without a real application under test.
 
+## Versioning
+
+testPike follows semantic versioning and stays in `0.x` while the public interfaces are still evolving:
+
+- **Major 0** - no backward-compatibility promise across releases. Database schema, HTTP API surface and config keys may change between minor versions; read the release notes before upgrading.
+- **Minor (`v0.1` -> `v0.2`)** - cut when backward-compatible feature batches (new user-facing capabilities) land on a release snapshot whose CI is fully green.
+- **Patch (`v0.1.0` -> `v0.1.1`)** - bug fixes only, no new user-facing capabilities; also cut only on a fully-green snapshot.
+- The GitHub tag is the single source of truth for a released version. Maven `<version>` and `frontend/package.json` carry the next planned version (`-SNAPSHOT` suffix on `main`); the suffix is dropped when the tag is cut.
+- Release gate: a version tag and its Release page are created only after the pushed snapshot passes every CI job. Interim build candidates are not kept as permanent tags.
+
 ## Documentation & community
 
 - [INSTALL.md](INSTALL.md) / [INSTALL.zh-CN.md](INSTALL.zh-CN.md) — guided install and acceptance checklist

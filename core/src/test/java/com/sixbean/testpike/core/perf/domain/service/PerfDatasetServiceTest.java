@@ -7,6 +7,7 @@ import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.executor.domain.component.ArtifactStorage;
 import com.sixbean.testpike.core.perf.api.dto.PerfDatasetPageView;
 import com.sixbean.testpike.core.perf.domain.component.PerfConfigReader;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,9 +63,9 @@ class PerfDatasetServiceTest {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         String projectCode = "PERFDSN" + uniq;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "压测数据集测试项目_" + uniq, projectCode);
-        projectId = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project", Long.class);
     }
 
     @AfterEach
@@ -269,10 +270,9 @@ class PerfDatasetServiceTest {
         long id = perfDatasetService.upload(projectId, "越权样本", "x.csv", csv("a\n1\n"));
         // second project kept in the same PERFDSN code family so @AfterEach cascades it away
         String code = "PERFDSN-X" + (System.nanoTime() % 1_000_000_000L);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        long otherId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "数据集越权测试项目", code);
-        long otherId = jdbcTemplate.queryForObject(
-                "SELECT max(id) FROM tp_project WHERE code = ?", Long.class, code);
         assertThatThrownBy(() -> perfDatasetService.view(otherId, id))
                 .isInstanceOf(ServiceException.class);
     }

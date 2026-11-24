@@ -502,8 +502,8 @@ public class PerfScenarioServiceImpl implements PerfScenarioService {
                 Integer loops = config.get("loops");
                 Integer duration = config.get("durationSeconds");
                 if ((loops == null || loops <= 0) && (duration == null || duration <= 0)) {
-                    throw new ServiceException("固定用户池闭环必须声明终止条件：循环次数 loops 或"
-                            + "运行时长 durationSeconds 至少给一个，否则压力永不收敛——请在「压力形态」步骤填写「循环次数」或「持续秒数」至少其一",
+                    throw new ServiceException("固定用户池压测必须声明结束条件，否则压力会一直运行不会自行结束——"
+                            + "请在「压力形态」步骤填写「循环次数」或「持续秒数」至少其一",
                             BizErrorCode.VALIDATION_ERROR);
                 }
             }

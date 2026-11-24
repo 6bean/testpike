@@ -53,6 +53,11 @@ public class SchedulerJobCatalog {
         descriptions.put("changeLinkageReconcileDaily", "上下游联动边账每日对账（外键与联动边登记的差异每日盘一次，只出账报告不自动改数据）");
         descriptions.put("linkageUrgeHourly", "上下游联动待处置催办与超时升级（超过时限提醒执行人，再超时升级项目负责人；阈值在系统设置可调，0=关闭该级）");
         descriptions.put("webElementLedgerRetentionDaily", "页面元素库留存双回路（超期未验证候选自动退役；退役到期条目连锚点统计一并清理，天数在系统设置 element.candidate-ttl-days / element.retention-days 可调）");
+        descriptions.put("clusterPoolWatermarkSample", "在线执行器并发与队列水位周期采样（用于限流与排队决策的实时回看）");
+        descriptions.put("loginStateKeepAlive", "登录态保活轮询（到点条目自动复测回写新鲜度，失效即停；间隔与开关在登录态行内可调）");
+        descriptions.put("aiTaskRunningStallSweep", "AI 任务停滞清扫（运行中长时间无回写的任务自动回收为可重试，避免重启后停留在假运行态）");
+        descriptions.put("siteSurveyAttributionSweep", "整站测绘失败归因周期汇总（网络失败原因与页面风险自动归类统计，供列表筛选与报告引用）");
+        descriptions.put("credentialScreenshotSweep", "凭证截图原图补扫（解析完成后按记录定位删除原图对象，宽限期外不留存）");
     }
 
     

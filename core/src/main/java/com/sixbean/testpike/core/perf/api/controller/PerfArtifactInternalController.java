@@ -59,7 +59,7 @@ public class PerfArtifactInternalController {
         // scene) is rejected by name instead of signed.
         if (projectStorageLookup.parsePerfArtifactProjectId(objectKey).isEmpty()) {
             throw new ServiceException("压测产物键非法：「" + objectKey
-                    + "」不属于压测编译产物存储域，拒发下载授权（请确认派发信封 artifact 为编译回执原键）",
+                    + "」不属于压测编译产物存储域，无法签发下载地址——请回传编译回执返回的「objectKey」原值",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> data = new LinkedHashMap<>();

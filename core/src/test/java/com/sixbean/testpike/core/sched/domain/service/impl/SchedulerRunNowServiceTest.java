@@ -105,6 +105,21 @@ class SchedulerRunNowServiceTest {
     private final com.sixbean.testpike.core.session.domain.component.LoginStateRetentionSweeper
             loginStateRetention =
             mock(com.sixbean.testpike.core.session.domain.component.LoginStateRetentionSweeper.class);
+    private final com.sixbean.testpike.core.cluster.domain.component.ExecutorPoolWatermarkSampler
+            executorPoolWatermarkSampler =
+            mock(com.sixbean.testpike.core.cluster.domain.component.ExecutorPoolWatermarkSampler.class);
+    private final com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveScheduler
+            loginStateKeepAlive =
+            mock(com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveScheduler.class);
+    private final com.sixbean.testpike.core.ai.domain.component.AiTaskRunningStallSweeper
+            aiTaskRunningStallSweeper =
+            mock(com.sixbean.testpike.core.ai.domain.component.AiTaskRunningStallSweeper.class);
+    private final com.sixbean.testpike.core.webelement.domain.component.SiteSurveyAttributionSweepJob
+            siteSurveyAttributionSweep =
+            mock(com.sixbean.testpike.core.webelement.domain.component.SiteSurveyAttributionSweepJob.class);
+    private final com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler
+            credentialScreenshotSweep =
+            mock(com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler.class);
 
     private final SchedulerRunNowServiceImpl service = new SchedulerRunNowServiceImpl(
             dailyDigest, flakyDetection, flakyProbe, reviewRemind, costOverrideExpire, executorOffline,
@@ -114,7 +129,9 @@ class SchedulerRunNowServiceTest {
             appautoReservationSweep, mockSpaceExpirySweeper, mockHitRetentionSweeper,
             docExtractStallSweeper, mcpKnowledgeSync, catalogRefresher, deadLetterAutoReplay,
             changeLinkageReconcileJob, linkageUrge, webElementRetention,
-            executorDrainSweep, aiTaskEventTrim, loginStateRetention, auditLogService);
+            executorDrainSweep, aiTaskEventTrim, loginStateRetention,
+            executorPoolWatermarkSampler, loginStateKeepAlive, aiTaskRunningStallSweeper,
+            siteSurveyAttributionSweep, credentialScreenshotSweep, auditLogService);
 
     @Test
     void webElementLedgerRetentionJobRoutesToItsSweep() {

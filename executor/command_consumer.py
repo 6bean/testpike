@@ -100,7 +100,7 @@ def consume_command(client: ExecutorProtocolClient, cmd: dict,
                             on_components)
         elif ctype == "scale-in":
             client.report_command_progress(command_id, claimer_id, "drain",
-                                           "排空确认：已领取退池指令（停派发由平台侧联动）")
+                                           "排空确认：已领取退池指令（不再接新任务由平台侧联动）")
             client.complete_command(command_id, claimer_id, True,
                                     "排空回执完成（在跑归零后机器可安全退池）")
         elif ctype == "node-remove":

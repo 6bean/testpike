@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.perf.domain.service;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
@@ -72,12 +73,10 @@ class PerfRunTrendTest {
     void seedFixtures() {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "趋势读数测试项目_" + uniq, "PFTRD" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-趋势', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "趋势读数测试项目_" + uniq, "PFTRD" + uniq);
+        envId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '性能-趋势', 1, 'http://perf-target.local/api')", projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
                 + "allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
@@ -115,11 +114,6 @@ class PerfRunTrendTest {
             configService.create(null, new ConfigInput(key, value, "系统", "int", 0,
                     "perf trend window seed managed by trend read-face tests"));
         }
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
     }
 
     private long newScenario(String name) {
@@ -259,7 +253,8 @@ class PerfRunTrendTest {
     @Test
     void foreignProject_rejectedWithHumanNotFound() {
         long scenarioId = newScenario("隔离趋势场景");
-        long otherProject = lastId("tp_project") + 999_999L;
+        long otherProject = jdbcTemplate.queryForObject(
+                "SELECT coalesce(max(id), 0) + 999999 FROM tp_project", Long.class);
 
         assertThatThrownBy(() -> perfReportService.trend(otherProject, scenarioId))
                 .isInstanceOf(ServiceException.class)

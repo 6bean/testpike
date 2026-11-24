@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.batch.domain.component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,8 +51,8 @@ class BatchReportSupportTest {
         // real factory or other-suite rows.
         String code = ("RT" + java.util.UUID.randomUUID().toString().replace("-", ""))
                 .substring(0, 20);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code) VALUES ('rollup-fixture-project', ?)", code);
-        projectId = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project", Long.class);
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code) VALUES ('rollup-fixture-project', ?)", code);
     }
 
     @AfterEach
@@ -70,10 +71,10 @@ class BatchReportSupportTest {
 
     /** Finalize-equivalent batch row; env stays NULL so both fixtures share one cycle key. */
     private long insertBatch() {
-        jdbcTemplate.update("INSERT INTO tp_exec_batch (project_id, name, status)"
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_batch (project_id, name, status)"
                         + " VALUES (?, 'rollup-fixture-batch', 6)",
                 projectId);
-        long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_exec_batch", Long.class);
         createdBatches.add(id);
         return id;
     }
@@ -83,19 +84,19 @@ class BatchReportSupportTest {
         String ext = "{\"mobilePerfSummary\":{\"metrics\":{\"" + metric + "\":"
                 + "{\"median\":" + median + ",\"count\":" + rowCount + "}},"
                 + "\"sampleCount\":" + rowCount + "}}";
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, batch_id, status, result_ext)"
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, batch_id, status, result_ext)"
                         + " VALUES (?, 0, ?, 3, ?::jsonb)",
                 projectId, batchId, ext);
-        long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_exec_task", Long.class);
         createdTasks.add(id);
         return id;
     }
 
     /** Task without any mobile key — must never pollute the rollup. */
     private void insertPlainTask(long batchId) {
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, batch_id, status)"
-                + " VALUES (?, 0, ?, 3)", projectId, batchId);
-        long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_exec_task", Long.class);
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, batch_id, status)"
+                        + " VALUES (?, 0, ?, 3)", projectId, batchId);
         createdTasks.add(id);
     }
 

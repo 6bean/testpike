@@ -50,12 +50,15 @@ class PerfMetricServiceTest {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         String projectCode = "PERFMET" + uniq;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        // Ids are read back through RETURNING so a foreign fixture row with an
+        // overridden id can never out-rank max(id) and re-parent these rows.
+        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "压测采集测试项目_" + uniq, projectCode);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-采集测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '性能-采集测', 1, 'http://perf-target.local/api')",
+                projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
         scenarioId = perfScenarioService.create(projectId, new PerfScenarioInput(
                 "采集契约场景", envId, "CONSTANT_RPS",
@@ -86,10 +89,6 @@ class PerfMetricServiceTest {
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFMET%'");
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
-    }
-
     /** Ownership-negative probes need a project that is NOT the fixture's own. Seeding a
      *  dedicated foreign project (PERFMET-prefixed so cleanupRows removes it) keeps the
      *  test honest even when the dev database holds no other project rows — the earlier
@@ -97,9 +96,9 @@ class PerfMetricServiceTest {
      *  blew up on the unboxing, coupling unit-test isolation to ambient data. */
     private long seedForeignProject() {
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        return com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "perf-metric-foreign-" + uniq, "PERFMETFO" + uniq);
-        return lastId("tp_project");
     }
 
     private static PerfMetricFrame frame(int offset, double rps, double p95, double errRate) {
@@ -260,7 +259,10 @@ class PerfMetricServiceTest {
 
     @Test
     void crossProjectRunOwnershipRejectedWithoutLeak() {
-        long other = lastId("tp_project") + 9_999_999L;
+        // Ownership rejection fires before any row lookup, so a synthetic id far
+        // above the sequence is a valid foreign-project probe without seeding.
+        long other = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project", Long.class)
+                + 9_999_999L;
         assertThatThrownBy(() -> perfMetricService.recordFrames(other, runId,
                 List.of(frame(0, 1.0, 1.0, 0.0))))
                 .isInstanceOf(ServiceException.class)

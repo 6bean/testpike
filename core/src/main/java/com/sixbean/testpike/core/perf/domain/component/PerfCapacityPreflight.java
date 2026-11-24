@@ -60,7 +60,7 @@ public final class PerfCapacityPreflight {
         }
         if (capableCount == 0) {
             return "在线执行机 " + onlineCount + " 台中具备该能力的为 0 台：本压测需要引擎 "
-                    + engine + "，任务无法派发执行。请在压测执行机安装 "
+                    + engine + "，当前没有能执行该压测的执行机。请在压测执行机安装 "
                     + ("K6".equals(engine) ? "k6 二进制并加入 PATH"
                             : "GATLING 运行环境（java 17+ 与 GATLING_LIB 引擎 jar 目录）")
                     + " 后重启执行器重新注册。";

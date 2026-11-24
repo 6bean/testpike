@@ -135,22 +135,19 @@
               >
                 {{ t('sessionState.probe') }}
               </el-button>
-              <el-tooltip
-                :content="t('sessionState.keepaliveNeedsEnabled')"
-                placement="top"
-                :disabled="row.status !== 0"
+              <!-- The keep-alive door always opens: a parked or expired row is
+                   exactly the case the trail must stay readable for (R67
+                   revisit entry). Only the write controls inside follow the
+                   row's own state, so the door never turns into a dead click. -->
+              <el-button
+                size="small"
+                type="primary"
+                plain
+                data-test="login-state-keepalive-btn"
+                @click="openKeepAlive(row, null)"
               >
-                <el-button
-                  size="small"
-                  type="primary"
-                  plain
-                  :disabled="row.status === 0"
-                  data-test="login-state-keepalive-btn"
-                  @click="openKeepAlive(row, null)"
-                >
-                  {{ t('sessionState.keepalive') }}
-                </el-button>
-              </el-tooltip>
+                {{ t('sessionState.keepalive') }}
+              </el-button>
               <el-button
                 size="small"
                 type="primary"
@@ -251,11 +248,15 @@
         data-test="login-state-keepalive-dialog"
       >
         <p class="probe-hint" data-test="login-state-keepalive-hint">{{ t('sessionState.keepaliveHint') }}</p>
+        <p v-if="kaRow && kaRow.status === 0" class="probe-hint" data-test="login-state-keepalive-locked">
+          {{ t('sessionState.keepaliveNeedsEnabled') }}
+        </p>
         <div class="probe-row keepalive-switch-row">
           <label class="probe-field-label" for="login-state-keepalive-switch">{{ t('sessionState.keepaliveSwitchLabel') }}</label>
           <el-switch
             id="login-state-keepalive-switch"
             v-model="kaEnabled"
+            :disabled="kaRow !== null && kaRow.status === 0"
             :aria-label="t('sessionState.keepaliveSwitchLabel')"
             data-test="login-state-keepalive-switch"
           />
@@ -296,7 +297,7 @@
             {{ t('sessionState.keepaliveHistory') }}
           </el-button>
           <el-button data-test="login-state-keepalive-cancel" @click="kaVisible = false">{{ t('common.close') }}</el-button>
-          <el-button type="primary" :loading="kaSaving" data-test="login-state-keepalive-save" @click="saveKeepAlive">
+          <el-button type="primary" :loading="kaSaving" :disabled="kaRow !== null && kaRow.status === 0" data-test="login-state-keepalive-save" @click="saveKeepAlive">
             {{ t('sessionState.keepaliveSave') }}
           </el-button>
         </template>

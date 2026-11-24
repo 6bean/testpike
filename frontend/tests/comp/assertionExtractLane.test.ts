@@ -100,7 +100,7 @@ describe('extract lane: the rendered editor face equals the save-gate face', () 
     await flush()
     const error = w.find('[data-test="assertion-error-0"]')
     expect(error.exists(), 'a header lane without a name must be named inline').toBe(true)
-    expect(error.text()).toContain('按 header 提取变量必须给定名称')
+    expect(error.text()).toContain('按 header 提取变量还差名称')
   })
 
   it('validateAll refuses a lane outside the vocabulary (fail-closed edit face)', async () => {

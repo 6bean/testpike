@@ -86,26 +86,33 @@ class ReportServiceTest {
         // in-flight rows on the shared dev database (r13 postmortem).
         SharedDbFixtureSweep.byProjectList(jdbcTemplate, fixtureProjectIds);
         fixtureProjectIds.clear();
-        jdbcTemplate.update("INSERT INTO tp_user (id, username, display_name, role, status, deleted) " +
-                "VALUES (1, 'tester1', '测试一号', 1, 1, 0) ON CONFLICT (id) DO NOTHING");
-        jdbcTemplate.update("INSERT INTO tp_user (id, username, display_name, role, status, deleted) " +
-                "VALUES (2, 'leader1', '负责人一号', 2, 1, 0) ON CONFLICT (id) DO NOTHING");
+        // Resolve the shipped demo accounts by name instead of seeding users
+        // on fixed ids: on a fresh-install database the low ids already belong
+        // to factory demo rows, so an id-keyed INSERT ... DO NOTHING silently
+        // no-ops and every id-based assertion reads another account (the demo
+        // tester). Factory rows stay untouched (baseline rule R37).
+        testerId = jdbcTemplate.queryForObject(
+                "SELECT id FROM tp_user WHERE username = 'demo_tester' AND deleted = 0", Long.class);
+        leaderId = jdbcTemplate.queryForObject(
+                "SELECT id FROM tp_user WHERE username = 'demo_test_lead' AND deleted = 0", Long.class);
     }
 
     private final List<Long> fixtureProjectIds = new ArrayList<>();
+    private long testerId;
+    private long leaderId;
 
     private long createProject(String code) {
         // Pre-clean a leftover fixture of the same code (a run interrupted
         // before @AfterEach leaves it behind). The sweep touches only this
         // exact code's subtree on the shared dev database.
         SharedDbFixtureSweep.byProject(jdbcTemplate, SharedDbFixtureSweep.projectIdByCode(jdbcTemplate, code));
-        long id = projectService.create(1L, new ProjectCreateInput("项目" + code, code, "zh-CN", "P1", null));
+        long id = projectService.create(testerId, new ProjectCreateInput("项目" + code, code, "zh-CN", "P1", null));
         fixtureProjectIds.add(id);
         return id;
     }
 
     private long createCase(long projectId, String title, int source) {
-        CaseInfo info = caseService.create(1L, new CaseCreateInput(projectId, title, "前置", "预期",
+        CaseInfo info = caseService.create(testerId, new CaseCreateInput(projectId, title, "前置", "预期",
                 1, 2, "web", 1, null, source, null, List.of()));
         return info.id();
     }
@@ -113,7 +120,7 @@ class ReportServiceTest {
     private void review(long caseId, ReviewAction action, String remark) {
         Integer version = jdbcTemplate.queryForObject(
                 "SELECT version FROM tp_test_case WHERE id = ?", Integer.class, caseId);
-        caseService.review(1L, caseId, action, remark, version,
+        caseService.review(testerId, caseId, action, remark, version,
                 action == ReviewAction.PASS ? null : List.of("logic_missing"));
     }
 
@@ -126,7 +133,7 @@ class ReportServiceTest {
     }
 
     private long createRequirement(long projectId, String title, String chapter) {
-        return requirementService.create(1L, new RequirementCreateInput(
+        return requirementService.create(testerId, new RequirementCreateInput(
                 projectId, 3, null, title, "验收标准", chapter)).id();
     }
 
@@ -159,10 +166,10 @@ class ReportServiceTest {
         long c3 = createCase(pid, "用例三", 1);
         review(c1, ReviewAction.PASS, null);
         review(c2, ReviewAction.REJECT, "重复用例");
-        insertReviewLog(c3, 1L, "需修改", 5);
-        insertReviewLog(c3, 1L, "通过", 0);
+        insertReviewLog(c3, testerId, "需修改", 5);
+        insertReviewLog(c3, testerId, "通过", 0);
 
-        PersonalReviewView v = reportService.personalReview(pid, 1L);
+        PersonalReviewView v = reportService.personalReview(pid, testerId);
 
         assertEquals(3, v.reviewedCount(), "已评审数=3 个不同用例");
         assertEquals(2, v.passCount(), "通过数=2（c1 一次通过 + c3 通过记录）");
@@ -177,16 +184,16 @@ class ReportServiceTest {
         long c1 = createCase(pid, "成员用例一", 1);
         long c2 = createCase(pid, "成员用例二", 1);
         review(c1, ReviewAction.PASS, null);
-        jdbcTemplate.update("UPDATE tp_test_case SET assignee_id = 2 WHERE id = ?", c2);
+        jdbcTemplate.update("UPDATE tp_test_case SET assignee_id = ? WHERE id = ?", leaderId, c2);
 
         List<TeamMemberStatView> board = reportService.teamBoard(pid);
 
         assertFalse(board.isEmpty(), "看板应有成员行");
-        TeamMemberStatView me = board.stream().filter(s -> s.userId() == 1L).findFirst().orElseThrow();
+        TeamMemberStatView me = board.stream().filter(s -> s.userId() == testerId).findFirst().orElseThrow();
         assertEquals(1, me.passCount(), "用户 1 通过数=1");
-        TeamMemberStatView lead = board.stream().filter(s -> s.userId() == 2L).findFirst().orElseThrow();
+        TeamMemberStatView lead = board.stream().filter(s -> s.userId() == leaderId).findFirst().orElseThrow();
         assertEquals(1, lead.backlogCount(), "用户 2 积压数=1（分配未终态）");
-        assertEquals("leader1", lead.username(), "成员账号展示");
+        assertEquals("demo_test_lead", lead.username(), "成员账号展示");
     }
 
     @Test
@@ -199,8 +206,8 @@ class ReportServiceTest {
         createCase(pid, "模板用例", 2);
         review(a1, ReviewAction.PASS, null);
         review(a2, ReviewAction.PASS, null);
-        insertReviewLog(a3, 1L, "需修改", 5);
-        insertReviewLog(a3, 1L, "通过", 0);
+        insertReviewLog(a3, testerId, "需修改", 5);
+        insertReviewLog(a3, testerId, "通过", 0);
         review(a4, ReviewAction.REJECT, "重复");
 
         AiQualityView v = reportService.aiQuality(pid);
@@ -221,7 +228,7 @@ class ReportServiceTest {
         long reqA = createRequirement(pid, "需求A", "章节一");
         long reqB = createRequirement(pid, "需求B", "章节二");
         long c1 = createCase(pid, "覆盖用例", 1);
-        requirementService.linkCases(1L, reqA, List.of(c1));
+        requirementService.linkCases(testerId, reqA, List.of(c1));
 
         CoverageView v = reportService.coverage(pid);
         assertEquals(2, v.totalRequirements(), "需求点总数=2");
@@ -242,14 +249,14 @@ class ReportServiceTest {
         long reqA = createRequirement(pid, "需求A", "章节一");
         createRequirement(pid, "需求B", "章节二");
         long c1 = createCase(pid, "覆盖用例", 1);
-        requirementService.linkCases(1L, reqA, List.of(c1));
+        requirementService.linkCases(testerId, reqA, List.of(c1));
 
         CoverageView before = reportService.coverage(pid);
         assertEquals(2, before.totalRequirements(), "初始分母=2");
         assertEquals(1, before.coveredRequirements(), "初始分子=1");
         assertEquals(0.5, before.coverageRate(), 0.001, "初始覆盖率=1/2");
 
-        requirementService.update(1L, reqA, new com.sixbean.testpike.core.requirement.api.dto
+        requirementService.update(testerId, reqA, new com.sixbean.testpike.core.requirement.api.dto
                 .RequirementUpdateInput(null, null, null, null, null, 3, null));
         CoverageView off = reportService.coverage(pid);
         assertEquals(1, off.totalRequirements(), "停用后分母收缩（已下线不计入）");
@@ -263,7 +270,7 @@ class ReportServiceTest {
                 Integer.class, pid).intValue(),
                 "停用不动关联行");
 
-        requirementService.update(1L, reqA, new com.sixbean.testpike.core.requirement.api.dto
+        requirementService.update(testerId, reqA, new com.sixbean.testpike.core.requirement.api.dto
                 .RequirementUpdateInput(null, null, null, null, null, 1, null));
         CoverageView after = reportService.coverage(pid);
         assertEquals(before.totalRequirements(), after.totalRequirements(), "回算分母一致");
@@ -301,8 +308,8 @@ class ReportServiceTest {
         long a1 = createCase(pid, "AI通过", 1);
         long a2 = createCase(pid, "AI需改后通过", 1);
         review(a1, ReviewAction.PASS, null);
-        insertReviewLog(a2, 1L, "需修改", 5);
-        insertReviewLog(a2, 1L, "通过", 0);
+        insertReviewLog(a2, testerId, "需修改", 5);
+        insertReviewLog(a2, testerId, "通过", 0);
 
         AiQualityView v = reportService.aiQuality(pid);
         assertEquals(0.5, v.firstPassRate(), 0.001, "一次通过率=1/2（a1 首次即通过）");
@@ -410,7 +417,7 @@ class ReportServiceTest {
         long c1 = createCase(pid, "导出用例", 1);
         review(c1, ReviewAction.PASS, null);
 
-        ExportResultView out = reportService.export(1L, pid, "team_board", true);
+        ExportResultView out = reportService.export(testerId, pid, "team_board", true);
 
         assertFalse(out.async(), "小数据量同步返回");
         assertNotNull(out.content(), "Excel 文件内容非空");
@@ -418,7 +425,7 @@ class ReportServiceTest {
         assertTrue((out.content()[0] & 0xFF) == 0x50 && out.content()[1] == 0x4B, "xlsx 文件头 PK");
         String excelText = readExcelText(out.content());
         assertTrue(excelText.contains("***"), "脱敏导出账号应打码: " + excelText);
-        assertFalse(excelText.contains("tester1"), "原账号不应出现: " + excelText);
+        assertFalse(excelText.contains("demo_tester"), "原账号不应出现: " + excelText);
         // object_id is a varchar column holding the audited id as text.
         Long audit = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_audit_log WHERE object_type = 'report' AND action = 'export'"
@@ -430,7 +437,7 @@ class ReportServiceTest {
     void 导出_非法报表类型_400人话() {
         long pid = createProject("R7");
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> reportService.export(1L, pid, "unknown_type", false));
+                () -> reportService.export(testerId, pid, "unknown_type", false));
         assertTrue(ex.getMessage().contains("报表类型"), "非法报表类型提示人话：" + ex.getMessage());
     }
 
@@ -444,7 +451,7 @@ class ReportServiceTest {
                 FROM generate_series(1, 5001) i
                 """, pid, c1);
 
-        ExportResultView out = reportService.export(1L, pid, "execution_stat", false);
+        ExportResultView out = reportService.export(testerId, pid, "execution_stat", false);
 
         assertTrue(out.async(), ">5000 行应走异步");
         assertTrue(out.taskId() > 0, "异步导出任务 id");
@@ -523,10 +530,10 @@ class ReportServiceTest {
     @Test
     void 阶段分布_按阶段聚合_含未归属() {
         long pid = createProject("K10a");
-        caseService.create(1L, new CaseCreateInput(pid, "冒烟", null, null, 1, 2, "web", 1, 1, 1, null, List.of()));
-        caseService.create(1L, new CaseCreateInput(pid, "功能", null, null, 1, 2, "web", 1, 2, 1, null, List.of()));
-        caseService.create(1L, new CaseCreateInput(pid, "回归", null, null, 1, 2, "web", 1, 3, 1, null, List.of()));
-        caseService.create(1L, new CaseCreateInput(pid, "未归属", null, null, 1, 2, "web", 1, null, 1, null, List.of()));
+        caseService.create(testerId, new CaseCreateInput(pid, "冒烟", null, null, 1, 2, "web", 1, 1, 1, null, List.of()));
+        caseService.create(testerId, new CaseCreateInput(pid, "功能", null, null, 1, 2, "web", 1, 2, 1, null, List.of()));
+        caseService.create(testerId, new CaseCreateInput(pid, "回归", null, null, 1, 2, "web", 1, 3, 1, null, List.of()));
+        caseService.create(testerId, new CaseCreateInput(pid, "未归属", null, null, 1, 2, "web", 1, null, 1, null, List.of()));
 
         List<PhaseCount> dist = reportService.phaseDist(pid);
         assertEquals(4, dist.size(), "4 个阶段桶（1/2/3/0）");
@@ -543,10 +550,10 @@ class ReportServiceTest {
     void 阶段分布_跨项目隔离_已删除不计入() {
         long pid = createProject("K10b");
         long pid2 = createProject("K10c");
-        caseService.create(1L, new CaseCreateInput(pid, "A冒烟", null, null, 1, 2, "web", 1, 1, 1, null, List.of()));
-        caseService.create(1L, new CaseCreateInput(pid2, "B回归", null, null, 1, 2, "web", 1, 3, 1, null, List.of()));
-        long del = caseService.create(1L, new CaseCreateInput(pid, "已删除", null, null, 1, 2, "web", 1, 4, 1, null, List.of())).id();
-        caseService.delete(1L, del);
+        caseService.create(testerId, new CaseCreateInput(pid, "A冒烟", null, null, 1, 2, "web", 1, 1, 1, null, List.of()));
+        caseService.create(testerId, new CaseCreateInput(pid2, "B回归", null, null, 1, 2, "web", 1, 3, 1, null, List.of()));
+        long del = caseService.create(testerId, new CaseCreateInput(pid, "已删除", null, null, 1, 2, "web", 1, 4, 1, null, List.of())).id();
+        caseService.delete(testerId, del);
 
         List<PhaseCount> dist = reportService.phaseDist(pid);
         long total = dist.stream().mapToLong(PhaseCount::count).sum();
@@ -582,7 +589,7 @@ class ReportServiceTest {
         long pidB = createProject("H6b");
         long reqA = createRequirement(pidA, "需求A", "章一");
         long ca = createCase(pidA, "A用例", 1);
-        requirementService.linkCases(1L, reqA, List.of(ca));
+        requirementService.linkCases(testerId, reqA, List.of(ca));
         review(ca, ReviewAction.PASS, null);
         jdbcTemplate.update("UPDATE tp_test_case SET flaky = 1 WHERE id = ?", ca);
         createExecResult(pidA, ca, "pass", null);

@@ -65,7 +65,7 @@ function wsWindowViolation(row: Record<string, unknown>): string | null {
 function wsReceiveViolation(row: Record<string, unknown>): string | null {
   const expect = row.expect
   if (expect === null || expect === undefined) {
-    return 'ws.receive 必须给定 expect（窗口内期望命中的消息内容），例 expect=pong'
+    return '消息接收断言还差期望内容：请在 expect 填写窗口内要命中的消息文本（例 expect=pong）'
   }
   const op = String(row.op ?? '')
   if (op === '') {
@@ -80,7 +80,7 @@ function wsReceiveViolation(row: Record<string, unknown>): string | null {
   }
   if (op === 'regex') {
     if (typeof expect !== 'string' || expect.trim() === '') {
-      return '正则断言 expect 必须给定正则串（例 ^ok$）'
+      return '正则断言还差匹配规则：请在 expect 填写正则表达式（例 ^ok$）'
     }
     return regexViolation({ ...row, pattern: expect })
   }
@@ -180,7 +180,7 @@ export const ASSERTION_TYPE_META: Record<string, AssertionTypeMeta> = {
   schema: {
     label: 'JSON 结构校验',
     ops: [],
-    example: '例：来源=直引契约 schema（可指定响应码），或粘贴 JSON Schema 文本',
+    example: '例：来源=引用已保存的响应结构（可指定响应码），或粘贴 JSON Schema 文本',
     expectHint: '选择来源：contract / inline',
   },
   'ws.receive': {
@@ -230,7 +230,7 @@ function expectPairViolation(row: Record<string, unknown>, field: string): strin
 function regexViolation(row: Record<string, unknown>): string | null {
   const pattern = row.pattern ?? row.expect
   if (typeof pattern !== 'string' || pattern.trim() === '') {
-    return '正则断言 expect 必须给定正则串（例 ^ok$）'
+    return '正则断言还差匹配规则：请在 expect 填写正则表达式（例 ^ok$）'
   }
   if (pattern.length > PATTERN_MAX_LENGTH) {
     return `正则 pattern 超长：${pattern.length} 字符，上限 ${PATTERN_MAX_LENGTH}`
@@ -248,7 +248,7 @@ function regexViolation(row: Record<string, unknown>): string | null {
 
 function jsonPathViolation(path: unknown): string | null {
   if (typeof path !== 'string' || path.trim() === '') {
-    return 'expect.body 每项必须给定 path（受限子集 $.a.b[0].c）'
+    return 'expect.body 每一项还差字段路径：请填写 path（支持 $.a.b[0].c 写法）'
   }
   if (JSON_PATH_SUBSET.test(path.trim())) {
     return null
@@ -270,7 +270,7 @@ function matchRowViolation(row: Record<string, unknown>): string | null {
     return regexViolation(row)
   }
   if (row.expect === null || row.expect === undefined) {
-    return '断言必须给定 expect（期望值）'
+    return '断言还差期望值：请在 expect 填写预期返回的内容'
   }
   return null
 }
@@ -279,7 +279,7 @@ function matchRowViolation(row: Record<string, unknown>): string | null {
 function schemaViolation(row: Record<string, unknown>): string | null {
   const via = String(row.via ?? '').trim()
   if (via === '') {
-    return '结构校验断言必须选择来源：inline（粘贴 JSON Schema）或 contract（直引契约 responseSchemas）'
+    return '结构校验断言必须选择来源：inline（粘贴 JSON Schema）或 contract（引用接口已保存的响应结构样本 responseSchemas）'
   }
   if (!SCHEMA_VIAS.includes(via)) {
     return `结构校验来源仅支持 inline / contract，当前值「${via}」`
@@ -294,7 +294,7 @@ function schemaViolation(row: Record<string, unknown>): string | null {
   const parsed = typeof code === 'number' ? code
     : (typeof code === 'string' && /^\d+$/.test(code.trim()) ? Number(code.trim()) : -1)
   if (!Number.isInteger(parsed) || parsed < STATUS_MIN || parsed > STATUS_MAX) {
-    return `结构校验直引 code 必须是 100–599 的响应码（缺省=按实际响应码取契约 schema），当前值「${String(code)}」`
+    return `结构校验引用的响应码 code 必须是 100–599 的整数（缺省=按实际响应码取对应结构样本），当前值「${String(code)}」`
   }
   return null
 }
@@ -371,7 +371,7 @@ export function validateAssertionRow(row: unknown, protocol = 'http'): string | 
     }
     case 'header': {
       if (String(rec.name ?? '').trim() === '') {
-        return 'Header 断言必须给定头名（name），例 name=Content-Type'
+        return '响应头断言还差头名：请在 name 填写要校验的头名称（例 name=Content-Type）'
       }
       return matchRowViolation(rec)
     }
@@ -391,11 +391,11 @@ export function validateAssertionRow(row: unknown, protocol = 'http'): string | 
           return pathViolation
         }
       } else if (String(rec.name ?? '').trim() === '') {
-        return `按 ${source} 提取变量必须给定名称（name），例 name=X-Auth-Token`
+        return `按 ${source} 提取变量还差名称：请在 name 填写要提取的头或 Cookie 名称（例 name=X-Auth-Token）`
       }
       const saveAs = rec.saveAs
       if (saveAs === null || saveAs === undefined) {
-        return '变量提取断言必须给定保存变量名 saveAs（例 saveAs=TOKEN，后续请求用 {{VAR:TOKEN}} 引用）'
+        return '变量提取断言还差保存变量名：请在 saveAs 填写变量名（例 saveAs=TOKEN，后续请求用 {{VAR:TOKEN}} 引用）'
       }
       if (!SAVE_AS_NAME.test(String(saveAs))) {
         return `变量提取断言 的 saveAs 必须是合法变量名（字母/下划线开头，后续字母数字下划线，跨集合共享请用 global.键名，供 {{VAR:${String(saveAs).trim() === '' ? '名字' : String(saveAs)}}} 引用），当前值「${String(saveAs)}」`

@@ -337,10 +337,10 @@ class UserServiceTest {
     }
 
     @Test
-    void roles_角色清单来自tp_role_含4内置角色() {
+    void roles_角色清单来自tp_role_含5内置角色() {
         List<RoleInfo> builtins = userService.roles().stream()
                 .filter(r -> r.builtin() == 1).toList();
-        assertEquals(4, builtins.size(), "内置角色恰 4 个");
+        assertEquals(5, builtins.size(), "内置角色恰 5 个（V220 起含项目经理）");
         assertEquals("tester", builtins.get(0).code());
         assertEquals("测试人员", builtins.get(0).name());
         assertEquals(1, builtins.get(0).builtin(), "内置角色标记");

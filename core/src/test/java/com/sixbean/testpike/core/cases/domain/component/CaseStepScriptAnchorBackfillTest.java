@@ -66,7 +66,7 @@ class CaseStepScriptAnchorBackfillTest {
         projectId = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(MAX(id), 0) + 940000 FROM tp_project", Long.class);
         jdbcTemplate.update("INSERT INTO tp_project (id, name, code) OVERRIDING SYSTEM VALUE VALUES (?, ?, ?)",
-                projectId, "anchor backfill project", "ANCH-BF-SEED-" + projectId);
+                projectId, "anchor backfill project", "ANCH-BF-" + projectId);
     }
 
     @Test

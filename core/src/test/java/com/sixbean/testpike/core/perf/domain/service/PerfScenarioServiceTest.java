@@ -50,12 +50,15 @@ class PerfScenarioServiceTest {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         projectCode = "PERFSCN" + uniq;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        // Ids are read back through RETURNING so a foreign fixture row with an
+        // overridden id can never out-rank max(id) and re-parent these rows.
+        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "压测场景测试项目_" + uniq, projectCode);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-场景测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '性能-场景测', 1, 'http://perf-target.local/api')",
+                projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
 
@@ -81,10 +84,6 @@ class PerfScenarioServiceTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSCN%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFSCN%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private static List<Map<String, Object>> requestSteps() {
@@ -516,9 +515,9 @@ class PerfScenarioServiceTest {
 
     @Test
     void foreignEnvRejectedAsNotFoundWithoutLeak() {
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES ('越权项目', ?, 1)",
+        long thiefPid = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES ('越权项目', ?, 1)",
                 projectCode + "X");
-        long thiefPid = lastId("tp_project");
         assertThatThrownBy(() -> perfScenarioService.create(thiefPid,
                 new PerfScenarioInput("越权", envId, "CONSTANT_RPS",
                         Map.of("targetRps", 5, "durationSeconds", 60), null, null, requestSteps(), null)))
@@ -735,10 +734,11 @@ class PerfScenarioServiceTest {
     /** Insert a dataset ledger row directly (bytes are not read by the binding guard;
         the ledger columns the scenario validation cares about are project ownership). */
     private long seedDataset(long project) {
-        jdbcTemplate.update("INSERT INTO tp_perf_dataset (project_id, name, file_name, object_key, "
-                + "columns_json, row_count, size_bytes) VALUES (?, '绑定池' || nextval('tp_perf_dataset_id_seq'), "
-                + "'pool.csv', 'perf-dataset/x.csv', '[\"user\"]'::jsonb, 3, 10)", project);
-        return lastId("tp_perf_dataset");
+        return com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_perf_dataset (project_id, name, file_name, object_key, "
+                        + "columns_json, row_count, size_bytes) VALUES (?, '绑定池' || nextval('tp_perf_dataset_id_seq'), "
+                        + "'pool.csv', 'perf-dataset/x.csv', '[\"user\"]'::jsonb, 3, 10)",
+                project);
     }
 
     @Test
@@ -785,11 +785,11 @@ class PerfScenarioServiceTest {
 
     @Test
     void foreignProjectDatasetRejectedAsNotFoundWithoutLeak() {
-        // tp_project.id is GENERATED ALWAYS — insert with the sequence default, read back.
+        // tp_project.id is GENERATED ALWAYS — insert with the sequence default,
+        // and read the new id back through RETURNING.
         String foreignCode = "PERFSCNX" + (System.nanoTime() % 100000);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES ('外项目', ?, 1)",
-                foreignCode);
-        long otherProject = lastId("tp_project");
+        long otherProject = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES ('外项目', ?, 1)", foreignCode);
         long foreignDataset = seedDataset(otherProject);
         assertThatThrownBy(() -> perfScenarioService.create(projectId, new PerfScenarioInput(
                 "越权池", envId, "CONSTANT_RPS",
@@ -839,13 +839,13 @@ class PerfScenarioServiceTest {
      */
     private long seedForeignEnv() {
         long uniq = System.nanoTime() % 1_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        long otherProject = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "schedule_foreign_project_" + uniq, "PERFSCNX" + uniq);
-        long otherProject = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, 'schedule-foreign-env', 1, 'http://schedule-foreign.local/api')",
+        return com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, 'schedule-foreign-env', 1, 'http://schedule-foreign.local/api')",
                 otherProject);
-        return lastId("tp_project_env");
     }
 
     @Test

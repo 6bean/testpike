@@ -5,6 +5,7 @@ import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.appauto.api.dto.TakeoverCreateInput;
 import com.sixbean.testpike.core.appauto.domain.component.AppautoConfigReader;
 import com.sixbean.testpike.core.config.domain.component.ConfigCacheHolder;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,34 +54,27 @@ class AppautoTakeoverInputQueueTest {
         savedQueueMax = configCacheHolder.get(AppautoConfigReader.KEY_TAKEOVER_INPUT_QUEUE_MAX);
         savedQueueTtl = configCacheHolder.get(AppautoConfigReader.KEY_TAKEOVER_INPUT_TTL_SECONDS);
         String code = "tkin" + System.nanoTime();
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        requesterId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '接管输入申请人', 2, 1)", "tkin-req-" + code);
-        requesterId = jdbcTemplate.queryForObject("SELECT id FROM tp_user WHERE username = ?",
-                Long.class, "tkin-req-" + code);
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        occupierId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '接管输入派发人', 3, 1)", "tkin-occ-" + code);
-        occupierId = jdbcTemplate.queryForObject("SELECT id FROM tp_user WHERE username = ?",
-                Long.class, "tkin-occ-" + code);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status, created_by) VALUES (?, ?, 1, ?)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status, created_by) VALUES (?, ?, 1, ?)",
                 "接管输入项目-" + code, code, requesterId);
-        projectId = jdbcTemplate.queryForObject("SELECT id FROM tp_project WHERE code = ?",
-                Long.class, code);
-        jdbcTemplate.update("INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
+        deviceId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
                         + " VALUES (?, '接管输入测试机', ?, 'ADB')", projectId, "tkin-" + code);
-        deviceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_appauto_device WHERE serial = ?", Long.class, "tkin-" + code);
-        jdbcTemplate.update("INSERT INTO tp_exec_batch (project_id, batch_no, name, status, type,"
+        batchId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_batch (project_id, batch_no, name, status, type,"
                         + " created_by) VALUES (?, ?, '接管输入测试批', 2, 1, ?)",
                 projectId, "tkin-" + code, occupierId);
-        batchId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_exec_batch WHERE batch_no = ?", Long.class, "tkin-" + code);
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, batch_id, status,"
+        taskId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, batch_id, status,"
                         + " schema_version, action_json, task_type)"
                         + " VALUES (?, 0, ?, 2, 'appauto-v1', '{\"kind\":\"app-auto-run\",\"steps\":[]}', 6)",
                 projectId, batchId);
-        taskId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_exec_task WHERE project_id = ? ORDER BY id DESC LIMIT 1",
-                Long.class, projectId).longValue();
         jdbcTemplate.update("INSERT INTO tp_appauto_lease_run (device_id, project_id, batch_id,"
                         + " holder_executor_id, state, acquired_at, expires_at)"
                         + " VALUES (?, ?, ?, ?, 'ACTIVE', now(), now() + interval '1 hour')",
@@ -230,9 +224,8 @@ class AppautoTakeoverInputQueueTest {
     }
 
     private long insertUser(String username) {
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '接管输入管理员', 1, 1)", username + System.nanoTime());
-        return jdbcTemplate.queryForObject(
-                "SELECT max(id) FROM tp_user WHERE username LIKE ?", Long.class, username + "%");
     }
 }

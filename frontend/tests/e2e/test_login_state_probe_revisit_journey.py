@@ -27,6 +27,10 @@ from urllib.parse import quote_plus
 import httpx
 import psycopg2
 import pytest
+from run_replay_tail_support import (
+    open_replay_tail_window,
+    wait_for_rendered_rows,
+)
 from conftest import (
     API_BASE,
     BASE_URL,
@@ -144,22 +148,10 @@ def test_login_state_probe_revisit_journey(logged_in, collectors, api_client, un
         history_btn.first.click()
         dialog = page.locator('[data-test="run-history-table"]')
         expect(dialog).to_be_visible(timeout=15000)
-        replay_btn = page.locator(f'[data-test="run-history-replay-{run_token}"]')
-        expect(replay_btn).to_be_visible(timeout=15000)
-        replay_btn.click()
-
-        window = page.locator('[data-test="run-history-tail-window"]')
-        expect(window).to_be_visible(timeout=15000)
-        page.wait_for_selector(".task-tail-empty, .task-tail-row", timeout=20000)
+        window = open_replay_tail_window(page, run_token)
         # DOM frames catch up with the stored trail (cap-sized window may
         # page lazily; wait bounded, then reconcile against the door).
-        dom_rows = 0
-        deadline = time.time() + 30
-        while time.time() < deadline:
-            dom_rows = window.locator(".task-tail-row").count()
-            if dom_rows >= min(len(events), 1):
-                break
-            page.wait_for_timeout(500)
+        dom_rows = wait_for_rendered_rows(page, window, min(len(events), 1))
         assert dom_rows > 0, "replay tail window renders no stored frames"
         assert dom_rows <= len(events) + 1, (
             f"replay shows {dom_rows} rows for {len(events)} stored events — "

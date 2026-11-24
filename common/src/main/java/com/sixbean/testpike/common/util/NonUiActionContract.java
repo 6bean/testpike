@@ -110,7 +110,7 @@ public final class NonUiActionContract {
     public static String netAssertViolation(JsonNode step) {
         JsonNode match = step.get("match");
         if (match == null || match.isNull() || !match.isObject()) {
-            return "net.assert 必须给定 match（含 urlPattern，例 {\"urlPattern\":\"*/api/v1/orders*\"}）";
+            return "net.assert 还差匹配条件：请在该步骤填写 match 规则（含 urlPattern，例 {\"urlPattern\":\"*/api/v1/orders*\"}）";
         }
         String patternViolation = globViolation(match.path("urlPattern").asText(null), "match.urlPattern");
         if (patternViolation != null) {
@@ -266,7 +266,7 @@ public final class NonUiActionContract {
                 return action + " 的 headers 每项必须是对象（name / op / expect）";
             }
             if (row.path("name").asText("").isBlank()) {
-                return "Header 断言必须给定头名（name），例 name=Content-Type";
+                return "Header 断言还差头名：请在断言表单填写 name（例 name=Content-Type）";
             }
             String op = row.path("op").asText("");
             String enumViolation = ExpectMatchContract.matchTypeViolation(op);
@@ -294,7 +294,7 @@ public final class NonUiActionContract {
                 String pattern = row.path("pattern").asText(
                         row.path("expect").asText(""));
                 if (pattern.isBlank()) {
-                    return "正则断言 expect 必须给定正则串（例 ^ok$）";
+                    return "正则断言还差正则串：请在 expect 中填写正则表达式（例 ^ok$）";
                 }
                 String regexViolation = ExpectMatchContract.regexPatternViolation(
                         shapePattern(row, pattern));
@@ -302,7 +302,7 @@ public final class NonUiActionContract {
                     return regexViolation;
                 }
             } else if (row.get("expect") == null || row.get("expect").isNull()) {
-                return "断言必须给定 expect（期望值）";
+                return "断言还差期望值：请在表单填写 expect";
             }
         }
         return null;
@@ -343,7 +343,7 @@ public final class NonUiActionContract {
     
     public static String jsonPathViolation(String path) {
         if (path == null || path.isBlank()) {
-            return "expect.body 每项必须给定 path（受限子集 $.a.b[0].c）";
+            return "expect.body 每一项还差字段路径：请填写 path（支持 $.a.b[0].c 写法）";
         }
         if (JSON_PATH_SUBSET.matcher(path.trim()).matches()) {
             return null;
@@ -355,7 +355,7 @@ public final class NonUiActionContract {
     
     public static String globViolation(String pattern, String field) {
         if (pattern == null || pattern.isBlank()) {
-            return "必须给定 " + field + "（glob，例 */api/v1/orders*）";
+            return "还差 " + field + "：请按通配写法填写（例 */api/v1/orders*）";
         }
         for (int i = 0; i < pattern.length(); i++) {
             char c = pattern.charAt(i);

@@ -81,12 +81,23 @@ public class NonUiStepValidator {
         }
     }
 
-    
+    /** Business label for a database step shown in validation hints: the raw
+     *  action key stays searchable, the label says what the step does. */
+    private static String sqlStepLabel(String action) {
+        return switch (action) {
+            case "sql.assert" -> "数据库校验步骤";
+            case "sql.query" -> "数据库查询步骤";
+            case "sql.exec" -> "数据写入步骤";
+            default -> "该步骤";
+        };
+    }
+
     private void validateSqlStep(String action, JsonNode step) {
         JsonNode conn = step.get("conn");
         if (conn == null || conn.isNull() || conn.asText().isBlank()) {
-            throw new ServiceException(action + " 必须给定 conn（连接名，经项目×环境挂接解析，"
-                    + "占位符写法例 {{ENV:DB_SIT}}）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(sqlStepLabel(action) + "还差数据库连接名：请在该步骤填写 conn"
+                    + "（连接需先在「项目→环境管理」配置好，也可用占位符引用，例 {{ENV:DB_SIT}}）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         throwIfViolation(SqlStatementContract.violation(action,
                 step.path("sql").asText(null), step.get("params")));
@@ -96,13 +107,17 @@ public class NonUiStepValidator {
     private void validateHttpStep(JsonNode step) {
         JsonNode url = step.get("url");
         if (url == null || url.isNull() || url.asText().isBlank()) {
-            throw new ServiceException("http.request 必须给定 url", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("HTTP 请求步骤还差访问地址：请在该步骤的地址栏填写完整网址"
+                    + "（格式：以 http:// 或 https:// 开头，例如 https://api.example.com/orders，"
+                    + "也可用 {{ENV:变量名}} 占位符引用「项目→环境管理」中已配置的环境变量）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String value = url.asText();
         if (!value.contains("{{") && prodBlacklistGuard.matches(value)) {
-            throw new ServiceException("http.request 的 url 命中生产域名黑名单（" + value
-                    + "）——测试脚本禁打生产，请改用测试环境地址（黑名单="
-                    + "TESTPIKE_PROD_BLACKLIST 配置）", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("HTTP 请求步骤的地址属于生产环境（" + value
+                    + "）——测试脚本不允许访问生产环境，请改用测试环境地址"
+                    + "（拦截清单读自配置项「testpike.prod-blacklist」（环境变量 TESTPIKE_PROD_BLACKLIST），"
+                    + "调整需联系管理员修改部署配置并重启 core 服务）", BizErrorCode.FORBIDDEN);
         }
         String allowHosts = systemConfigReader.getString(ALLOW_HOSTS_KEY, "");
         if (!allowHosts.isBlank() && !value.contains("{{")) {
@@ -110,7 +125,7 @@ public class NonUiStepValidator {
             boolean allowed = host != null && java.util.Arrays.stream(allowHosts.split(","))
                     .anyMatch(pattern -> ProdBlacklistGuard.hostMatches(host, pattern));
             if (!allowed) {
-                throw new ServiceException("http.request 的 url 主机「"
+                throw new ServiceException("HTTP 请求步骤的主机「"
                         + (host == null ? value : host) + "」不在 exec.http.allow-hosts 白名单内（"
                         + allowHosts + "）——请联系管理员补充允许域名", BizErrorCode.VALIDATION_ERROR);
             }
@@ -126,12 +141,14 @@ public class NonUiStepValidator {
 
     private void requireProjectOwner(long projectId, Long operatorId) {
         if (operatorId == null) {
-            throw new ServiceException("受控 DML（sql.exec）仅项目负责人可保存：缺少操作人上下文，请从页面重新提交",
+            throw new ServiceException("数据写入步骤（sql.exec）仅项目负责人可保存：本次请求缺少登录身份，"
+                    + "请从「用例管理」进入该用例的「用例详情」页，重新编辑并保存提交",
                     BizErrorCode.FORBIDDEN);
         }
         if (!projectRoleResolver.isOwner(projectId, operatorId)) {
-            throw new ServiceException("受控 DML（sql.exec）仅项目负责人可保存"
-                    + "（AI 禁自动产、只许人工显式写）", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("数据写入步骤（sql.exec）仅项目负责人可保存"
+                    + "（AI 不自动产出，需人工显式编写）：请在「项目管理」的「成员管理」页确认你的角色，"
+                    + "若非负责人请联系负责人添加该步骤", BizErrorCode.FORBIDDEN);
         }
     }
 }

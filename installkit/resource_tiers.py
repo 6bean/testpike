@@ -253,7 +253,7 @@ def verify_sha256(path, expected):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="resource_tiers.py",
-                                     description="资源三档问答+组件装机矩阵单源（T293b）")
+                                     description="资源三档问答 + 组件装机矩阵（档位与组件对照表在本件登记）")
     sub = parser.add_subparsers(dest="command", required=True)
     p_ask = sub.add_parser("ask", help="一行档位问答（EOF=默认档），结果 merge 落 answers")
     p_ask.add_argument("--answers-file", required=True)
@@ -262,7 +262,7 @@ def main(argv=None):
     sub.add_parser("render", help="打印三档面板（程序化数字）")
     p_matrix = sub.add_parser("matrix", help="打印该档计划（run/skip/rollback_stack）")
     p_matrix.add_argument("--tier", default=DEFAULT_TIER)
-    p_verify = sub.add_parser("verify", help="校验文件 sha256（不过=人话拒）")
+    p_verify = sub.add_parser("verify", help="校验文件 sha256（不通过=给出原因并终止）")
     p_verify.add_argument("--file", required=True)
     p_verify.add_argument("--sha256", required=True)
     args = parser.parse_args(argv)

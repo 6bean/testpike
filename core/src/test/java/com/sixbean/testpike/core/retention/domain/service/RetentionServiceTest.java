@@ -8,6 +8,7 @@ import com.sixbean.testpike.core.audit.domain.service.AuditLogService;
 import com.sixbean.testpike.core.config.domain.component.ConfigCacheHolder;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.retention.api.dto.RetentionItem;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -144,18 +145,18 @@ class RetentionServiceTest {
     }
 
     private long seedTask(int status, LocalDateTime createdAt, String videoKey, String shotsJson) {
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, status, created_at, video_key,"
-                + " screenshots_json) VALUES (?, 0, ?, ?, ?, ?::jsonb)",
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, status, created_at, video_key,"
+                        + " screenshots_json) VALUES (?, 0, ?, ?, ?, ?::jsonb)",
                 anyProjectId(), status, createdAt, videoKey, shotsJson);
-        Long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_exec_task", Long.class);
         seededTaskIds.add(id);
         return id;
     }
 
     private long seedSample(LocalDateTime createdAt) {
-        jdbcTemplate.update("INSERT INTO tp_training_sample (case_id, sample_type, sample_json,"
-                + " source_version, created_at) VALUES (0, '编辑', '{}'::jsonb, 1, ?)", createdAt);
-        Long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_training_sample", Long.class);
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_training_sample (case_id, sample_type, sample_json,"
+                        + " source_version, created_at) VALUES (0, '编辑', '{}'::jsonb, 1, ?)", createdAt);
         seededSampleIds.add(id);
         return id;
     }
@@ -167,10 +168,10 @@ class RetentionServiceTest {
      * exercised against real foreign keys.
      */
     private long seedPerfRun(LocalDateTime finishedAt, String mark) {
-        jdbcTemplate.update("INSERT INTO tp_perf_run (scenario_id, project_id, status,"
-                + " pressure_snapshot, finished_at, mark) VALUES (NULL, ?, 2, '{}'::jsonb, ?, ?)",
+        long id = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_perf_run (scenario_id, project_id, status,"
+                        + " pressure_snapshot, finished_at, mark) VALUES (NULL, ?, 2, '{}'::jsonb, ?, ?)",
                 anyProjectId(), finishedAt, mark);
-        Long id = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_perf_run", Long.class);
         seededPerfRunIds.add(id);
         jdbcTemplate.update("INSERT INTO tp_perf_metric (run_id, project_id, second_offset,"
                 + " rps, p95_ms, error_rate) VALUES (?, ?, 0, 1, 1, 0)", id, anyProjectId());

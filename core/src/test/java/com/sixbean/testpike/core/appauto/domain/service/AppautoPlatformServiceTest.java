@@ -20,9 +20,9 @@ class AppautoPlatformServiceTest {
     private AppautoPlatformService platformService;
 
     @Test
-    void enabledListReturnsFiveActivePlatforms() {
+    void enabledListReturnsActivePlatforms() {
         List<AppautoPlatformInfo> enabled = platformService.listPlatforms(false);
-        assertEquals(5, enabled.size(), "一期平台全集=五活跃行（§2.4）");
+        assertEquals(7, enabled.size(), "启用面行数=出厂种子现态（七活跃行）");
         for (String code : List.of("ANDROID", "IOS", "MP", "HARMONY_NEXT", "QUICKAPP")) {
             assertTrue(enabled.stream().anyMatch(p -> code.equals(p.code())),
                     "启用面缺平台：" + code);
@@ -35,7 +35,7 @@ class AppautoPlatformServiceTest {
     @Test
     void fullListIncludesReservedDisabledPlatforms() {
         List<AppautoPlatformInfo> all = platformService.listPlatforms(true);
-        assertEquals(7, all.size(), "含停用全量面=七行（五活跃+两预留）");
+        assertEquals(9, all.size(), "含停用全量面=九行（七活跃+两预留）");
         assertTrue(all.stream().anyMatch(p -> "WEB_MOBILE".equals(p.code()) && p.status() == 0),
                 "WEB_MOBILE 预留位应在全量面以停用态出现");
     }

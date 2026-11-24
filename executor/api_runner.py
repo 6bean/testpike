@@ -271,7 +271,7 @@ def _extract_captured_value(row: dict, payload_getter, resp: httpx.Response):
     name = str(row.get("name") or "").strip()
     if not name:
         raise HttpExecError(
-            f"按 {source} 提取变量必须给定名称 name（例 name=X-Auth-Token）")
+            f"按 {source} 提取变量还差名称：请在 name 填写要提取的头或 Cookie 名称（例 name=X-Auth-Token）")
     actual = resp.headers.get(name) if source == "header" else resp.cookies.get(name)
     if actual is None:
         lane = "响应头" if source == "header" else "响应 Cookie"
@@ -786,7 +786,7 @@ def run_api_task(action_json: str, session_artifacts: dict | None = None,
             if not space_key or not mock_base:
                 raise ValueError(
                     "挂载仿真空间的 mock 信封段缺少 spaceKey/baseUrl——"
-                    "禁静默回退真实环境（会谎报测试范围），请联系 core 版本与派发链")
+                    "禁静默回退真实环境（会谎报测试范围），请在「仿真空间」核对 mock 版本配置后重试")
             env_base = mock_base.rstrip("/")
         env_vars = dict(envelope.get("envVars") or {})
         envelope = resolve_placeholders(envelope, env_vars, env_base or None)
@@ -801,7 +801,7 @@ def run_api_task(action_json: str, session_artifacts: dict | None = None,
         if pool_leftover:
             raise HttpExecError(
                 "变量池存在未解析的凭据引用（键：" + "、".join(sorted(set(pool_leftover)))
-                + "）——凭据实值应由派发前服务端装配点注入，请检查这些键在凭据保险箱的"
+                + "）——凭据实值应由服务端装配点注入，请检查这些键在凭据保险箱的"
                   "建档/启用状态后重跑，执行器禁反查保险箱")
         var_store = VarStore(dict(envelope.get("vars") or {}),
                              alias_map=dict(step_aliases or {}))
@@ -821,7 +821,7 @@ def run_api_task(action_json: str, session_artifacts: dict | None = None,
         if leftover:
             raise HttpExecError(
                 "认证配置存在未解析的凭据引用（" + "、".join(sorted(set(leftover)))
-                + "）——凭据实值应由派发前服务端装配点注入，请检查该键在凭据保险箱的"
+                + "）——凭据实值应由服务端装配点注入，请检查该键在凭据保险箱的"
                   "建档/启用状态后重跑，执行器禁反查保险箱")
         envelope = resolve_gen(envelope, gen_events)
         if session_consumed:

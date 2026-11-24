@@ -255,8 +255,8 @@ def _parse_envelope(task: dict) -> tuple[dict | None, RunOutcome | None]:
         envelope = json.loads(raw or "{}")
     except Exception:
         return None, RunOutcome(result="fail", error_type=_DEFAULT_ERROR_TYPE,
-                                error_detail="APP 自动化任务信封不是合法 JSON，"
-                                             "本次执行按脏单人话终止")
+                                error_detail="APP 自动化任务参数不是合法 JSON，"
+                                             "本次执行已终止")
     if not isinstance(envelope, dict) or envelope.get("kind") != ENVELOPE_KIND:
         return None, RunOutcome(
             result="fail", error_type=_DEFAULT_ERROR_TYPE,
@@ -314,8 +314,8 @@ def run_app_task(task: dict) -> RunOutcome:
             keys = "、".join(sorted(set(leftover)))
             return RunOutcome(result="fail", error_type=_DEFAULT_ERROR_TYPE,
                               error_detail="第 " + str(idx) + " 步存在未解析的凭据引用 "
-                                           "{{CRED:" + keys + "}}——凭据实值应由派发前"
-                                           "服务端注入，请检查该任务的凭据建档/启用状态后重跑")
+                                           "{{CRED:" + keys + "}}——凭据实值应由"
+                                           "服务端装配注入，请检查该任务的凭据建档/启用状态后重跑")
 
     steps, env_ref_fail = _resolve_env_refs_in_steps(task, envelope, steps)
     if env_ref_fail is not None:

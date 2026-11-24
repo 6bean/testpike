@@ -11,6 +11,7 @@ import httpx
 
 import resource_tiers
 import mq_vhost
+import image_relay  # image delivery for the compose stages (accelerator detour)
 import host_ports  # host-port band resolution (compose precedence, single source)
 import instance_names
 import demo_seed
@@ -64,6 +65,57 @@ def _execute(cmd):
     if override and cmd[:2] == ["docker", "compose"]:
         cmd = [override] + cmd[2:]
     return subprocess.run(cmd).returncode
+
+
+# Output tail kept for classification: docker prints the real cause early and
+# repeats it at the end, so a bounded window is enough — the recovery note has
+# to name the offending value, not just point back at the console.
+_STAGE_TAIL_CHARS = 8000
+
+
+def _execute_tee(cmd):
+    """Run a compose stage, echoing docker output live, and return (rc, tail)."""
+    override = os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip()
+    if override and cmd[:2] == ["docker", "compose"]:
+        cmd = [override] + cmd[2:]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, bufsize=1)
+    lines = []
+    for line in (proc.stdout or ()):
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        lines.append(line)
+    rc = proc.wait()
+    return rc, "".join(lines)[-_STAGE_TAIL_CHARS:]
+
+
+def _run_stage(cmd):
+    """Single entry for the compose bring-up stages (returns rc plus captured tail).
+
+    The substitute binary has nothing worth classifying, so that path keeps the
+    plain int runner and an empty tail.
+    """
+    if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
+        return _execute(cmd), ""
+    return _execute_tee(cmd)
+
+
+def relay_stage_images(compose_file, profiles=()):
+    """Deliver this stage's images before compose starts pulling them.
+
+    No-ops in substitute mode (the test double has no image store) and never
+    elevates: it re-tags mirror pulls locally, or merges accelerator entries
+    into the daemon config only when that file is already writable.
+    """
+    if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
+        return True
+    return image_relay.ensure_for_compose(compose_file, profiles=profiles, printer=print)
+
+
+def stage_failure_note(tail):
+    """Recovery note for a failed bring-up stage (None keeps the generic wording)."""
+    import failure_guide
+    return failure_guide.note_for_failure(tail)
 
 
 def four_services_guide(tier=None):
@@ -136,10 +188,19 @@ def cmd_compose(args):
               "（或 --repo-root 指到仓库根）" % compose_file, file=sys.stderr)
         return 1
     print("拉起中间件（postgres/redis/rabbitmq/seaweedfs；已在位=幂等直接绿）…")
-    rc = _execute(stages[0]["cmd"])
+    # Image delivery is decided here, not by hoping compose can reach the hub:
+    # a host with a blocked registry gets the accelerator detour before the
+    # first pull is attempted (missing images only, nothing local is touched).
+    if not relay_stage_images(compose_file):
+        print("中间件镜像未能备齐——请按上方给出的出路处理后重跑同一命令。", file=sys.stderr)
+        return 1
+    rc, tail = _run_stage(stages[0]["cmd"])
     if rc != 0:
         print("compose 拉起失败（退出码 %s）——上方 docker 输出即原因；"
               "修复后重跑同一命令即从断点续跑" % rc, file=sys.stderr)
+        note = stage_failure_note(tail)
+        if note:
+            print(note, file=sys.stderr)
         return rc
     print("中间件就绪。")
     if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
@@ -151,10 +212,13 @@ def cmd_compose(args):
         if not ok:
             return 1
     for stage in stages[1:]:
-        rc = _execute(stage["cmd"])
+        rc, tail = _run_stage(stage["cmd"])
         if rc != 0:
             print("档位服务拉起失败（退出码 %s）——上方 docker 输出即原因；"
                   "修复后重跑同一命令即从断点续跑" % rc, file=sys.stderr)
+            note = stage_failure_note(tail)
+            if note:
+                print(note, file=sys.stderr)
             return rc
     answers = load_answers(args.answers_file)
     for line in four_services_guide(tier=answers.get("tier")):
@@ -238,8 +302,7 @@ def cmd_storage(args):
             # so a duplicate-database race teaches keep-or-rename instead of only
             # dumping stderr (families unknown to the guide stay silent here).
             import failure_guide
-            guide = failure_guide.teach(
-                failure_guide.classify_failure(c.stderr) or "", db=db)
+            guide = failure_guide.note_for_failure(c.stderr, db=db)
             if guide:
                 print(guide, file=sys.stderr)
             return 1

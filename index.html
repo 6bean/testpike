@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>testPike — the self-evolving AI test platform</title>
+<meta name="description" content="Open-source AI test automation platform: requirement docs become reviewable test cases and executable scripts, run on real browsers, devices and load engines, and learn from every review and failure.">
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--ink:#e6edf3;--muted:#8b949e;--acc:#3b82f6;--line:#2d333b}
+html.light{--bg:#f6f8fa;--panel:#fff;--ink:#1f2328;--muted:#57606a;--line:#d0d7de}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}
+.logo{font-size:22px;font-weight:700}.logo b{color:var(--acc)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:14px}
+.hero{padding:56px 0 28px;text-align:center}
+.hero h1{font-size:40px;margin:0 0 12px}
+.hero p{color:var(--muted);font-size:19px;max-width:760px;margin:0 auto}
+.cta{margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.cta .primary{background:var(--acc);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:16px}
+.badges{display:flex;gap:8px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+.badges img{height:20px}
+.loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:34px 0}
+.loop div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;font-size:14px}
+.loop span{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.shots img{width:100%;border:1px solid var(--line);border-radius:10px;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:26px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h3{margin:0 0 8px;font-size:17px}.card p{margin:0;color:var(--muted);font-size:14px}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow:auto;font-size:14px}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var(--muted);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+h2{font-size:26px;margin:44px 0 10px}
+@media(max-width:720px){.shots{grid-template-columns:1fr}.hero h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">test<b>Pike</b> <span id="tag" style="font-size:13px;color:var(--muted);font-weight:400">self-evolving AI test platform</span></div>
+  <div>
+    <button class="btn" id="lang">中文</button>
+    <button class="btn" id="theme">◐</button>
+    <a class="btn" style="display:inline-block" href="https://github.com/6bean/testpike" id="gh">GitHub</a>
+  </div>
+</header>
+
+<section class="hero">
+  <h1 data-en="From requirement docs to executed tests — automatically" data-zh="从需求文档到已执行测试——自动化闭环">From requirement docs to executed tests — automatically</h1>
+  <p data-en="testPike turns requirement documents into structured, reviewable test cases and executable scripts, runs them on real browsers, real devices and real load engines, and learns from every review and every failure."
+     data-zh="testPike 把需求文档转化为结构化、可评审的测试用例与可执行脚本，在真实浏览器、真实设备与真实压测引擎上执行，并从每一次评审与每一次失败中学习。">
+  testPike turns requirement documents into structured, reviewable test cases and executable scripts, runs them on real browsers, real devices and real load engines, and learns from every review and every failure.</p>
+  <div class="cta">
+    <a class="primary btn" href="https://github.com/6bean/testpike/releases/tag/v0.1.0" data-en="Download v0.1.0" data-zh="下载 v0.1.0">Download v0.1.0</a>
+    <a class="btn" href="https://github.com/6bean/testpike#quick-start" data-en="Quick start" data-zh="快速上手">Quick start</a>
+    <a class="btn" href="https://github.com/6bean/testpike/blob/main/README.zh-CN.md">简体中文 README</a>
+  </div>
+  <div class="badges">
+    <img alt="CI" src="https://github.com/6bean/testpike/actions/workflows/ci.yml/badge.svg">
+    <img alt="Release" src="https://img.shields.io/github/v/release/6bean/testpike">
+    <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
+  </div>
+</section>
+
+<h2 data-en="The closed loop" data-zh="完整闭环">The closed loop</h2>
+<div class="loop">
+  <div>📄 <span data-en="requirement docs" data-zh="需求文档">requirement docs</span></div>
+  <div>🤖 <span data-en="AI extraction + generation" data-zh="AI 提取 + 生成">AI extraction + generation</span></div>
+  <div>👀 <span data-en="review workbench" data-zh="评审工作台">review workbench</span></div>
+  <div>⚙️ <span data-en="action-JSON scripts" data-zh="可执行脚本">action-JSON scripts</span></div>
+  <div>🚀 <span data-en="real execution cluster" data-zh="真实执行器集群">real execution cluster</span></div>
+  <div>📈 <span data-en="reports, defects, learning" data-zh="报告·缺陷·学习环">reports, defects, learning</span></div>
+</div>
+
+<div class="shots">
+  <img src="dashboard-light.png" alt="testPike dashboard with first-run guided journeys, executor and device status">
+  <img src="case-library-light.png" alt="testPike case library with priority, confidence and review status columns">
+</div>
+
+<h2 data-en="What it covers" data-zh="能力覆盖">What it covers</h2>
+<div class="grid">
+  <div class="card"><h3 data-en="Requirements & cases" data-zh="需求与用例">Requirements & cases</h3><p data-en="Evidence-anchored extraction with per-chunk ledger, versioned register, batch AI generation with cost estimate, style adaptation, near-duplicate hints, traceability to defects." data-zh="逐块证据账本的提取、版本化需求台账、带成本预估的批量 AI 生成、风格适配、相似提示、直达缺陷的追溯链。">Evidence-anchored extraction, versioned register, batch generation with cost estimate, traceability.</p></div>
+  <div class="card"><h3 data-en="Real execution" data-zh="真实执行">Real execution</h3><p data-en="Playwright browser matrix (chromium/firefox/webkit), process-level isolation, checkpointed batches, flaky quarantine, agentic page exploration with hard budgets." data-zh="Playwright 浏览器矩阵、进程级隔离、断点续跑批次、flaky 隔离、带硬预算的自主页面探索。">Playwright matrix, isolated executors, batch checkpoint/resume, flaky quarantine.</p></div>
+  <div class="card"><h3 data-en="API & contracts" data-zh="接口与契约">API & contracts</h3><p data-en="API workbench with five auth types, contract-driven mock spaces from your specs (AI fallback honestly labeled), endpoint change impact queues, CI-gate verdicts." data-zh="五种认证的接口工作台、由规格驱动的契约 Mock 空间（AI 兜底如实标注）、端点变更影响队列、CI 门禁判定。">Workbench, contract mocks, change impact, CI verdicts.</p></div>
+  <div class="card"><h3 data-en="Performance" data-zh="性能">Performance</h3><p data-en="Gatling, k6 and JMeter behind one scenario wizard; streaming live runs, in-flight SLA circuit breaker, version-to-version comparison." data-zh="Gatling/k6/JMeter 统一场景向导；实时流式指标、在途 SLA 熔断、版本间对比。">Gatling · k6 · JMeter, live metrics, SLA breaker.</p></div>
+  <div class="card"><h3 data-en="Mobile apps" data-zh="移动端">Mobile apps</h3><p data-en="Device wall with reservation calendar, shared device pools with leases and write locks, pluggable platform adapters." data-zh="设备墙与预约日历、跨项目共享设备租约与写锁、可插拔平台适配器。">Device wall, reservations, leases, pluggable adapters.</p></div>
+  <div class="card"><h3 data-en="Runs offline" data-zh="离线可跑">Runs offline</h3><p data-en="Built-in mock LLM keeps the whole loop runnable with zero API keys; pgvector knowledge base, MCP in both directions, Java 21 microservices + Vue 3 console." data-zh="内置 mock LLM 零 API Key 全链路可跑；pgvector 知识库、MCP 双向打通、Java 21 微服务 + Vue 3 控制台。">Mock LLM by default, pgvector knowledge, MCP both ways.</p></div>
+</div>
+
+<h2 data-en="Quick start" data-zh="快速上手">Quick start</h2>
+<pre><code>git clone https://github.com/6bean/testpike.git && cd testpike
+docker compose up -d            # PostgreSQL + pgvector, Redis, RabbitMQ, object storage
+cp .env.example .env
+./installkit/install.sh --tier standard
+# console on http://localhost:18080 — factory demo project and five role accounts are seeded</code></pre>
+
+<footer>
+  <span data-en="Apache-2.0 licensed · built for test engineers, governed for teams" data-zh="Apache-2.0 许可 · 为测试工程师而建，为团队治理而设">Apache-2.0 licensed · built for test engineers, governed for teams</span>
+  <a href="https://github.com/6bean/testpike">github.com/6bean/testpike</a>
+</footer>
+</div>
+<script>
+const q=s=>document.querySelectorAll(s);
+function applyLang(l){q("[data-"+l+"]").forEach(e=>{const v=e.getAttribute("data-"+l);if(v!=null)e.textContent=v});document.getElementById("lang").textContent=l==="en"?"中文":"English";document.documentElement.lang=l}
+let lang="en";
+document.getElementById("lang").onclick=()=>{lang=lang==="en"?"zh":"en";applyLang(lang)};
+document.getElementById("theme").onclick=()=>document.documentElement.classList.toggle("light");
+</script>
+</body>
+</html>

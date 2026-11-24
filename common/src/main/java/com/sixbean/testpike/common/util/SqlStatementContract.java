@@ -42,7 +42,7 @@ public final class SqlStatementContract {
  */
     public static String violation(String action, String sql, JsonNode params) {
         if (sql == null || sql.isBlank()) {
-            return action + " 必须给定 sql（SQL 文本不得为空）";
+            return action + " 还差SQL语句：请在步骤编辑器填写 SQL 文本";
         }
         String concatViolation = noInterpolationViolation(sql);
         if (concatViolation != null) {
@@ -55,7 +55,7 @@ public final class SqlStatementContract {
         }
         if (statements.size() > 1) {
             return "一次 sql 只允许一条语句（检测到 " + statements.size()
-                    + " 条，分号拆句）——多语句可绕过黑名单词法闸，请拆成多步";
+                    + " 条，分号拆句）——多条语句会绕开 SQL 语句拦截清单，请拆成多步分别执行";
         }
         String statement = statements.get(0);
         String firstViolation = firstWordViolation(action, statement);
@@ -148,7 +148,7 @@ public final class SqlStatementContract {
         Matcher forbidden = FORBIDDEN_TOKEN.matcher(upper);
         if (forbidden.find()) {
             return "sql.exec 禁用 " + forbidden.group(1)
-                    + " 等 DDL/权限语句（永久黑名单，仅允许 INSERT / UPDATE / DELETE 受控 DML）";
+                    + " 等 DDL/权限语句（属永久拦截清单，仅允许 INSERT / UPDATE / DELETE 受控写语句）";
         }
         String firstWord = firstWordOf(statement);
         if (("UPDATE".equals(firstWord) || "DELETE".equals(firstWord))

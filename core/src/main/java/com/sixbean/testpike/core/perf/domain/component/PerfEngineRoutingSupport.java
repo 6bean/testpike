@@ -92,9 +92,9 @@ public class PerfEngineRoutingSupport {
             return null;
         }
         return "压测运行需要引擎 " + engine + "——当前在线执行器 " + online.size()
-                + " 台，具备该能力的 0 台，任务无法派发执行。请在压测执行机安装对应引擎"
+                + " 台，具备该能力的 0 台，当前没有能执行该压测的执行机。请在压测执行机安装对应引擎"
                 + "（K6=k6 二进制入 PATH；GATLING=java 17+ 与 GATLING_LIB 引擎 jar 目录）"
-                + "并重启执行器重新注册——能力=执行器自探测如实上报，缺件不申报。";
+                + "并重启执行器重新注册。";
     }
 
     /**

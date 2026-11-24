@@ -169,6 +169,7 @@ python3 installkit/s1_bootstrap.py seed-demo --base-url http://localhost:18081
 | 登录提示已锁定 | 连续输错密码 | 锁定有到期时间，等一等；或 `docker exec <postgres容器> psql -U testpike -d testpike -c "update tp_user set fail_count=0, locked_until=null where username='admin'"` |
 | AI 功能超时 | 真实网关不可达 / 超时给小了 | 核对 `LLM_BASE_URL`/`LLM_API_KEY`；`LLM_TIMEOUT_SECONDS` 保持 ≥ 800；先用 `LLM_MOCK_ENABLED=true` 把网络因素摘出去 |
 | 拉镜像慢 | 所在网络到官方仓库延迟高 | 首装加 `--mirror-base-url=<内网镜像根>`，或在平台集群页设镜像键 |
+| 中间件起不来，报 `failed to resolve reference` / `i/o timeout` | 本机到 Docker Hub 直连不通（内网封锁/DNS 污染常见） | 装机已自动改道：逐个镜像经加速器取回并改成本机认得的名字（不需要管理员）；引擎 `daemon.json` 可写时还会合并 `registry-mirrors` 后重启，且检测到非本系统的在跑容器就不重启、只给命令。候选与超时全部可热更：`TP_DOCKER_MIRRORS=<地址>[,...]`、`TP_DOCKER_RELAY=off` 可整体关停、`TP_DOCKER_*_TIMEOUT_S`；全不可用时脚本给出离线摆渡配方（另一台机 `docker save` → 拷 tar → 本机 `docker load`）。修好后原样重跑同一命令即续跑 |
 | 说不清哪坏了 | — | 跑 `--scenario=repair`，再看 `~/.testpike-installkit/logs/` |
 
 ---

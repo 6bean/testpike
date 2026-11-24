@@ -24612,6 +24612,364 @@ INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, enc
     ('session.keepalive.max-fail-streak', '6', '系统', 'int', 0, '连续异常轮数达到该值后该行保活自动暂停（可设 1~20，默认 6；只暂停保活，不影响登录状态本身）')
 ON CONFLICT (config_key) DO NOTHING;
 
+-- ################ V656__help_login_state_keepalive_chapter.sql ################
+-- Migration V656: beginner-grade help rewrite for the login-state ledger
+-- chapter, folding in the per-row keep-alive behaviour that shipped with this
+-- batch (cadence, backoff, auto-pause, replay surface and the explicit
+-- boundaries: no credential replacement, no re-login, no content assertion).
+-- The behaviour change made the previous chapter stale, and R61 requires the
+-- chapter to be rewritten in the same batch as the behaviour ships.
+-- Full-body UPDATE keyed by domain and title, safe to replay. Numbering note:
+-- V655 was the tail at the time of writing (re-scan before merging).
+
+UPDATE tp_help_doc SET body_md = $hb656$## 这一页能做什么
+登录态账本把「已经登录好的身份」存成可复用的资产：你在自己的浏览器里登录被测系统（含验证码、扫码、单点跳转等人工登录场景）后，平台把登录产生的会话（令牌、Cookie 集合或浏览器整存快照）采集为一行账本，供 API 测试集合、UI 用例执行、监控登录探针共同引用——不用再拿账号密码反复登录被测系统。哪条登录态还有效、还剩多久、能不能在执行机上重放，这一页一眼可查。对「放着不用就会过期」的身份，每行还可以开启保活：系统按你设的间隔替你核验并刷新状态灯，失效或长期连不上时自己暂停并写明停的原因，不用你盯。
+
+## 总体流程
+一条完整动线：打开采集向导并申报来源域 → 在你自己的浏览器里完成被测系统真实登录 → 系统判定登录成功并列出候选会话数据 → 勾选确认入册 → 系统从执行机的网络位置发一条验证请求做重放核验 → 状态灯落位（有效/即将到期/已失效/无法重放）→ 集合、用例、探针按名称引用这一行。
+- 采集段只读你申报过的来源域，申报之外的数据一个都不读；登录动作发生在你的浏览器与被测系统之间，平台不经手你的账号密码。
+- 核验段区分两件事：「在你浏览器里有效」和「在执行机上可重放」，两盏灯各说各的事实，互不冒充。
+- 保活段多一条自动动线：行内点「保活」设置地址与间隔 → 保存前系统先探一次目标 → 到点定期核验并刷新「保活结果」→ 状态有变化才留一条记录，可在「进程详情」回看 → 判失效时状态灯同转已失效且保活即停；连续连不上时只暂停保活、不动状态灯。
+
+## 怎么用（按操作顺序）
+1. **采集登录态**：点「采集登录态」，按提示在你自己的浏览器上发起采集，在打开的登录页里正常登录被测系统；系统判定登录成功后列出候选会话数据，勾选确认即入册。读取范围只限你在账本上申报过的来源域。
+2. **选形态**：向导按被测的鉴权方式给推荐——单点登录跳转的系统优先采「浏览器整存快照」（保住静默续登链路）；被测真的吃访问令牌时选令牌形态；浏览器里只看得到会话 Cookie 的选 Cookie 集合形态。
+3. **续期与停用**：登录态是消耗品，同名重新采集＝覆盖更新那行（不追加新行）；同角色多个账号＝另起一个名字各立一行。停用一行后，引用它的任务在起跑预检时会被拒跑并写明原因。
+4. **看状态灯**：四态分明——有效（带剩余时长）/ 即将到期 / 已失效（点名原因）/ 采集成功但执行机无法重放（疑 IP 或设备指纹绑定）。
+5. **被引用**：API 测试集合、UI 用例执行、监控登录探针在选择登录态时只列你的账本行；引用按名称绑定，账本行更新后下次执行自动用新内容。
+6. **开保活**：行内点「保活」打开保活设置，拨动「开启保活」，填要核验的地址（需为受登录校验保护的地址，例如 https://example.com/api/me）与间隔（5~1440 的整数分钟，留空按全局默认 10 分钟）。地址不带凭证也能打开、或当前访问不通时，保存不会生效并会写明原因——换一个真正受登录保护的地址或等目标可达再设。开启后行上显示「保活中」，「最近保活」与「保活结果」两列给出上一轮的结论（正常/已失效/未判定/不可达）。
+7. **回看保活记录**：行内点「进程详情」可回看这一行的历次状态变化（哪一轮、从什么变成什么、目标回了哪类响应）；没有变化的轮次不留记录，不会刷屏。记录超过保留期时，打开会说明保留天数参数在哪里调。
+8. **保活停了再处理**：「保活」列显示「已自动暂停」时会写明暂停原因：材质过期的，回本行点「编辑」重新登记登录材质；连续访问不成功的，确认目标可达后在本行点「保活」检查地址与间隔再点「保存」，或点「重新开启」，计数即清零。
+
+## 操作背后系统做了什么
+- 采集到的凭证一律加密托管，页面只回显引用键、来源域、有效期与状态灯，值永不上屏；被消费时由服务端统一解析注入，前端拿不到也带不走。
+- 入册即从执行机的网络位置发一条验证请求做重放核验：浏览器位有效而执行机位无效的行，会被标为「无法重放」并给出处理入口（改用执行机采集窗，或登记豁免声明）。
+- 批次起跑前会预检本批用例要用的登录态，任一必需项失效就整批拒跑，并点名「哪条登录态、到本页哪里续期」，不让几十条用例各自在登录页白白耗时。
+- 登录态被消费时如果命中鉴权失败响应（401/403），系统会即时回写失效状态，状态灯与下次预检随之判定，无需人工对账。
+- 保活调度每分钟醒一次，只处理到点的行：一行的到点时间＝上次保活时间＋该行间隔，行与行之间带随机错峰，单轮最多核验 50 条（参数 session.keepalive.max-per-tick，可设 1~500），超出顺延下一轮，不会让一批行在同一时刻集中压被测站点。总开关 session.keepalive.enabled 默认开启，全局间隔与连续不成功暂停上限都在「系统设置 → 参数设置」里管理，保存即生效、无需重启。
+- 保活的判定口径与入册核验完全一致：401、403、被重定向到登录页、或 2xx 但打开的仍是登录页，判已失效——此时状态灯同转「已失效」，该行保活同时暂停并在「保活」列写明原因。连接超时、目标不可达这类问题判异常：异常不等于失效，登录状态灯不动，但连续异常的轮数会让下一轮核验间隔按倍数递增（最多放大到间隔的 4 倍），累计达到上限（默认 6 轮，参数 session.keepalive.max-fail-streak）自动暂停该行保活，恢复时计数清零。
+- 账本上「到期时间」已到的行不再外发核验，保活直接跳过；重新采集更新后自动恢复节奏。
+- 保活探测同样只用服务端解密后的在册凭证发一次请求，明文不进页面也不进过程记录；回放里看到的是判定类别与结论，不是会话值。只有状态发生变化的轮次才留一条记录，正常轮次零留痕。
+- 明确的边界（当前版本不做的三件事）：①被测自己更换会话（响应里发新 Cookie 并作废旧值）时，保活仍按账本在册值核验、不会替你更换账本里的凭证——这类站点多轮后可能被判已失效，重新采集该行即可；②保活不自动重新登录：不代填账号密码、不处理验证码，只核验现有身份还被不被认；③保活不断言返回内容的业务正确性——目标认这个身份就算正常，页面内容写了什么不在保活的判断范围。
+
+## 常见问题
+- **为什么平台不能自动过验证码？**——平台不实现任何验证码识别或绕过，唯一动作是复用服务端已签发的登录身份。被测带验证码的治本路径：在测试环境关闭验证码，或改用固定万能码、白名单账号，并到本页登记豁免声明、由系统复核为真。
+- **令牌在我浏览器里好用，为什么执行机跑不通？**——有些被测系统把会话绑到 IP 或设备指纹上，换机器携带就无效。入册后的重放核验会把这一行标为「无法重放」；请改用执行机采集窗采一次，或按向导换采集形态再试。
+- **单点登录跳转的系统怎么采？**——登录成功判定锚填回跳后的地址；来源域清单把被测域与身份提供方两个域都填上；采集形态听向导推荐（整存快照优先，保住静默续登链路）。核验永远打被测的受保护地址，不会拿身份提供方地址误判失效。
+- **状态灯显示「豁免声明未通过复核」怎么办？**——你登记的环境声明（无验证码/万能码/白名单账号）与实测登录结果不符；先核对被测环境的实际设置，再重新发起复核。
+- **保活自己暂停了，怎么办？**——先看「保活」列点名的原因：目标连不通的（保活结果显示「不可达/未判定」），登录状态本身没变，先确认被测可达，再在本行点「保活」检查地址与间隔后点「保存」，计数清零；判为已失效的（状态灯同时转了），说明被测已经不再认这份凭证，回本行重新采集更新即可。
+- **为什么我的地址开不了保活？**——两种设计内情形：地址不带任何凭证也能看到业务内容（免登录地址），拿它做保活只会得到「一直正常」的假结论，所以填这种地址不会被保存，请换成被测真正受登录保护的地址；另一种是目标当前访问不通，等可达后再开启。
+- **间隔设多少合适？**——越短发现状态变化越快，但对被测的访问也越频繁。会话普遍能活几小时到几天时，默认 10 分钟足够；被测对频率敏感的可以按行设成小时级（上限 1440 分钟）。全局默认在「系统设置 → 参数设置」的 session.keepalive.interval-minutes，保存即生效。
+- **开了保活，会话会被延长寿命吗？**——不保证。保活只核验现有身份还被不被认，不做任何替你续登的动作，也不会把被测新换发的会话替换进账本；会话寿命由被测系统决定，到期后重新采集这一行即可。$hb656$::text WHERE domain_code = 'X' AND title = '登录态账本：网页与接口的已登录身份台账';
+
+-- ################ V657__api_access_registration_full_ledger_and_storage_root_default.sql ################
+-- Migration: close the api-access governance ledger gaps and give the local
+-- storage root a usable factory default for a fresh install.
+--
+-- Part 1 (B3): the registration coverage tool audited 105 catalog endpoints
+-- that carry no row in tp_ai_api_access_governance, so the door answered
+-- them with the generic "not registered" refusal even though a verdict
+-- exists. Rows are produced by tools/ops/api_access_registration_coverage.py
+-- --emit-sql; every entry keeps the door's own live flags (anchored reads
+-- document what is already auto-served; everything else lands closed with a
+-- reader-facing reason). No reachability changes: opening a closed entry
+-- still needs its own named verification, write landing still needs
+-- scope_verified=1 + the write switch + the confirmation card.
+--
+-- Part 2 (E4): tp_sys_config.storage.local-root was seeded as an empty
+-- string, which makes every local-provider consumer read "storage is not
+-- configured" on a fresh install. Seed the row idempotently and rewrite only
+-- the legacy empty default to the working relative root; a value an operator
+-- set explicitly is preserved untouched.
+
+INSERT INTO tp_ai_api_access_governance
+    (endpoint_key, scope_verified, reachable, ai_desc, exclude_reason)
+VALUES
+    ('DELETE /internal/appauto/elements/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('DELETE /internal/session-capture-sessions/{sessionId}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('DELETE /internal/session-states/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('DELETE /internal/site-profiles/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('GET /internal/ai-batches/latest', 1, 1, '按项目范围查询AI 批次数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/ai-chat/drafts/group/pending', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('GET /internal/ai-chat/drafts/pending-count', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('GET /internal/ai-chat/messages/{messageId}/status', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('GET /internal/ai-chat/sessions/{sessionId}/chat-images', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('GET /internal/ai-tasks/latest-single', 1, 1, '按项目范围查询AI 任务数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/ai-tasks/live-by-requirements', 1, 1, '按项目范围查询AI 任务数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/ai-tasks/{taskId}/process-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/appauto/devices/{deviceId}/thumbnail', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/appauto/elements', 1, 1, '按项目范围查询应用自动化数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/appauto/elements/{id}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/batches/{id}/process-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/batches/{id}/process-runs', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/cluster/pools/scale-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/cluster/pools/scale-plan', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/cluster/pools/watermarks', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/credentials/{id}/test-events', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/credentials/{id}/test-events/{eventId}/full', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/credentials/{id}/test-events/{eventId}/reveal', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/credentials/{id}/test-runs', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/documents/{id}/chunks/{chunkId}/context', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/documents/{id}/extraction-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/documents/{id}/extraction-runs', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/documents/{id}/spec-extraction-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/documents/{id}/spec-extraction-runs', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/explore/sessions/{id}/process-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/explore/sessions/{id}/process-runs', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/judge/evalsets', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/judge/rubrics', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/judge/runs', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/linkage-impacts/by-drafts', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/linkage-impacts/pending', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/linkage-proposals', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/login-exempt/{envId}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/mcp-tokens/{tokenId}/usage', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/page-write-profiles/page', 1, 1, '按项目范围查询page-write-profiles数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/page-write-profiles/risk-pages', 1, 1, '按项目范围查询page-write-profiles数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/session-capture-sessions/stage/{token}/names', 0, 0, NULL, '该接口涉及凭证或密钥材料，不开放到对话，请在对应管理页面操作'),
+    ('GET /internal/session-capture-sessions/{sessionId}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/session-capture-sessions/{sessionId}/candidates', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/session-states', 1, 1, '按项目范围查询session-states数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/session-states/page', 1, 1, '按项目范围查询session-states数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/session-states/resolve', 1, 1, '按项目范围查询session-states数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/session-states/{id}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/session-states/{id}/probe-events', 0, 0, NULL, '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('GET /internal/session-states/{id}/probe-events/{eventId}/full', 0, 0, NULL, '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('GET /internal/session-states/{id}/probe-events/{eventId}/reveal', 0, 0, NULL, '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('GET /internal/session-states/{id}/probe-runs', 0, 0, NULL, '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('GET /internal/site-profiles', 1, 1, '按项目范围查询site-profiles数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/site-profiles/{id}', 0, 0, NULL, '该接口用于文件导出或下载，请在对应页面的下载入口使用'),
+    ('GET /internal/site-survey-runs', 1, 1, '按项目范围查询site-survey-runs数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/site-survey-runs/by-session/{sessionId}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/site-survey-runs/{runId}/diff-proposal', 1, 1, '按项目范围查询site-survey-runs数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements', 1, 1, '按项目范围查询web-elements数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements/heal-evidence', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/web-elements/health', 1, 1, '按项目范围查询web-elements数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements/pages', 1, 1, '按项目范围查询web-elements数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements/prompt-summary', 1, 1, '按项目范围查询web-elements数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements/storms', 1, 1, '按项目范围查询web-elements数据（项目由会话自动带入，无需手填）', NULL),
+    ('GET /internal/web-elements/survey/{sessionId}/process-events', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/web-elements/{id}', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/web-elements/{id}/heal-evidence', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('GET /internal/web-elements/{id}/referencing-cases', 0, 0, NULL, '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('PATCH /internal/ai-chat/drafts/{id}/checked-subset', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('POST /internal/ai-chat/drafts/group/apply', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('POST /internal/ai-chat/drafts/group/confirm-token', 0, 0, NULL, '对话窗自身的接口（草稿、图片、工具产物），请在界面直接使用'),
+    ('POST /internal/ai-tasks/{taskId}/cancel', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/appauto/elements', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/appauto/elements/capture', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/credentials/{id}/test', 0, 0, NULL, '该接口涉及凭据材料，不开放到对话；请在凭据管理页面操作'),
+    ('POST /internal/documents/{id}/confirm-all-extraction', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/judge/runs', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/linkage-proposals', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/login-exempt/{envId}/review', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/mcp-confirm/confirm', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/mcp-confirm/drafts/script-writeback', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/page-write-profiles/case-draft', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions/claim', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions/stage', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions/{sessionId}/commit', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions/{sessionId}/commit-values', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-capture-sessions/{sessionId}/report', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-states', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/session-states/{id}/probe', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/site-profiles', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/site-survey-runs/{profileId}/dispatch', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements/census/ledger-drafts', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements/census/script-ref-drafts', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements/evidence-grant', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements/retention/run', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('POST /internal/web-elements/survey', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/appauto/elements/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/login-exempt/{envId}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/session-states/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/session-states/{id}/enabled', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/site-profiles/{id}', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/web-elements/{id}/anchors', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/web-elements/{id}/name', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('PUT /internal/web-elements/{id}/state', 0, 0, NULL, '变更类操作暂未开放到对话，请在对应功能页面执行')
+ON CONFLICT (endpoint_key) DO NOTHING;
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description)
+VALUES ('storage.local-root', 'data/local-storage', '存储', 'string', 0,
+        '本地模式落盘根目录（storage.provider=local 必填；空=未配置）')
+ON CONFLICT (config_key) DO UPDATE SET config_value = 'data/local-storage'
+WHERE tp_sys_config.config_value IS NULL OR tp_sys_config.config_value = '';
+
+-- ################ V658__help_login_state_keepalive_retarget_z_chapter.sql ################
+-- Migration V658: retarget the keep-alive help rewrite onto the chapter the
+-- page actually renders. The previous rewrite keyed domain 'X' and the older
+-- title, a shape that exists only in the factory template replay; the live
+-- databases (slot0 and chain slots) carry the beginner-detail hub chapter
+-- under domain 'Z'. Data-only UPDATEs are invisible to the object probe in
+-- scripts/schema_snapshot_diff.py, so this replay also closes a verification
+-- blind spot found during the merge-back round: the rewrite is now proven by
+-- reading the rendered row back, not just by the file being present.
+UPDATE tp_help_doc SET body_md = $hb658$## 这一页能做什么
+登录态账本把「已经登录好的身份」存成可复用的资产：你在自己的浏览器里登录被测系统（含验证码、扫码、单点跳转等人工登录场景）后，平台把登录产生的会话（令牌、Cookie 集合或浏览器整存快照）采集为一行账本，供 API 测试集合、UI 用例执行、监控登录探针共同引用——不用再拿账号密码反复登录被测系统。哪条登录态还有效、还剩多久、能不能在执行机上重放，这一页一眼可查。对「放着不用就会过期」的身份，每行还可以开启保活：系统按你设的间隔替你核验并刷新状态灯，失效或长期连不上时自己暂停并写明停的原因，不用你盯。
+
+## 总体流程
+一条完整动线：打开采集向导并申报来源域 → 在你自己的浏览器里完成被测系统真实登录 → 系统判定登录成功并列出候选会话数据 → 勾选确认入册 → 系统从执行机的网络位置发一条验证请求做重放核验 → 状态灯落位（有效/即将到期/已失效/无法重放）→ 集合、用例、探针按名称引用这一行。
+- 采集段只读你申报过的来源域，申报之外的数据一个都不读；登录动作发生在你的浏览器与被测系统之间，平台不经手你的账号密码。
+- 核验段区分两件事：「在你浏览器里有效」和「在执行机上可重放」，两盏灯各说各的事实，互不冒充。
+- 保活段多一条自动动线：行内点「保活」设置地址与间隔 → 保存前系统先探一次目标 → 到点定期核验并刷新「保活结果」→ 状态有变化才留一条记录，可在「进程详情」回看 → 判失效时状态灯同转已失效且保活即停；连续连不上时只暂停保活、不动状态灯。
+
+## 怎么用（按操作顺序）
+1. **采集登录态**：点「采集登录态」，按提示在你自己的浏览器上发起采集，在打开的登录页里正常登录被测系统；系统判定登录成功后列出候选会话数据，勾选确认即入册。读取范围只限你在账本上申报过的来源域。
+2. **选形态**：向导按被测的鉴权方式给推荐——单点登录跳转的系统优先采「浏览器整存快照」（保住静默续登链路）；被测真的吃访问令牌时选令牌形态；浏览器里只看得到会话 Cookie 的选 Cookie 集合形态。
+3. **续期与停用**：登录态是消耗品，同名重新采集＝覆盖更新那行（不追加新行）；同角色多个账号＝另起一个名字各立一行。停用一行后，引用它的任务在起跑预检时会被拒跑并写明原因。
+4. **看状态灯**：四态分明——有效（带剩余时长）/ 即将到期 / 已失效（点名原因）/ 采集成功但执行机无法重放（疑 IP 或设备指纹绑定）。
+5. **被引用**：API 测试集合、UI 用例执行、监控登录探针在选择登录态时只列你的账本行；引用按名称绑定，账本行更新后下次执行自动用新内容。
+6. **开保活**：行内点「保活」打开保活设置，拨动「开启保活」，填要核验的地址（需为受登录校验保护的地址，例如 https://example.com/api/me）与间隔（5~1440 的整数分钟，留空按全局默认 10 分钟）。地址不带凭证也能打开、或当前访问不通时，保存不会生效并会写明原因——换一个真正受登录保护的地址或等目标可达再设。开启后行上显示「保活中」，「最近保活」与「保活结果」两列给出上一轮的结论（正常/已失效/未判定/不可达）。
+7. **回看保活记录**：行内点「进程详情」可回看这一行的历次状态变化（哪一轮、从什么变成什么、目标回了哪类响应）；没有变化的轮次不留记录，不会刷屏。记录超过保留期时，打开会说明保留天数参数在哪里调。
+8. **保活停了再处理**：「保活」列显示「已自动暂停」时会写明暂停原因：材质过期的，回本行点「编辑」重新登记登录材质；连续访问不成功的，确认目标可达后在本行点「保活」检查地址与间隔再点「保存」，或点「重新开启」，计数即清零。
+
+## 操作背后系统做了什么
+- 采集到的凭证一律加密托管，页面只回显引用键、来源域、有效期与状态灯，值永不上屏；被消费时由服务端统一解析注入，前端拿不到也带不走。
+- 入册即从执行机的网络位置发一条验证请求做重放核验：浏览器位有效而执行机位无效的行，会被标为「无法重放」并给出处理入口（改用执行机采集窗，或登记豁免声明）。
+- 批次起跑前会预检本批用例要用的登录态，任一必需项失效就整批拒跑，并点名「哪条登录态、到本页哪里续期」，不让几十条用例各自在登录页白白耗时。
+- 登录态被消费时如果命中鉴权失败响应（401/403），系统会即时回写失效状态，状态灯与下次预检随之判定，无需人工对账。
+- 保活调度每分钟醒一次，只处理到点的行：一行的到点时间＝上次保活时间＋该行间隔，行与行之间带随机错峰，单轮最多核验 50 条（参数 session.keepalive.max-per-tick，可设 1~500），超出顺延下一轮，不会让一批行在同一时刻集中压被测站点。总开关 session.keepalive.enabled 默认开启，全局间隔与连续不成功暂停上限都在「系统设置 → 参数设置」里管理，保存即生效、无需重启。
+- 保活的判定口径与入册核验完全一致：401、403、被重定向到登录页、或 2xx 但打开的仍是登录页，判已失效——此时状态灯同转「已失效」，该行保活同时暂停并在「保活」列写明原因。连接超时、目标不可达这类问题判异常：异常不等于失效，登录状态灯不动，但连续异常的轮数会让下一轮核验间隔按倍数递增（最多放大到间隔的 4 倍），累计达到上限（默认 6 轮，参数 session.keepalive.max-fail-streak）自动暂停该行保活，恢复时计数清零。
+- 账本上「到期时间」已到的行不再外发核验，保活直接跳过；重新采集更新后自动恢复节奏。
+- 保活探测同样只用服务端解密后的在册凭证发一次请求，明文不进页面也不进过程记录；回放里看到的是判定类别与结论，不是会话值。只有状态发生变化的轮次才留一条记录，正常轮次零留痕。
+- 明确的边界（当前版本不做的三件事）：①被测自己更换会话（响应里发新 Cookie 并作废旧值）时，保活仍按账本在册值核验、不会替你更换账本里的凭证——这类站点多轮后可能被判已失效，重新采集该行即可；②保活不自动重新登录：不代填账号密码、不处理验证码，只核验现有身份还被不被认；③保活不断言返回内容的业务正确性——目标认这个身份就算正常，页面内容写了什么不在保活的判断范围。
+
+## 常见问题
+- **为什么平台不能自动过验证码？**——平台不实现任何验证码识别或绕过，唯一动作是复用服务端已签发的登录身份。被测带验证码的治本路径：在测试环境关闭验证码，或改用固定万能码、白名单账号，并到本页登记豁免声明、由系统复核为真。
+- **令牌在我浏览器里好用，为什么执行机跑不通？**——有些被测系统把会话绑到 IP 或设备指纹上，换机器携带就无效。入册后的重放核验会把这一行标为「无法重放」；请改用执行机采集窗采一次，或按向导换采集形态再试。
+- **单点登录跳转的系统怎么采？**——登录成功判定锚填回跳后的地址；来源域清单把被测域与身份提供方两个域都填上；采集形态听向导推荐（整存快照优先，保住静默续登链路）。核验永远打被测的受保护地址，不会拿身份提供方地址误判失效。
+- **状态灯显示「豁免声明未通过复核」怎么办？**——你登记的环境声明（无验证码/万能码/白名单账号）与实测登录结果不符；先核对被测环境的实际设置，再重新发起复核。
+- **保活自己暂停了，怎么办？**——先看「保活」列点名的原因：目标连不通的（保活结果显示「不可达/未判定」），登录状态本身没变，先确认被测可达，再在本行点「保活」检查地址与间隔后点「保存」，计数清零；判为已失效的（状态灯同时转了），说明被测已经不再认这份凭证，回本行重新采集更新即可。
+- **为什么我的地址开不了保活？**——两种设计内情形：地址不带任何凭证也能看到业务内容（免登录地址），拿它做保活只会得到「一直正常」的假结论，所以填这种地址不会被保存，请换成被测真正受登录保护的地址；另一种是目标当前访问不通，等可达后再开启。
+- **间隔设多少合适？**——越短发现状态变化越快，但对被测的访问也越频繁。会话普遍能活几小时到几天时，默认 10 分钟足够；被测对频率敏感的可以按行设成小时级（上限 1440 分钟）。全局默认在「系统设置 → 参数设置」的 session.keepalive.interval-minutes，保存即生效。
+- **开了保活，会话会被延长寿命吗？**——不保证。保活只核验现有身份还被不被认，不做任何替你续登的动作，也不会把被测新换发的会话替换进账本；会话寿命由被测系统决定，到期后重新采集这一行即可。$hb658$::text, updated_at = NOW()
+ WHERE domain_code = 'Z' AND title = '登录态账本：一次登录，处处复用';
+
+-- ################ V659__catalog_corpus_search_terms_backfill.sql ################
+-- Corpus backfill for the catalog matcher (follows the V414 direct-assign shape).
+--
+-- Governance rows registered by later batches shipped with an empty synonym
+-- column, so the catalog recall gate reported terms-empty 11 -> 28. This pass
+-- fills every reachable row that still has no synonyms, including the 11 rows
+-- the first CC batch pass left un-adjudicated. Words come from the on-screen
+-- vocabulary already in the frontend locale (page names and section titles);
+-- values are data (user vocabulary), comments stay English.
+--
+-- Guard: only rows whose synonym column is empty are rewritten, so a replay
+-- never overwrites curated terms and a re-run is a no-op.
+-- Flyway is not wired in this project: apply manually to the target database,
+-- then regenerate db/schema-init.sql with tools/ops/gen_schema_init.sh.
+
+UPDATE tp_ai_api_access_governance
+   SET search_terms = 'AI批次,最新批次,生成批次,ai-batches,aiBatches,latest', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/ai-batches/latest' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = 'AI任务,单条生成任务,最新任务,ai-tasks,aiTasks,latest-single', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/ai-tasks/latest-single' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = 'AI任务,需求点在跑任务,生成进度,ai-tasks,aiTasks,live-by-requirements', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/ai-tasks/live-by-requirements' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '接口变更分析,契约版本变更,影响面,api-spec-change-analyses,apiSpecChange', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/api-spec-change-analyses' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '应用自动化,移动端元素,真机元素,appauto,app-auto,elements', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/appauto/elements' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '集群,平台版本,组件版本,cluster,platform-version,platformVersion', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/cluster/platform-version' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '集群,发布清单兼容性对比,升级适配,cluster,release-manifest,compat-diff', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/cluster/release-manifest/compat-diff' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '集群,发布清单跨版本兼容对比,升级适配,cluster,release-manifest,compat-diff-with', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/cluster/release-manifest/compat-diff-with' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '集群,最新发布清单,版本基线,cluster,release-manifest,latest', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/cluster/release-manifest/latest' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '集群,发布清单列表,升级台账,cluster,release-manifest,list', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/cluster/release-manifest/list' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '缺陷库,集成缺陷,缺陷闭环,defect-library,defects', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/defect-library' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '文档变更分析,章节变更,重传对比,doc-change-analyses,docChange', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/doc-change-analyses' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面写入画像,写操作页面,探查写入记录,page-write-profiles,write-profiles', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/page-write-profiles/page' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面写入画像,风险页面,写风险清单,page-write-profiles,risk-pages', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/page-write-profiles/risk-pages' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '项目记忆,记忆条目,上下文沉淀,project-memory,projectMemory', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/project-memory' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '脚本修复,修复草案,失败脚本,script-repairs,scriptRepairs', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/script-repairs' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '登录态账本,已登录身份,会话状态,session-states,sessionStates,login-state', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/session-states' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '登录态账本,登录态分页,session-states,sessionStates,page', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/session-states/page' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '登录态解析,按名称定位登录态,session-states,resolve', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/session-states/resolve' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '站点档案,站点画像,被测站点,site-profiles,siteProfiles', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/site-profiles' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '整站测绘,测绘记录,站点扫描,site-survey-runs,siteSurvey', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/site-survey-runs' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '整站测绘,差异提案,元素变更提案,diff-proposal,site-survey-runs', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/site-survey-runs/{runId}/diff-proposal' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '视觉基线,基线截图,截图比对,visual-baselines,visualBaseline', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/visual-baselines' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面元素库,定位锚,元素清单,web-elements,webElement,locator', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/web-elements' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面元素库,锚点健康度,定位可用性,web-elements,health', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/web-elements/health' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面元素库,已建档页面,页面清单,web-elements,pages', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/web-elements/pages' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面元素库,定位提示词摘要,prompt-summary,web-elements', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/web-elements/prompt-summary' AND coalesce(search_terms, '') = '';
+UPDATE tp_ai_api_access_governance
+   SET search_terms = '页面元素库,改版风暴,定位失效集中期,storms,web-elements', updated_at = now()
+ WHERE endpoint_key = 'GET /internal/web-elements/storms' AND coalesce(search_terms, '') = '';
+
+-- ################ V660__login_state_keepalive_governance_rows.sql ################
+-- Migration: register governance verdicts for the three login-state
+-- keepalive endpoints. An unregistered catalog entry is answered with the
+-- generic "not registered" refusal, and the coverage gate requires every
+-- endpoint to carry an explicit verdict in the seed set, because a fresh
+-- install replays only schema-init/migrations (the live audit passes on a
+-- database where the rows were registered out-of-band). No reachability
+-- change: the two event reads are internal plumbing and the PATCH switch
+-- stays a page-only mutation (write landing would additionally need the
+-- write switch plus the confirmation card).
+
+INSERT INTO tp_ai_api_access_governance
+    (endpoint_key, scope_verified, reachable, ai_desc, exclude_reason)
+VALUES
+    ('GET /internal/session-states/{id}/keepalive-events', 0, 0, NULL,
+     '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('GET /internal/session-states/{id}/keepalive-runs', 0, 0, NULL,
+     '该接口服务于系统内部联动与健康检查，不是业务查询面，无需在对话使用'),
+    ('PATCH /internal/session-states/{id}/keepalive', 0, 0, NULL,
+     '变更类操作暂未开放到对话，请在对应功能页面执行')
+ON CONFLICT (endpoint_key) DO NOTHING;
+
 -- ################ patch section: objects first executed by hand (DDL verified against the dev database, never captured as migrations) ################
 CREATE SEQUENCE IF NOT EXISTS tp_plan_deviation_id_seq;
 CREATE TABLE IF NOT EXISTS tp_plan_deviation (

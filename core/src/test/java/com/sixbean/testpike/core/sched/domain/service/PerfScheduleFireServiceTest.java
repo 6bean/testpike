@@ -1,6 +1,7 @@
 package com.sixbean.testpike.core.sched.domain.service;
 
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.sched.domain.service.ScheduleFireService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,16 +57,13 @@ class PerfScheduleFireServiceTest {
     void cleanAndSeed() {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "定时压测测试项目_" + uniq, "PERFSCHED" + uniq);
-        projectId = lastId("tp_project");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "定时压测测试项目_" + uniq, "PERFSCHED" + uniq);
         // One environment per type inside a project is a product rule — dev(1) + test(2).
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-定时dev', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-定时test', 2, 'http://perf-target.local/api')", projectId);
-        envBId = lastId("tp_project_env");
+        envId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '性能-定时dev', 1, 'http://perf-target.local/api')", projectId);
+        envBId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '性能-定时test', 2, 'http://perf-target.local/api')", projectId);
     }
 
     private static Instant at(String localDateTime) {
@@ -90,10 +88,6 @@ class PerfScheduleFireServiceTest {
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFSCHED%'");
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
-    }
-
     /** Whitelist ceiling row for an environment (maxConc controls gate pass/rejection). */
     private void whitelist(long env, int maxConc) {
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
@@ -102,14 +96,8 @@ class PerfScheduleFireServiceTest {
 
     /** Scenario row with the scheduled-fire columns (the interactive save face lands in a follow-up segment). */
     private long scenario(String name, long env, String cron, int enabled, Long scheduleEnv) {
-        jdbcTemplate.update("INSERT INTO tp_perf_scenario (project_id, env_id, name, pressure_model, "
-                        + "pressure_config, steps_json, schedule_cron, schedule_enabled, schedule_env_id) "
-                        + "VALUES (?, ?, ?, 'CONSTANT_RPS', "
-                        + "'{\"targetRps\": 40, \"durationSeconds\": 60}'::jsonb, "
-                        + "'[{\"action\": \"http.request\", \"method\": \"GET\", "
-                        + "\"url\": \"http://perf-target.local/api/orders\"}]'::jsonb, ?, ?, ?)",
-                projectId, env, name, cron, enabled, scheduleEnv);
-        return lastId("tp_perf_scenario");
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_perf_scenario (project_id, env_id, name, pressure_model, " + "pressure_config, steps_json, schedule_cron, schedule_enabled, schedule_env_id) " + "VALUES (?, ?, ?, 'CONSTANT_RPS', " + "'{\"targetRps\": 40, \"durationSeconds\": 60}'::jsonb, " + "'[{\"action\": \"http.request\", \"method\": \"GET\", " + "\"url\": \"http://perf-target.local/api/orders\"}]'::jsonb, ?, ?, ?)", projectId, env, name, cron, enabled, scheduleEnv);
     }
 
     private Integer runCount(long scenarioId) {

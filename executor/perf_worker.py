@@ -1365,8 +1365,8 @@ def run_perf_task(task: dict) -> RunOutcome:
     perf = _perf_context(task)
     if perf is None:
         return RunOutcome(result="fail", error_type=3,
-                          error_detail="压测派发上下文缺失（claim 未携 perf 键——运行可能"
-                                       "已被删除或信封为脏单），本次执行按缺上下文人话终止")
+                          error_detail="压测运行上下文缺失（运行可能已被删除或任务参数不完整），"
+                                       "本次执行已终止")
     engine = str(perf.get("engine") or "").strip().upper()
     if engine not in ENGINE_VALUES:
         return RunOutcome(result="fail", error_type=3,

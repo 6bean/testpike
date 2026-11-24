@@ -69,12 +69,17 @@ class PerfDatasetTemplateConsumptionTest {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         String projectCode = "PERFDS" + uniq;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        // Ids are read back through RETURNING: on a fresh-install database a
+        // foreign fixture row with an overridden id can out-rank max(id), which
+        // made this seed write env rows under the wrong project and collide on
+        // uq_project_env_type.
+        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "数据池模板消费项目_" + uniq, projectCode);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-数据池模板测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '性能-数据池模板测', 1, 'http://perf-target.local/api')",
+                projectId);
     }
 
     @AfterEach

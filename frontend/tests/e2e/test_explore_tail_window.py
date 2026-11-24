@@ -85,7 +85,7 @@ def test_explore_tail_live_face_windowed_scale(logged_in, collectors, api_client
     sid = _create_session(api_client, pid)
     try:
         for i in range(STEP_FRAMES):
-            _seed(sid, "step", f"步骤 {i + 1}｜候选池巡检 观察={i}")
+            _seed(sid, "step", f"步骤 {i + 1}｜页面元素采集｜登录页 · 已采集 {i} 项")
         _open_detail(page, sid)
 
         badge = page.locator('[data-test="explore-detail-tail-badge"]')

@@ -55,6 +55,15 @@
           <el-option v-for="s in spaces" :key="s.id" :label="spaceLabel(s)" :value="s.id" />
         </el-select>
         <div class="filter-bar-actions" data-test="mock-docs-filter-actions">
+          <el-button
+            v-if="canWrite && spaceId !== null"
+            type="primary"
+            plain
+            data-test="mock-docs-import-contract"
+            @click="stubDirectOpen = true"
+          >
+            {{ t('mockWorkbench.importContractAction') }}
+          </el-button>
           <el-button :icon="Refresh" :loading="loading" data-test="mock-docs-refresh" @click="loadStubs">
             {{ t('mockDocs.refresh') }}
           </el-button>
@@ -417,6 +426,12 @@
         </el-drawer>
       </template>
     </div>
+    <MockStubDirectWizard
+      v-model="stubDirectOpen"
+      :project-id="projectId"
+      :preset-space-id="spaceId"
+      :preset-space-name="activeSpace?.name ?? ''"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -439,6 +454,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { CaretBottom, CaretRight, Refresh, Search } from '@element-plus/icons-vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MockStubEditorDrawer from '@/components/MockStubEditorDrawer.vue'
+// Shared contract-direct wizard (single component, two mount points: the
+// API-test page and the space workbench docs tab — no second copy).
+import MockStubDirectWizard from '@/components/mock/MockStubDirectWizard.vue'
 // AK single-source posture : page-level project selector removed — the
 // project rides on the global header context via useProjectPageContext.
 import ProjectOwnerEcho from '@/components/ProjectOwnerEcho.vue'
@@ -512,6 +530,10 @@ const creating = ref(false)
 // : host-injected space id wins over the local pick (redirect-era fallback kept).
 const spaceId = computed(() => props.spaceId ?? pickedSpace.value)
 const selectedSpace = computed(() => spaces.value.find((s) => s.id === pickedSpace.value) ?? null)
+// Host-injected space (workbench tab) or the local pick — the wizard's
+// destination echo reads the same source the rule list is scoped by.
+const activeSpace = computed(() => spaces.value.find((s) => s.id === spaceId.value) ?? null)
+const stubDirectOpen = ref(false)
 const spacePublished = computed(() => selectedSpace.value?.status === 1)
 
 const parseResult = computed(() => (curlText.value.trim() ? parseCurlDraft(curlText.value) : null))

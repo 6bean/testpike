@@ -70,6 +70,11 @@ public class SchedulerRunNowServiceImpl implements SchedulerRunNowService {
                                       com.sixbean.testpike.core.executor.domain.component.ExecutorDrainSweepScheduler executorDrainSweep,
                                       com.sixbean.testpike.core.events.domain.component.AiTaskEventTrimScheduler aiTaskEventTrim,
                                       com.sixbean.testpike.core.session.domain.component.LoginStateRetentionSweeper loginStateRetention,
+                                      com.sixbean.testpike.core.cluster.domain.component.ExecutorPoolWatermarkSampler executorPoolWatermarkSampler,
+                                      com.sixbean.testpike.core.session.domain.component.LoginStateKeepAliveScheduler loginStateKeepAlive,
+                                      com.sixbean.testpike.core.ai.domain.component.AiTaskRunningStallSweeper aiTaskRunningStallSweeper,
+                                      com.sixbean.testpike.core.webelement.domain.component.SiteSurveyAttributionSweepJob siteSurveyAttributionSweep,
+                                      com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler credentialScreenshotSweep,
                                       AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
         this.registry = new LinkedHashMap<>();
@@ -112,6 +117,13 @@ public class SchedulerRunNowServiceImpl implements SchedulerRunNowService {
         registry.put("dlqAutoReplay", deadLetterAutoReplay::sweep);
         registry.put("changeLinkageReconcileDaily", changeLinkageReconcileJob::reconcile);
         registry.put("linkageUrgeHourly", linkageUrge::scanHourly);
+        // Fresh-install baseline repair: every @SchedulerLock name in core must
+        // be triggerable from the run-now registry (contract test pins this).
+        registry.put("clusterPoolWatermarkSample", executorPoolWatermarkSampler::samplePools);
+        registry.put("loginStateKeepAlive", loginStateKeepAlive::tick);
+        registry.put("aiTaskRunningStallSweep", aiTaskRunningStallSweeper::sweep);
+        registry.put("siteSurveyAttributionSweep", siteSurveyAttributionSweep::sweep);
+        registry.put("credentialScreenshotSweep", credentialScreenshotSweep::sweep);
     }
 
     @Override

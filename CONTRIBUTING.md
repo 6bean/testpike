@@ -45,6 +45,10 @@ Redis, and Docker for the executor stack.
    inside `frontend/`, and exercise the real page where practical.
 4. CI must be green; maintainers squash-merge.
 
+## Releases
+
+The versioning policy is documented in the README "Versioning" section (single source). Working rules for contributors: do not bump version numbers in pull requests - release managers cut tags; every PR merges toward the next minor (feature) or patch (fix) release, and a release only happens on a fully-green CI snapshot.
+
 ## Reporting bugs
 
 Include: version or commit, steps, expected vs actual, and browser/service

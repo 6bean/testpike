@@ -84,10 +84,15 @@ describe('keep-alive ledger face', () => {
     }
   })
 
-  it('surfaces the switch door per row and refuses it honestly on a disabled row', () => {
+  it('keeps the door open on every row and narrows only the write controls (R67 revisit entry)', () => {
     const tpl = templateOf(viewSrc)
+    const door = tpl.slice(tpl.indexOf('data-test="login-state-keepalive-btn"'))
+    expect(door, 'the row door itself must stay clickable on a stopped row').not.toMatch(
+      /:disabled="row\.status === 0"[\s\S]{0,200}data-test="login-state-keepalive-btn"/)
     expect(tpl).toContain('data-test="login-state-keepalive-btn"')
-    expect(tpl).toMatch(/:disabled="row\.status === 0"[\s\S]{0,120}data-test="login-state-keepalive-btn"/)
+    // The honest narrowing lives inside: switch and save follow the row state.
+    expect(tpl).toContain(':disabled="kaRow !== null && kaRow.status === 0"')
+    expect(tpl).toContain('data-test="login-state-keepalive-locked"')
     expect(tpl).toContain("t('sessionState.keepaliveNeedsEnabled')")
   })
 

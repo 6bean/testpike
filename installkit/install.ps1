@@ -25,7 +25,7 @@ function Show-Usage {
 场景: first(S1) scale-out(S2) scale-in(S3) engines(S4) repair(S5)，别名 S1-S5
 选项: -Role executor|ai-node|platform  -Token 一次性入池令牌  -BaseUrl api 地址
       -MirrorBaseUrl 内网镜像根  -Restart 清位点从头再跑
-幂等可重跑、中断可续（位点文件）、全程日志落盘、失败即人话原因。
+幂等可重跑、中断可续（位点文件）、全程日志落盘、失败即给出原因与修复入口。
 "@ | Write-Host
 }
 
@@ -97,14 +97,14 @@ $Py = if ($env:PYTHON_BIN) { $env:PYTHON_BIN } else { "python" }
 # §9.0 单源承诺=禁 PS 二套问答；失败 throw 走 Run-Step 位点语义=不记账可续跑）
 function Invoke-Py([string]$ScriptName, [string[]]$PyArgs) {
     & $Py (Join-Path $PSScriptRoot $ScriptName) @PyArgs
-    if ($LASTEXITCODE -ne 0) { throw ("{0} 失败（退出码 {1}）——原因见上方人话输出，修复后重跑同一命令即从断点续跑" -f $ScriptName, $LASTEXITCODE) }
+    if ($LASTEXITCODE -ne 0) { throw ("{0} 失败（退出码 {1}）——原因与修复入口见上方输出，修复后重跑同一命令即从断点续跑" -f $ScriptName, $LASTEXITCODE) }
 }
 
 $rc = 0
 switch ($Scenario) {
     "first" {
         # 预检 Windows 画像行为级随 T316 收口补账（本机 WSL 仅语法级实证，行为级不可达如实标注）
-        Run-Step "preflight" "环境预检" { Say ("预检：OS=Windows {0} PowerShell {1} python={2}（Windows 画像探测随 T316 收口补账）" -f [System.Environment]::OSVersion.Version, $PSVersionTable.PSVersion, $Py) } | Out-Null
+        Run-Step "preflight" "环境预检" { Say ("预检：OS=Windows {0} PowerShell {1} python={2}" -f [System.Environment]::OSVersion.Version, $PSVersionTable.PSVersion, $Py) } | Out-Null
         # 镜像源键拉取与 install.sh 同构（§9.5-5；CLI 显式优先，失败人话降级官方源不阻断）
         if (-not $MirrorBaseUrl -and $BaseUrl) {
             $fetched = & $Py (Join-Path $PSScriptRoot "enroll_client.py") fetch-mirror --base-url $BaseUrl
@@ -180,7 +180,7 @@ switch ($Scenario) {
             }
             Say "退池卸载段执行完毕（只删自装，账面已随卸毕销账）"
         } | Out-Null
-        Run-Step "pool-remove" "退池留痕" { Say "机器移除审计留痕（骨架位点，实联随 T317 命令队列）" } | Out-Null
+        Run-Step "pool-remove" "退池留痕" { Say "机器移除审计留痕（退池侧命令回执见机群页）" } | Out-Null
     }
     "engines" {
         # 卸载账外件闸（T318 包④，与 install.sh apply_engine_recipe 同构）：判定全在
@@ -207,7 +207,7 @@ switch ($Scenario) {
                     } | Out-Null
                 }
             }
-            Run-Step "apply-engine" "执行配方" { Say "S4 消费配方探测/安装/卸载+装后重报 capabilities（骨架位点，实联随 T317）" } | Out-Null
+            Run-Step "apply-engine" "执行配方" { Say "S4 消费配方：探测/安装/卸载 + 装后重报 capabilities" } | Out-Null
         }
     }
     "repair" {

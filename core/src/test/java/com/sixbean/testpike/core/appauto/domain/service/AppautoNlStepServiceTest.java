@@ -114,7 +114,8 @@ class AppautoNlStepServiceTest {
                 "swipe", "scroll", "back", "screenshot", "assertVisible", "assertNotVisible",
                 "assertText", "waitVisible", "extractText",
                 "deepLink", "openUrl", "rotation", "home", "clearData", "grantPermission",
-                "wakeUnlock", "networkProfile", "install", "uninstall", "verifyVersion"),
+                "wakeUnlock", "networkProfile", "install", "uninstall", "verifyVersion",
+                "perf", "launchPerf"),
                 sent.allowedVerbs(),
                 "下传动词集必须精确等于 IR_VERBS ∩ capabilities，禁手抄禁模型自律");
         assertEquals("MOBILEWRIGHT", sent.engineCode(), "引擎 code 归一大写后下传");

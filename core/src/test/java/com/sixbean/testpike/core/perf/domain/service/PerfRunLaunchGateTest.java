@@ -2,6 +2,7 @@ package com.sixbean.testpike.core.perf.domain.service;
 
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.perf.api.dto.PerfApprovalInput;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
@@ -62,15 +63,12 @@ class PerfRunLaunchGateTest {
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "发起闸测试项目_" + uniq, "PFGATE" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '开发-发起闸', 1, 'http://perf-target.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '生产-发起闸', 4, 'https://erp.prod.internal/api')", projectId);
-        prodEnvId = lastId("tp_project_env");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "发起闸测试项目_" + uniq, "PFGATE" + uniq);
+        devEnvId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '开发-发起闸', 1, 'http://perf-target.local/api')", projectId);
+        prodEnvId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '生产-发起闸', 4, 'https://erp.prod.internal/api')", projectId);
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -98,10 +96,6 @@ class PerfRunLaunchGateTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFGATE%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFGATE%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     /** Config write via ConfigService = cache synchronously invalidated (raw SQL update would

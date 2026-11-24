@@ -627,6 +627,14 @@ html:not(.dark) .el-table th.el-table__cell {
 .el-button.is-link {
   min-height: 24px;
 }
+/* Footer button rhythm, theme single source (field-measured gap 0): the
+   dirty-guard pattern wraps the save button in a tooltip trigger span, so
+   Element Plus's `.el-button + .el-button { margin-left: 12px }` never
+   matches and the footer pair renders flush against each other. Restore the
+   12px rhythm for tooltip-wrapped buttons instead of per-page patches. */
+.el-dialog__footer .el-button + span > .el-button {
+  margin-left: 12px;
+}
 .el-button--primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px var(--tp-primary-weak);

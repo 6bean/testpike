@@ -2,6 +2,7 @@ package com.sixbean.testpike.core.perf.domain.service;
 
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import com.sixbean.testpike.core.perf.domain.component.PerfMetricFrame;
 import org.junit.jupiter.api.AfterEach;
@@ -63,12 +64,10 @@ class PerfRunCiVerdictTest {
     void seedFixtures() {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "CI门禁读数测试项目_" + uniq, "PFVCD" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-CI', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "CI门禁读数测试项目_" + uniq, "PFVCD" + uniq);
+        envId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '性能-CI', 1, 'http://perf-target.local/api')", projectId);
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
                 + "allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
@@ -90,11 +89,6 @@ class PerfRunCiVerdictTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFVCD%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFVCD%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
     }
 
     /** Scenario with explicit SLA thresholds pinned into the launch snapshot. */
@@ -186,7 +180,8 @@ class PerfRunCiVerdictTest {
         long scenarioId = newScenarioWithSla("隔离门禁场景", Map.of("p95Ms", 500.0));
         long runId = launchSeedAndFinish(scenarioId, List.of(
                 legacyFrame(0, 80.0, 120.0, 0.0)));
-        long otherProject = lastId("tp_project") + 999_999L;
+        long otherProject = jdbcTemplate.queryForObject(
+                "SELECT coalesce(max(id), 0) + 999999 FROM tp_project", Long.class);
 
         assertThatThrownBy(() -> perfReportService.ciVerdict(otherProject, runId))
                 .isInstanceOf(ServiceException.class)

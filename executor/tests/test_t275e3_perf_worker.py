@@ -192,7 +192,7 @@ class TestPerfWorkerEnvelope:
         o = self._run({"taskId": 1, "actionJson": "{\"kind\":\"perf-run\"}"})
         assert o.result == "fail"
         assert o.error_type == 3
-        assert "压测派发上下文" in (o.error_detail or "")
+        assert "压测运行上下文" in (o.error_detail or "")
 
     def test_gatling引擎_执行支缺产物人话点名禁静默降级(self):
         # subprocess form: GATLING now dispatches to _run_gatling (the old

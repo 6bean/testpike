@@ -50,12 +50,15 @@ class K6AdapterTest {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         String projectCode = "K6ADP" + uniq;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        // Ids are read back through RETURNING so a foreign fixture row with an
+        // overridden id can never out-rank max(id) and re-parent these rows.
+        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "k6适配测试项目_" + uniq, projectCode);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-k6适配测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
+        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, '性能-k6适配测', 1, 'http://perf-target.local/api')",
+                projectId);
     }
 
     @AfterEach
@@ -71,10 +74,6 @@ class K6AdapterTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'K6ADP%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'K6ADP%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private static List<Map<String, Object>> requestSteps() {

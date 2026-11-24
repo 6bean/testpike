@@ -57,7 +57,7 @@ def parse_binding(mock: object) -> dict:
     if not space_key or not base_url:
         raise MockBindingError(
             "挂载仿真空间的 mock 信封段缺少 spaceKey/baseUrl——"
-            "禁静默回退真实环境（会谎报测试范围），请联系 core 版本与派发链")
+            "禁静默回退真实环境（会谎报测试范围），请在「仿真空间」核对 mock 版本配置后重试")
     return {"spaceKey": space_key, "baseUrl": base_url.rstrip("/") + "/"}
 
 

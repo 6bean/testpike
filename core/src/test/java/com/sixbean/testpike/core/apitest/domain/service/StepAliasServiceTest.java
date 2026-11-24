@@ -116,11 +116,19 @@ class StepAliasServiceTest {
         long pid = createStepAliasProject("V7G");
         ServiceException badKind = assertThrows(ServiceException.class, () ->
                 stepAliasService.create(1L, new StepAliasInput(pid, "订单号", "header", "$.x", null)));
-        assertTrue(badKind.getMessage().contains("两档"), "kind 值域须人话: " + badKind.getMessage());
+        assertTrue(badKind.getMessage().contains("「header」")
+                && badKind.getMessage().contains("仅支持 path"),
+                "kind 值域错误信息应点名输入值与允许集: " + badKind.getMessage());
         assertThrows(ServiceException.class, () ->
                 stepAliasService.create(1L, new StepAliasInput(pid, "订单号", "path", " ", null)));
         ServiceException noProject = assertThrows(ServiceException.class, () ->
                 stepAliasService.create(1L, new StepAliasInput(999999L, "订单号", "path", "$.x", null)));
-        assertTrue(noProject.getMessage().contains("项目不存在"));
+        // Shipped refusal wording names the missing project id and points to the
+        // header project picker (error-guidance three-part form), not the old
+        // contiguous two-word phrase.
+        assertTrue(noProject.getMessage().contains("999999")
+                && noProject.getMessage().contains("不存在")
+                && noProject.getMessage().contains("「选择项目」"),
+                "missing-project refusal should name the id and the picker entry: " + noProject.getMessage());
     }
 }

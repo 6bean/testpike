@@ -59,8 +59,8 @@ public class FcToolCatalog {
                 "description":"工具名片段或能力关键词（子串匹配工具目录条目，英文名片段命中率最高；查项目数据本身可走 apiAccess.catalog）"}}},"required":["query"]}""";
 
     private static final String SEARCH_DESCRIPTION =
-            "检索当前未随请求常驻的工具目录，返回匹配工具的完整参数结构；"
-                    + "需要目录中的能力时先调用本工具，再按返回的结构调用对应工具。";
+            "检索完整工具目录，返回匹配工具的完整参数结构；"
+                    + "当前会话没有的能力先调用本工具检索，再按返回的参数调用对应工具。";
 
     private final CoreGateway coreGateway;
     private final ObjectMapper mapper;
@@ -120,8 +120,8 @@ public class FcToolCatalog {
      * table — this is the whole point of deferral.
      */
     public String catalogNote(List<ToolFcAssemblyRemoteItem> deferred) {
-        StringBuilder note = new StringBuilder("\n\n工具目录（未常驻，需要时先用 ")
-                .append(NAME).append(" 检索完整参数再调用）：");
+        StringBuilder note = new StringBuilder("\n\n工具目录（以下工具需先检索后使用，用 ")
+                .append(NAME).append(" 按关键词检索完整参数后再调用）：");
         for (ToolFcAssemblyRemoteItem item : deferred) {
             String desc = descriptionOf(item);
             note.append("\n- ").append(item.name());

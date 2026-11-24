@@ -34,7 +34,7 @@ public final class PerfDatasetHealthCheck {
     public static String noteOf(String rowAllocMode, long poolRowCount,
                                 double peakRate, double durationSeconds) {
         if (PerfRowAllocModes.CYCLE.equals(rowAllocMode)) {
-            return "数据池按循环复用分配：行用尽后从头循环，长跑不会耗尽数据池。";
+            return "数据池按「循环复用」分配：数据行用完后从头开始，长时间运行不会耗尽数据池。";
         }
         if (!PerfRowAllocModes.SEQUENTIAL_EXCLUSIVE.equals(rowAllocMode)
                 && !PerfRowAllocModes.VUSER_EXCLUSIVE.equals(rowAllocMode)) {
@@ -50,7 +50,7 @@ public final class PerfDatasetHealthCheck {
         long drainSeconds = (long) Math.floor(poolRowCount / peakRate);
         return "按独占分配口径，本次压测约消耗 " + demand + " 行数据，超过数据池 "
                 + poolRowCount + " 行：预计约 " + drainSeconds + " 秒后数据池耗尽，"
-                + "之后新请求将无数据可用并提前停止。可改用循环复用分配，或扩充数据池后重试。";
+                + "之后新请求将无数据可用并提前停止。可改用「循环复用」分配，或扩充数据池后重试。";
     }
 
     private PerfDatasetHealthCheck() {

@@ -259,7 +259,7 @@ public class MockMatchEngine {
             return actual != null ? null : "缺少键「" + key + "」";
         }
         if (expected == null) {
-            return "matchType=" + matchType + " 必须给定 value";
+            return "匹配规则 matchType=" + matchType + " 还差匹配值：请在规则表单填写 value";
         }
         if (actual == null) {
             return "缺少「" + key + "」，期望 " + matchType + " " + expected;
@@ -303,7 +303,7 @@ public class MockMatchEngine {
     private String plainBodyViolation(String bodyType, JsonNode row, String body) {
         String expected = row.path("value").asText(null);
         if (expected == null) {
-            return "body " + bodyType + " 必须给定 value";
+            return "body 匹配（" + bodyType + "）还差匹配值：请在规则表单填写 value";
         }
         if (body == null) {
             return "请求无正文，无法按 " + bodyType + " 判定";
@@ -324,7 +324,7 @@ public class MockMatchEngine {
         String path = row.path("path").asText(null);
         String assertMode = row.path("assertMode").asText("equals");
         if (path == null || path.isBlank()) {
-            return "jsonpath 匹配必须给定 path（受限子集 $.a.b[0].c）";
+            return "jsonpath 匹配还差字段路径：请填写 path（支持 $.a.b[0].c 写法）";
         }
         String subsetViolation = NonUiActionContract.jsonPathViolation(path);
         if (subsetViolation != null) {
@@ -356,7 +356,7 @@ public class MockMatchEngine {
             default: {
                 String expected = row.path("value").asText(null);
                 if (expected == null) {
-                    return "assertMode=equals 必须给定 value";
+                    return "断言方式 assertMode=equals 还差期望值：请在规则表单填写 value";
                 }
                 if (found == null || found.isNull()) {
                     return "期望 " + path + "=" + expected + "，实际不存在";
@@ -422,7 +422,7 @@ public class MockMatchEngine {
         }
         String key = row.path("key").asText(null);
         if (key == null || key.isBlank()) {
-            return "form 匹配必须给定字段名 key";
+            return "表单匹配 form 还差字段名：请在规则表单填写 key";
         }
         return compareRow(key, fields.get(key), row);
     }
@@ -471,7 +471,7 @@ public class MockMatchEngine {
             return "匹配器种类「" + kind + "」不在允许集合 " + KINDS + " 内";
         }
         if (!"body".equals(kind) && row.path("key").asText("").isBlank()) {
-            return kind + " 匹配必须给定 key";
+            return kind + " 匹配还差字段名：请在规则表单填写 key";
         }
         if ("body".equals(kind)) {
             String bodyType = row.path("bodyType").asText("");
@@ -490,10 +490,10 @@ public class MockMatchEngine {
                             : "assertMode「" + assertMode + "」不在允许集合 " + ASSERT_MODES + " 内";
                 }
                 case "form" -> row.path("key").asText("").isBlank()
-                        ? "form 匹配必须给定字段名 key" : compareLegality(row);
+                        ? "表单匹配 form 还差字段名：请在规则表单填写 key" : compareLegality(row);
                 default -> row.path("value").asText("").isEmpty()
                         && !row.hasNonNull("value")
-                        ? "body " + bodyType + " 必须给定 value" : compareLegality(row);
+                        ? "body 匹配（" + bodyType + "）还差匹配值：请在规则表单填写 value" : compareLegality(row);
             };
         }
         return compareLegality(row);
@@ -506,7 +506,7 @@ public class MockMatchEngine {
             return "比较方式「" + matchType + "」不在允许集合 " + COMPARE_TYPES + " 内";
         }
         if (!"exists".equals(matchType) && row.path("value").asText("").isBlank()) {
-            return "matchType=" + matchType + " 必须给定 value";
+            return "匹配规则 matchType=" + matchType + " 还差匹配值：请在规则表单填写 value";
         }
         if ("regex".equals(matchType)) {
             try {

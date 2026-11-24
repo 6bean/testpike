@@ -1,6 +1,7 @@
 package com.sixbean.testpike.core.perf.domain.service;
 
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,13 +48,10 @@ class PerfRunPagedWindowTest {
     void seedFixtures() {
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "运行窗口测试项目_" + uniq, "PERFWINDOW" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-运行窗口', 1, 'http://perf-target.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)", "运行窗口测试项目_" + uniq, "PERFWINDOW" + uniq);
+        envId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '性能-运行窗口', 1, 'http://perf-target.local/api')", projectId);
     }
 
     @AfterEach
@@ -69,10 +67,6 @@ class PerfRunPagedWindowTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFWINDOW%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFWINDOW%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private long newScenario(String name) {

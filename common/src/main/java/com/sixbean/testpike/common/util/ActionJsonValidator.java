@@ -423,7 +423,7 @@ public class ActionJsonValidator {
     private String sqlStepViolation(String action, JsonNode step) {
         JsonNode conn = step.get("conn");
         if (conn == null || conn.isNull() || conn.asText().isBlank()) {
-            return "必须给定 conn（连接名，经项目×环境挂接解析，占位符写法例 {{ENV:DB_SIT}}）";
+            return "还差数据库连接名：请在该步骤填写 conn（连接在项目×环境挂接中选择，占位符写法例 {{ENV:DB_SIT}}）";
         }
         return SqlStatementContract.violation(action,
                 step.path("sql").asText(null), step.get("params"));

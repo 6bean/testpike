@@ -87,7 +87,8 @@ def test_cmd_compose_refuses_false_green_when_vhost_reconcile_fails(tmp_path, mo
     pass
     monkeypatch.setattr(s1_bootstrap, "compose_stages",
                         lambda *a, **k: [{"phase": "middleware", "cmd": ["true"]}])
-    monkeypatch.setattr(s1_bootstrap, "_execute", lambda cmd: 0)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", lambda cmd: (0, ""))
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images", lambda *a, **k: True)
     monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost",
                         lambda **kw: (False, ["mock: management down"]))
     args = _compose_args(tmp_path)
@@ -98,7 +99,9 @@ def test_cmd_compose_green_and_boot_order_reconcile_after_middleware(tmp_path, m
     order = []
     monkeypatch.setattr(s1_bootstrap, "compose_stages",
                         lambda *a, **k: [{"phase": "middleware", "cmd": ["true"]}])
-    monkeypatch.setattr(s1_bootstrap, "_execute", lambda cmd: order.append("middleware") or 0)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage",
+                        lambda cmd: order.append("middleware") or (0, ""))
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images", lambda *a, **k: True)
     def fake_ensure(**kw):
         order.append("vhost")
         return True, []

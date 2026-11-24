@@ -16,6 +16,7 @@ import com.sixbean.testpike.core.user.api.dto.UserQuery;
 import com.sixbean.testpike.core.user.api.dto.UserUpdateInput;
 import com.sixbean.testpike.core.user.domain.component.PasswordAttemptGuard;
 import com.sixbean.testpike.core.user.domain.component.UserExcelParser;
+import com.sixbean.testpike.core.user.domain.component.UserRefusals;
 import com.sixbean.testpike.core.user.domain.component.UserValidationRules;
 
 
@@ -99,7 +100,7 @@ public class UserServiceImpl implements UserService {
         String password = input.password();
         String displayName = trimToNull(input.displayName());
         if (username == null || username.length() > 50) {
-            throw new ServiceException("登录名不能为空且不超过 50 字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.usernameInvalid(input.username()), BizErrorCode.VALIDATION_ERROR);
         }
         validatePassword(password, "初始密码");
         validateRole(input.role());
@@ -112,7 +113,7 @@ public class UserServiceImpl implements UserService {
                     """, Long.class, username, passwordEncoder.encode(password), display,
                     trimToNull(input.email()), trimToNull(input.phone()), input.role(), createdBy));
         } catch (DuplicateKeyException e) {
-            throw new ServiceException("登录名 %s 已存在，请更换", BizErrorCode.RESOURCE_CONFLICT, username);
+            throw new ServiceException(UserRefusals.loginNameExists(username), BizErrorCode.RESOURCE_CONFLICT);
         }
         syncPrimaryRole(newUserId, input.role());
         return newUserId;
@@ -124,7 +125,7 @@ public class UserServiceImpl implements UserService {
         get(userId);
         validateRole(input.role());
         if (input.status() != 0 && input.status() != 1) {
-            throw new ServiceException("状态仅支持 1=启用 / 0=停用", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.statusInvalid(input.status()), BizErrorCode.VALIDATION_ERROR);
         }
         String displayName = trimToNull(input.displayName());
         jdbcTemplate.update("""
@@ -143,11 +144,11 @@ public class UserServiceImpl implements UserService {
         UserInfo info = get(userId);
         if (oldPassword == null || !passwordEncoder.matches(oldPassword, info.passwordHash())) {
             passwordAttemptGuard.recordFailure(userId);
-            throw new ServiceException("原密码不正确", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.oldPasswordMismatch(), BizErrorCode.VALIDATION_ERROR);
         }
         validatePassword(newPassword, "新密码");
         if (passwordEncoder.matches(newPassword, info.passwordHash())) {
-            throw new ServiceException("新密码不能与原密码相同", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.newPasswordSameAsOld(), BizErrorCode.VALIDATION_ERROR);
         }
         jdbcTemplate.update("UPDATE tp_user SET password_hash = ?, password_changed_at = now(), updated_at = now() WHERE id = ?",
                 passwordEncoder.encode(newPassword), userId);
@@ -161,11 +162,13 @@ public class UserServiceImpl implements UserService {
         UserInfo info = get(userId);
         String newDisplayName = trimToNull(displayName);
         if (newDisplayName != null && newDisplayName.length() > 100) {
-            throw new ServiceException("昵称不能超过 100 字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.nicknameTooLong(newDisplayName.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String newAvatar = trimToNull(avatar);
         if (newAvatar != null && newAvatar.length() > 200) {
-            throw new ServiceException("头像地址不能超过 200 字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.avatarUrlTooLong(newAvatar.length()),
+                    BizErrorCode.VALIDATION_ERROR);
         }
         jdbcTemplate.update("""
                 UPDATE tp_user SET display_name = ?, avatar = ?, updated_at = now() WHERE id = ?
@@ -178,7 +181,7 @@ public class UserServiceImpl implements UserService {
     public UserInfo delete(Long operatorId, long userId) {
         get(userId);
         if (operatorId != null && operatorId == userId) {
-            throw new ServiceException("不能删除当前登录账号，请先移交管理员职责", BizErrorCode.FORBIDDEN);
+            throw new ServiceException(UserRefusals.deleteSelfForbidden(userId), BizErrorCode.FORBIDDEN);
         }
         jdbcTemplate.update("UPDATE tp_user SET deleted = 1, updated_at = now() WHERE id = ?", userId);
         return get(userId);
@@ -225,7 +228,7 @@ public class UserServiceImpl implements UserService {
     public ImportResult retryFailedUsers(Long operatorId, byte[] file, String fileName,
                                          List<Integer> retryRows) {
         if (retryRows == null || retryRows.isEmpty()) {
-            throw new ServiceException("请选择需要重试的失败项（行号不能为空）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(UserRefusals.retryRowsEmpty(), BizErrorCode.VALIDATION_ERROR);
         }
         List<UserImportRow> rows = userExcelParser.parse(file, fileName);
         Set<Integer> retrySet = new HashSet<>(retryRows);
@@ -290,7 +293,7 @@ public class UserServiceImpl implements UserService {
         List<UserInfo> rows = jdbcTemplate.query(
                 "SELECT * FROM tp_user WHERE id = ?", this::mapRow, userId);
         if (rows.isEmpty()) {
-            throw new ServiceException("用户不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(UserRefusals.userNotFound(userId), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -362,7 +365,7 @@ public class UserServiceImpl implements UserService {
         UserInfo user = rows.get(0);
         if (user.lockedUntil() != null && user.lockedUntil().isAfter(LocalDateTime.now())) {
             long remainMinutes = Math.max(1, ChronoUnit.MINUTES.between(LocalDateTime.now(), user.lockedUntil()));
-            throw new ServiceException("账号已锁定，请 " + remainMinutes + " 分钟后再试或联系管理员",
+            throw new ServiceException(UserRefusals.accountLocked(remainMinutes),
                     BizErrorCode.LOCKED);
         }
         if (user.lockedUntil() != null) {
@@ -374,7 +377,7 @@ public class UserServiceImpl implements UserService {
                     user.passwordChangedAt());
         }
         if (user.status() != 1) {
-            throw new ServiceException("该账号已停用，请联系系统管理员", BizErrorCode.FORBIDDEN);
+            throw new ServiceException(UserRefusals.accountDisabled(user.username()), BizErrorCode.FORBIDDEN);
         }
         if (user.passwordHash() == null || !passwordEncoder.matches(password, user.passwordHash())) {
             int maxFail = configInt("testpike.login.max-fail", 5);

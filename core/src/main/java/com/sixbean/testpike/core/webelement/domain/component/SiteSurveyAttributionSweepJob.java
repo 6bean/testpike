@@ -20,9 +20,12 @@ public class SiteSurveyAttributionSweepJob {
     private static final Logger log = LoggerFactory.getLogger(SiteSurveyAttributionSweepJob.class);
 
     private final SiteSurveyAttributionLedger attributionService;
+    private final com.sixbean.testpike.core.sched.domain.component.JobRunner jobRunner;
 
-    public SiteSurveyAttributionSweepJob(SiteSurveyAttributionLedger attributionService) {
+    public SiteSurveyAttributionSweepJob(SiteSurveyAttributionLedger attributionService,
+            com.sixbean.testpike.core.sched.domain.component.JobRunner jobRunner) {
         this.attributionService = attributionService;
+        this.jobRunner = jobRunner;
     }
 
     @SchedulerLock(name = "siteSurveyAttributionSweep", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
@@ -37,6 +40,7 @@ public class SiteSurveyAttributionSweepJob {
         } catch (Exception roundFailure) {
             log.warn("survey attribution sweep round skipped (next round retries, idempotent): {}",
                     roundFailure.getMessage());
+            jobRunner.alert("siteSurveyAttributionSweep", roundFailure);
         }
     }
 }

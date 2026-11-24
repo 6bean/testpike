@@ -4,6 +4,7 @@ import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.appauto.api.dto.AppautoTakeoverView;
 import com.sixbean.testpike.core.appauto.api.dto.TakeoverCreateInput;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,39 +34,34 @@ class AppautoTakeoverServiceTest {
     private long deviceId;
     private long batchId;
     private long taskId;
+    private long leaseRunId;
 
     @BeforeEach
     void setUp() {
         String code = "tkov" + System.nanoTime();
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        requesterId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '接管申请人', 2, 1)", "tkov-req-" + code);
-        requesterId = jdbcTemplate.queryForObject("SELECT id FROM tp_user WHERE username = ?",
-                Long.class, "tkov-req-" + code);
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        occupierId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '占用派发人', 3, 1)", "tkov-occ-" + code);
-        occupierId = jdbcTemplate.queryForObject("SELECT id FROM tp_user WHERE username = ?",
-                Long.class, "tkov-occ-" + code);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status, created_by) VALUES (?, ?, 1, ?)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status, created_by) VALUES (?, ?, 1, ?)",
                 "接管测试项目-" + code, code, requesterId);
-        projectId = jdbcTemplate.queryForObject("SELECT id FROM tp_project WHERE code = ?",
-                Long.class, code);
-        jdbcTemplate.update("INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
+        deviceId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
                         + " VALUES (?, '接管测试机', ?, 'ADB')", projectId, "tkov-" + code);
-        deviceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_appauto_device WHERE serial = ?", Long.class, "tkov-" + code);
-        jdbcTemplate.update("INSERT INTO tp_exec_batch (project_id, batch_no, name, status, type,"
+        batchId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_batch (project_id, batch_no, name, status, type,"
                         + " created_by) VALUES (?, ?, '接管测试批', 2, 1, ?)",
                 projectId, "tkov-" + code, occupierId);
-        batchId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_exec_batch WHERE batch_no = ?", Long.class, "tkov-" + code);
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, batch_id, status,"
+        taskId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, batch_id, status,"
                         + " schema_version, action_json, task_type)"
                         + " VALUES (?, 0, ?, 2, 'appauto-v1', '{\"kind\":\"app-auto-run\",\"steps\":[]}', 6)",
                 projectId, batchId);
-        taskId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_exec_task WHERE project_id = ? ORDER BY id DESC LIMIT 1",
-                Long.class, projectId).longValue();
-        jdbcTemplate.update("INSERT INTO tp_appauto_lease_run (device_id, project_id, batch_id,"
+        leaseRunId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_appauto_lease_run (device_id, project_id, batch_id,"
                         + " holder_executor_id, state, acquired_at, expires_at)"
                         + " VALUES (?, ?, ?, 'tkov-ex-1', 'ACTIVE', now(), now() + interval '1 hour')",
                 deviceId, projectId, batchId);
@@ -106,10 +102,9 @@ class AppautoTakeoverServiceTest {
                 Integer.class, occupierId, "TAKEOVER_REQ:" + id);
         assertEquals(1, notes, "占用者收接管申请站内信恰 1 行且 dedup 命中");
         Integer leaseUntouched = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_appauto_lease_run WHERE id ="
-                        + " (SELECT max(id) FROM tp_appauto_lease_run WHERE device_id = ?)"
+                "SELECT count(*) FROM tp_appauto_lease_run WHERE id = ?"
                         + " AND state = 'ACTIVE' AND holder_executor_id = 'tkov-ex-1'",
-                Integer.class, deviceId);
+                Integer.class, leaseRunId);
         assertEquals(1, leaseUntouched, "接管申请不改租约/流水持有者");
     }
 
@@ -200,7 +195,7 @@ class AppautoTakeoverServiceTest {
         long id = request("未开始先结束");
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> takeoverService.end(id, requesterId));
-        assertTrue(ex.getMessage().contains("仅进行中的接管"), "pending 结束=人话拒: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("仅对进行中的接管"), "pending 结束=人话拒: " + ex.getMessage());
     }
 
 
@@ -219,10 +214,9 @@ class AppautoTakeoverServiceTest {
     }
 
     private long insertUser(String username) {
-        jdbcTemplate.update("INSERT INTO tp_user (username, password_hash, display_name, role, status)"
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_user (username, password_hash, display_name, role, status)"
                         + " VALUES (?, 'x', '接管管理员', 1, 1)", username + System.nanoTime());
-        return jdbcTemplate.queryForObject(
-                "SELECT max(id) FROM tp_user WHERE username LIKE ?", Long.class, username + "%");
     }
 
     private int takeoverCount() {

@@ -143,8 +143,8 @@ public class PerfStepActionGate {
             return actionViolation;
         }
         if (step.path("url").asText("").isBlank()) {
-            return "压测步骤必须给定 url（留空会被编成只打环境基址的假流量），"
-                    + "支持 {{ENV:}} 占位符，例 {{ENV:BASE}}/orders";
+            return "压测步骤还差目标地址（url）：留空时只会访问环境根地址，测不到真实接口负载——"
+                    + "请在该步骤填写完整接口地址，支持 {{ENV:}} 占位符，例 {{ENV:BASE}}/orders";
         }
         return NonUiActionContract.httpRequestViolation(step);
     }

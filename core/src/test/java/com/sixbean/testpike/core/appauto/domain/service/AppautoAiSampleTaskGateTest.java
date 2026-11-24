@@ -4,6 +4,7 @@ import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.appauto.api.dto.AppautoAiSampleCacheHitRequest;
 import com.sixbean.testpike.core.appauto.api.dto.AppautoAiSampleRecordRequest;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,15 +38,14 @@ class AppautoAiSampleTaskGateTest {
     @BeforeEach
     void setUp() {
         String code = "apg" + System.nanoTime();
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "样本闸门测试项目-" + code, code);
-        projectId = jdbcTemplate.queryForObject("SELECT id FROM tp_project WHERE code = ?",
-                Long.class, code);
         caseId = 880000L + Math.floorMod(System.nanoTime(), 1000L);
         deviceId = 870000L + Math.floorMod(System.nanoTime(), 1000L);
-        jdbcTemplate.update("INSERT INTO tp_exec_task (project_id, case_id, status) "
-                + "VALUES (?, ?, 2)", projectId, caseId);
-        taskId = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_exec_task", Long.class);
+        taskId = FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_exec_task (project_id, case_id, status) VALUES (?, ?, 2)",
+                projectId, caseId);
         cleanSamples();
     }
 

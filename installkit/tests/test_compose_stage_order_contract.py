@@ -44,10 +44,33 @@ def _compose_args(tmp_path, tier=None):
         answers_file=_answers(tmp_path, tier), repo_root=str(ROOT))
 
 
+def _stage_recorder(order, rc=0, services_rc=None):
+    """Stage-runner double: records which stage ran, returns (rc, captured tail).
+
+    The real runner streams docker output and hands the tail to the failure
+    guide; a double that returns only an int would silently drop that contract.
+    """
+    def run(cmd):
+        joined = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+        is_services = "--profile" in joined
+        order.append("services" if is_services else "middleware")
+        if is_services and services_rc is not None:
+            return services_rc, ""
+        return rc, ""
+    return run
+
+
 @pytest.fixture(autouse=True)
 def _no_compose_stub(monkeypatch):
-    """Reconcile must be exercised for real here: the stub flag short-circuits it."""
+    """Reconcile must be exercised for real here: the stub flag short-circuits it.
+
+    The stage runner and the image relay are also neutralised: a unit run must
+    never reach a live docker daemon (an un-patched relay once started the real
+    middleware stack during the test session).
+    """
     monkeypatch.delenv("INSTALLKIT_COMPOSE_BIN", raising=False)
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images",
+                        lambda compose_file, profiles=(): True)
 
 
 # ------------------------------------------------------- staging shape
@@ -88,16 +111,11 @@ def test_executor_role_still_produces_no_stages(tmp_path):
 def test_reconcile_runs_between_the_two_stages(tmp_path, monkeypatch):
     order = []
 
-    def fake_execute(cmd):
-        joined = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
-        order.append("services" if "--profile" in joined else "middleware")
-        return 0
-
     def fake_ensure(**kwargs):
         order.append("vhost")
         return True, ["vhost ready"]
 
-    monkeypatch.setattr(s1_bootstrap, "_execute", fake_execute)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", _stage_recorder(order))
     monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost", fake_ensure)
     monkeypatch.setattr(s1_bootstrap, "four_services_guide",
                         lambda tier=None: order.append("guide") or ["g"])
@@ -109,16 +127,11 @@ def test_reconcile_runs_between_the_two_stages(tmp_path, monkeypatch):
 def test_reconcile_failure_blocks_the_service_stage(tmp_path, monkeypatch):
     order = []
 
-    def fake_execute(cmd):
-        joined = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
-        order.append("services" if "--profile" in joined else "middleware")
-        return 0
-
     def fake_ensure(**kwargs):
         order.append("vhost")
         return False, ["cannot reach the management API"]
 
-    monkeypatch.setattr(s1_bootstrap, "_execute", fake_execute)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", _stage_recorder(order))
     monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost", fake_ensure)
     assert s1_bootstrap.cmd_compose(_compose_args(tmp_path, "standard")) == 1
     assert order == ["middleware", "vhost"], \
@@ -127,21 +140,73 @@ def test_reconcile_failure_blocks_the_service_stage(tmp_path, monkeypatch):
 
 def test_middleware_failure_stops_before_reconcile(tmp_path, monkeypatch):
     order = []
-    monkeypatch.setattr(s1_bootstrap, "_execute", lambda cmd: order.append("middleware") or 1)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", _stage_recorder(order, rc=1))
     monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost",
                         lambda **kwargs: order.append("vhost") or (True, []))
     assert s1_bootstrap.cmd_compose(_compose_args(tmp_path, "standard")) == 1
     assert order == ["middleware"], "no reconcile against a queue that never came up"
 
 
-def test_service_stage_failure_is_reported(tmp_path, monkeypatch):
-    def fake_execute(cmd):
-        joined = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
-        return 0 if "--profile" not in joined else 1
+def test_service_stage_failure_is_reported(tmp_path, monkeypatch, capsys):
+    tail = ('Error response from daemon: failed to resolve reference '
+            '"docker.io/library/nginx:1.27-alpine": failed to do request: Head '
+            '"https://registry-1.docker.io/v2/library/nginx/manifests/1.27-alpine": '
+            'dial tcp 128.242.250.157:443: i/o timeout')
 
-    monkeypatch.setattr(s1_bootstrap, "_execute", fake_execute)
+    def failing_services(cmd):
+        joined = " ".join(cmd)
+        return (1, tail) if "--profile" in joined else (0, "")
+
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", failing_services)
     monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost", lambda **kwargs: (True, []))
     assert s1_bootstrap.cmd_compose(_compose_args(tmp_path, "standard")) == 1
+    err = capsys.readouterr().err
+    assert "nginx:1.27-alpine" in err, \
+        "the note names the image that never arrived, not just 'see the output above'"
+    assert "docker.m.daocloud.io/library/nginx:1.27-alpine" in err, \
+        "the detour command is literal and copy-pasteable"
+    assert "registry-mirrors" in err and "TP_DOCKER_MIRRORS" in err, \
+        "both the permanent engine fix and the hot-reloadable knob are named"
+
+
+def test_blocked_registry_teaches_the_detour_on_the_middleware_stage(tmp_path, monkeypatch, capsys):
+    """The screen case: compose dies on the first missing image on a hub-blocked host."""
+    tail = ('✘ seaweedfs-ui-auth Error failed to resolve reference '
+            '"docker.io/library/nginx:1.27-alpine": failed to do request: Head '
+            '"https://registry-1.docker.io/v2/library/nginx/manifests/1.27-alpine": '
+            'dial tcp 128.242.250.157:443: i/o timeout\n'
+            'Error response from daemon: failed to resolve reference')
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", lambda cmd: (1, tail))
+    assert s1_bootstrap.cmd_compose(_compose_args(tmp_path)) == 1
+    err = capsys.readouterr().err
+    assert "三条出路" in err and "docker load -i testpike-images.tar" in err, \
+        "an offline host gets the ferry recipe too, not only online workarounds"
+
+
+def test_relay_runs_before_the_middleware_stage_and_refuses_to_launch(tmp_path, monkeypatch):
+    """A stage that cannot get its images must not be launched just to fail on it."""
+    order = []
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images",
+                        lambda compose_file, profiles=(): order.append("relay") or False)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", _stage_recorder(order))
+    assert s1_bootstrap.cmd_compose(_compose_args(tmp_path)) == 1
+    assert order == ["relay"], "compose is skipped entirely when the images are not deliverable"
+
+
+def test_relay_sees_the_middleware_profile_only(tmp_path, monkeypatch):
+    """Stage one is middleware-only, so the relay must not be handed app profiles."""
+    seen = {}
+
+    def record(compose_file, profiles=()):
+        seen["profiles"] = tuple(profiles)
+        return True
+
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images", record)
+    monkeypatch.setattr(s1_bootstrap, "_run_stage", _stage_recorder([]))
+    monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost", lambda **kwargs: (True, []))
+    s1_bootstrap.cmd_compose(_compose_args(tmp_path, "standard"))
+    assert seen["profiles"] == (), \
+        "the app tier ships as buildable local images; pulling it through a hub mirror can only fail"
 
 
 # ------------------------------------------------------- privilege adaptation
