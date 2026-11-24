@@ -26,8 +26,9 @@ import static org.mockito.Mockito.when;
  * <p>Every user-facing refusal raised by {@link SessionTokenService} must
  * name the concrete failure (expected token length, grace window, which
  * operation broke) and carry a repair entry the human can actually follow
- * on screen: the literal 「退出登录」 avatar-menu item or the 「登录页」 the
- * router guard redirects to. The static gate
+ * on screen: the sign-out entry of the avatar menu or the sign-in page the
+ * router guard redirects to (the assertions below pin the exact CJK screen
+ * strings on purpose - screen literals are the contract). The static gate
  * (tools/error_guidance_coverage_gate.py) scans the sentence literals;
  * this class pins the same contract through the real component so a future
  * rewrite cannot silently drop a pointer again.

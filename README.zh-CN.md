@@ -3,6 +3,7 @@
 > **[English](README.md)** | 简体中文
 
 [![CI](https://github.com/6bean/testpike/actions/workflows/ci.yml/badge.svg)](https://github.com/6bean/testpike/actions/workflows/ci.yml)
+[![版本发布](https://img.shields.io/github/v/release/6bean/testpike)](https://github.com/6bean/testpike/releases)
 [![许可协议: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-informational)](https://github.com/6bean/testpike)
 [![Node 20](https://img.shields.io/badge/Node-20-brightgreen)](https://github.com/6bean/testpike)
