@@ -162,6 +162,11 @@ jobs:
             -e POSTGRES_DB=testpike -e POSTGRES_USER=testpike -e POSTGRES_HOST_AUTH_METHOD=trust \
             pgvector/pgvector:pg16
           until docker exec testpike-postgres pg_isready -U testpike >/dev/null 2>&1; do sleep 2; done
+          # The installer's engine/seed contract tests read factory rows over psql
+          # exactly like the java matrix does; a bare instance without the fresh
+          # install schema only ever passed against a dev machine's drifted database.
+          cat db/schema-init.sql | docker exec -i testpike-postgres psql -U testpike -d testpike -q -v ON_ERROR_STOP=1
+          echo "schema-init loaded: $(docker exec testpike-postgres psql -U testpike -d testpike -At -c 'select count(*) from information_schema.tables where table_schema=$$public$$') tables"
       - name: Installer unit tests
         env:
           DB_URL: jdbc:postgresql://localhost:15432/testpike

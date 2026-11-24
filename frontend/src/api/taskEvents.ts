@@ -486,6 +486,11 @@ export function probeTrailDoors(stateId: number): TrailDoorApi {
   return trailDoorsFor(`/session-states/${stateId}/probe-events`)
 }
 
+/** Trail doors of one login state's keep-alive trail (same door grammar). */
+export function keepaliveTrailDoors(stateId: number): TrailDoorApi {
+  return trailDoorsFor(`/session-states/${stateId}/keepalive-events`)
+}
+
 /** Trail doors of one credential's test trail. */
 export function credentialTrailDoors(credentialId: number): TrailDoorApi {
   return trailDoorsFor(`/appauto/credentials/${credentialId}/test-events`)
@@ -508,6 +513,11 @@ export interface AiTaskRunRow {
 /** Run history of one login state's probe trail (newest first). */
 export function listProbeRuns(stateId: number): Promise<AiTaskRunRow[]> {
   return request<AiTaskRunRow[]>({ url: `/session-states/${stateId}/probe-runs`, method: 'get' })
+}
+
+/** Run history of one login state's keep-alive trail (newest first). */
+export function listKeepaliveRuns(stateId: number): Promise<AiTaskRunRow[]> {
+  return request<AiTaskRunRow[]>({ url: `/session-states/${stateId}/keepalive-runs`, method: 'get' })
 }
 
 /** Run history of one credential's test trail (newest first). */

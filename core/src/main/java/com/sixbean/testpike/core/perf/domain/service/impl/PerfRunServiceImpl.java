@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.perf.domain.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
+import com.sixbean.testpike.core.perf.domain.component.PerfRunRefusals;
 import com.sixbean.testpike.core.audit.domain.component.Audit;
 import com.sixbean.testpike.core.common.domain.component.SortColumnPolicy;
 import com.sixbean.testpike.core.mock.domain.component.PageWindow;
@@ -107,7 +108,7 @@ public class PerfRunServiceImpl implements PerfRunService {
                         + "FROM tp_perf_scenario WHERE id = :s AND project_id = :p",
                 new MapSqlParameterSource("s", scenarioId).addValue("p", projectId))
                 .stream().findFirst()
-                .orElseThrow(() -> new ServiceException("压测场景不存在或不属于该项目，无法发起运行",
+                .orElseThrow(() -> new ServiceException(PerfRunRefusals.scenarioMissing(scenarioId),
                         BizErrorCode.NOT_FOUND));
         // GB-1 scenario × environment decoupling: an explicit launch-time environment
         // override replaces the scenario default for every downstream decision — gate
@@ -241,11 +242,11 @@ public class PerfRunServiceImpl implements PerfRunService {
                         new MapSqlParameterSource("e", envIdOverride))
                 .stream().findFirst().orElse(null);
         if (env == null) {
-            throw new ServiceException("压测发起所选环境不存在，请重新选择目标环境",
+            throw new ServiceException(PerfRunRefusals.envMissing(envIdOverride),
                     BizErrorCode.NOT_FOUND);
         }
         if (((Number) env.get("project_id")).longValue() != projectId) {
-            throw new ServiceException("压测发起所选环境不属于该项目，无法跨项目压测",
+            throw new ServiceException(PerfRunRefusals.envNotInProject(envIdOverride, projectId),
                     BizErrorCode.FORBIDDEN);
         }
         return envIdOverride;
@@ -298,7 +299,7 @@ public class PerfRunServiceImpl implements PerfRunService {
                 ((Number) scenario.get("env_id")).longValue(), concurrency,
                 (String) scenario.get("isolation_mode"), null));
         if (!decision.passed()) {
-            throw new ServiceException("压测运行启动被安全闸拦截：" + decision.reason(),
+            throw new ServiceException(PerfRunRefusals.gateBlocked(decision.reason()),
                     BizErrorCode.FORBIDDEN);
         }
     }
@@ -326,9 +327,8 @@ public class PerfRunServiceImpl implements PerfRunService {
         }
         int ceilingHours = perfConfigReader.maxDurationHours();
         if (durationSeconds > ceilingHours * 3600.0) {
-            throw new ServiceException("压测运行启动被时长上限拦截：声明时长 "
-                    + trimHours(durationSeconds / 3600.0) + " 小时超过当前上限 " + ceilingHours
-                    + " 小时（长跑请拆分为多批短程运行），上限可热更调整",
+            throw new ServiceException(PerfRunRefusals.durationCeiling(
+                    trimHours(durationSeconds / 3600.0), ceilingHours),
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -379,11 +379,11 @@ public class PerfRunServiceImpl implements PerfRunService {
     @Audit(objectType = "perf_run", action = "finish", objectId = "#runId")
     public void finish(long projectId, long runId, int status, String stopReason) {
         if (!STATUSES.contains(status)) {
-            throw new ServiceException("未知运行状态 " + status + "，可选=1 运行中/2 正常结束/3 熔断停/4 人工停",
+            throw new ServiceException(PerfRunRefusals.unknownStatus(status),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!FINAL_STATUSES.contains(status)) {
-            throw new ServiceException("结束运行只接受终态（2 正常结束/3 熔断停/4 人工停）",
+            throw new ServiceException(PerfRunRefusals.statusNotTerminal(status),
                     BizErrorCode.VALIDATION_ERROR);
         }
         int updated = jdbc.update("UPDATE tp_perf_run SET status = :st, stop_reason = :r, "
@@ -391,7 +391,7 @@ public class PerfRunServiceImpl implements PerfRunService {
                 new MapSqlParameterSource("st", status).addValue("r", stopReason)
                         .addValue("id", runId).addValue("p", projectId));
         if (updated == 0) {
-            throw new ServiceException("压测运行不存在、不属于该项目或已结束", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(PerfRunRefusals.finishNotFound(runId, projectId), BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -408,19 +408,19 @@ public class PerfRunServiceImpl implements PerfRunService {
     @Audit(objectType = "perf_run", action = "mark", objectId = "#runId")
     public void mark(long projectId, long runId, String mark, Long operatorId) {
         if (mark == null || !MARKS.contains(mark)) {
-            throw new ServiceException("未知运行标记 " + mark + "，可选=GOLDEN 金跑/CANDIDATE 候选/VOID 作废",
+            throw new ServiceException(PerfRunRefusals.unknownMark(mark),
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT id, status, scenario_id "
                         + "FROM tp_perf_run WHERE id = :id AND project_id = :p",
                 new MapSqlParameterSource("id", runId).addValue("p", projectId));
         if (rows.isEmpty()) {
-            throw new ServiceException("压测运行不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(PerfRunRefusals.markNotFound(runId), BizErrorCode.NOT_FOUND);
         }
         Map<String, Object> run = rows.get(0);
         int status = ((Number) run.get("status")).intValue();
         if (!FINAL_STATUSES.contains(status)) {
-            throw new ServiceException("运行中的压测不可打标，请等待运行结束（正常结束/熔断停/人工停）后再标记",
+            throw new ServiceException(PerfRunRefusals.markWhileRunning(runId, status),
                     BizErrorCode.VALIDATION_ERROR);
         }
         // A-13 decoupled history (GB-2 ledger lists it): the scenario link is
@@ -608,7 +608,7 @@ public class PerfRunServiceImpl implements PerfRunService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception impossible) {
-            throw new ServiceException("运行快照序列化失败", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(PerfRunRefusals.snapshotUnserializable(), BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

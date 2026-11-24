@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
+import com.sixbean.testpike.core.suites.domain.component.RegressionSuiteRefusals;
 import com.sixbean.testpike.core.audit.domain.component.Audit;
 import com.sixbean.testpike.core.common.clientobject.PageResult;
 import com.sixbean.testpike.core.common.domain.component.SortColumnPolicy;
@@ -158,7 +159,7 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
                         readLongColumn(rs, "appauto_env_profile_id"),
                         readLongColumn(rs, "mock_space_id")), id);
         if (rows.isEmpty()) {
-            throw new ServiceException("回归集不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException(RegressionSuiteRefusals.suiteMissing(id), BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -240,19 +241,19 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
     public SuiteRunResult run(long operatorId, long id) {
         SuiteInfo suite = get(id);
         if (suite.status() != 1) {
-            throw new ServiceException("回归集已停用，请先启用后再一键生成",
+            throw new ServiceException(RegressionSuiteRefusals.suiteDisabled(id),
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         if (suite.caseIds().isEmpty()) {
-            throw new ServiceException("回归集内无用例，请先添加用例再一键生成",
+            throw new ServiceException(RegressionSuiteRefusals.noCases(id),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (suite.envIds().isEmpty()) {
-            throw new ServiceException("回归集未配置环境，请先选择环境再一键生成",
+            throw new ServiceException(RegressionSuiteRefusals.noEnv(id),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (suite.defaultAssigneeIds().isEmpty()) {
-            throw new ServiceException("回归集未配置默认执行人，请先配置后再一键生成",
+            throw new ServiceException(RegressionSuiteRefusals.noAssignee(id),
                     BizErrorCode.VALIDATION_ERROR);
         }
 
@@ -270,7 +271,7 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
             }
         }
         if (validCaseIds.isEmpty()) {
-            throw new ServiceException("回归集内 " + skipped + " 条用例均已归档/删除，无法生成计划",
+            throw new ServiceException(RegressionSuiteRefusals.allCasesArchived(skipped),
                     BizErrorCode.VALIDATION_ERROR);
         }
 
@@ -299,7 +300,7 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
 
         String message = "已生成计划「" + planName + "」：" + batch.message();
         if (skipped > 0) {
-            message += "；" + skipped + " 条已归档/删除用例自动跳过（IT-L3-01）";
+            message += "；" + skipped + " 条已归档/删除用例自动跳过（可在「回归集」页「编辑」→「用例圈选」更新清单）";
         }
         return new SuiteRunResult(plan.id(), planName, batch.batchCount(), batch.taskCount(),
                 skipped, message);
@@ -310,16 +311,16 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
                           List<Long> envIds, List<Long> assigneeIds) {
         projectAccessService.requireProjectMember(projectId, operatorId);
         if (name == null || name.isBlank()) {
-            throw new ServiceException("回归集名称不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RegressionSuiteRefusals.nameBlank(), BizErrorCode.VALIDATION_ERROR);
         }
         if (name.length() > 100) {
-            throw new ServiceException("回归集名称长度不能超过 100 个字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RegressionSuiteRefusals.nameTooLong(name.length()), BizErrorCode.VALIDATION_ERROR);
         }
         if (caseIds == null || caseIds.isEmpty()) {
-            throw new ServiceException("请选择回归集用例（至少 1 条）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RegressionSuiteRefusals.casesEmpty(), BizErrorCode.VALIDATION_ERROR);
         }
         if (envIds == null || envIds.isEmpty()) {
-            throw new ServiceException("请选择回归集执行环境", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(RegressionSuiteRefusals.envEmpty(), BizErrorCode.VALIDATION_ERROR);
         }
         String placeholders = String.join(",",
                 caseIds.stream().map(x -> "?").toList());
@@ -327,7 +328,8 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
                 "SELECT count(*) FROM tp_test_case WHERE id IN (" + placeholders + ") AND project_id = ?",
                 Long.class, concat(caseIds, projectId));
         if (matched == null || matched != caseIds.size()) {
-            throw new ServiceException("存在不属于该项目的用例，回归集保存失败",
+            throw new ServiceException(RegressionSuiteRefusals.foreignCases(
+                    matched == null ? caseIds.size() : (int) (caseIds.size() - matched), caseIds.size()),
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (assigneeIds != null && !assigneeIds.isEmpty()) {
@@ -335,7 +337,7 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
                     .map(MemberInfo::userId).toList();
             for (Long uid : assigneeIds) {
                 if (!memberIds.contains(uid)) {
-                    throw new ServiceException("默认执行人（用户 ID=" + uid + "）不是本项目成员",
+                    throw new ServiceException(RegressionSuiteRefusals.assigneeNotMember(uid),
                             BizErrorCode.VALIDATION_ERROR);
                 }
             }
@@ -366,7 +368,7 @@ public class RegressionSuiteServiceImpl implements RegressionSuiteService {
         try {
             return objectMapper.writeValueAsString(o);
         } catch (Exception e) {
-            throw new ServiceException("参数序列化失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException(RegressionSuiteRefusals.serializeFailed(), BizErrorCode.INTERNAL_ERROR);
         }
     }
 

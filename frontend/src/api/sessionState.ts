@@ -21,6 +21,17 @@ export interface LoginStateRow {
   remark: string | null
   createdAt: string | null
   updatedAt: string | null
+  /** Keep-alive family (mirror of admin LoginStateView): the per-row opt-in
+   * switch, the address the scheduler GETs, an interval override in minutes
+   * (null = follow the global cadence), and the bookkeeping the scheduler
+   * writes on every due round. */
+  keepaliveEnabled: number | null
+  keepaliveUrl: string | null
+  keepaliveIntervalMinutes: number | null
+  lastKeepaliveAt: string | null
+  lastKeepaliveVerdict: string | null
+  keepaliveFailStreak: number | null
+  keepaliveStopReason: string | null
   
   extraAuthRefs: ExtraAuthRefDto[] | null
 }
@@ -207,6 +218,41 @@ export function probeLoginState(
 export function listProbeEvents(id: number, runToken: string, cursor: number): Promise<TestRunEventDto[]> {
   return request<TestRunEventDto[]>({
     url: `/session-states/${id}/probe-events`,
+    method: 'get',
+    params: { runToken, cursor },
+  })
+}
+
+/**
+ * Keep-alive switch payload (admin PATCH /session-states/{id}/keepalive).
+ * `url` is the protected address the scheduler GETs every round; an empty
+ * value keeps the address already stored on the row. `intervalMinutes` is a
+ * per-row cadence override inside 5-1440; null means "follow the global
+ * cadence key session.keepalive.interval-minutes".
+ */
+export interface KeepAlivePayload {
+  enabled: boolean
+  url?: string | null
+  intervalMinutes?: number | null
+}
+
+/**
+ * Flip one row's keep-alive switch (manage door). Enabling runs the
+ * synchronous double pre-check server-side; a refusal answer names the reason
+ * and the page shows that sentence verbatim — no second validation here.
+ */
+export function setSessionStateKeepAlive(id: number, payload: KeepAlivePayload): Promise<void> {
+  return request<void>({
+    url: `/session-states/${id}/keepalive`,
+    method: 'patch',
+    data: payload,
+  })
+}
+
+/** Keep-alive transition trail of one run (same masked rows as the probe trail). */
+export function listKeepaliveEvents(id: number, runToken: string, cursor: number): Promise<TestRunEventDto[]> {
+  return request<TestRunEventDto[]>({
+    url: `/session-states/${id}/keepalive-events`,
     method: 'get',
     params: { runToken, cursor },
   })

@@ -84,10 +84,37 @@
               </span>
               <span v-else-if="col.key === 'scopeOrigins'">{{ scopeText(row) }}</span>
               <span v-else-if="col.key === 'extraAuthRefs'" :data-test="`login-state-extra-count-${row.id}`">{{ extraRefsText(row) }}</span>
+              <span v-else-if="col.key === 'keepalive'" :data-test="`login-state-keepalive-${row.id}`">
+                <el-tag :type="keepaliveTag(row)" size="small">{{ keepaliveText(row) }}</el-tag>
+                <p v-if="keepaliveStopped(row)" class="keepalive-stop" data-test="login-state-keepalive-stop">
+                  <span class="keepalive-stop-reason">{{ row.keepaliveStopReason }}</span>
+                  <span class="keepalive-stop-fix">{{ t('sessionState.keepaliveFixPath') }}</span>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    plain
+                    data-test="login-state-keepalive-reopen"
+                    @click="openKeepAlive(row, true)"
+                  >
+                    {{ t('sessionState.keepaliveReopen') }}
+                  </el-button>
+                </p>
+              </span>
+              <span v-else-if="col.key === 'lastKeepaliveVerdict'">
+                <el-tag v-if="row.lastKeepaliveVerdict" :type="verdictTag(row.lastKeepaliveVerdict)" size="small" data-test="login-state-keepalive-verdict">{{ verdictText(row.lastKeepaliveVerdict) }}</el-tag>
+                <span v-else>—</span>
+                <el-tooltip
+                  v-if="(row.keepaliveFailStreak ?? 0) > 0"
+                  :content="t('sessionState.keepaliveStreakTip', { n: row.keepaliveFailStreak ?? 0 })"
+                  placement="top"
+                >
+                  <span class="keepalive-streak" data-test="login-state-keepalive-streak">{{ t('sessionState.keepaliveStreak', { n: row.keepaliveFailStreak ?? 0 }) }}</span>
+                </el-tooltip>
+              </span>
               <span v-else>{{ cellText(row, col.key) }}</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('sessionState.actions')" width="460" fixed="right">
+          <el-table-column :label="t('sessionState.actions')" width="580" fixed="right">
             <template #default="{ row }">
               <el-button
                 size="small"
@@ -108,6 +135,22 @@
               >
                 {{ t('sessionState.probe') }}
               </el-button>
+              <el-tooltip
+                :content="t('sessionState.keepaliveNeedsEnabled')"
+                placement="top"
+                :disabled="row.status !== 0"
+              >
+                <el-button
+                  size="small"
+                  type="primary"
+                  plain
+                  :disabled="row.status === 0"
+                  data-test="login-state-keepalive-btn"
+                  @click="openKeepAlive(row, null)"
+                >
+                  {{ t('sessionState.keepalive') }}
+                </el-button>
+              </el-tooltip>
               <el-button
                 size="small"
                 type="primary"
@@ -194,6 +237,80 @@
           <el-button data-test="login-state-probe-close" @click="probeVisible = false">{{ t('common.close') }}</el-button>
         </template>
       </el-dialog>
+
+      <!-- Keep-alive door : the row's own cadence switch. Enabling runs the
+           server-side double pre-check; a refusal answer is shown verbatim
+           (core owns the wording, this page adds no second validation).
+           The drawer below replays the last keep-alive transition trail over
+           the SAME tail base as the probe door — one chain, no second one. -->
+      <el-dialog
+        v-model="kaVisible"
+        :title="t('sessionState.keepaliveTitle', { name: kaRow?.stateName || '' })"
+        class="tp-dialog--lg"
+        append-to-body
+        data-test="login-state-keepalive-dialog"
+      >
+        <p class="probe-hint" data-test="login-state-keepalive-hint">{{ t('sessionState.keepaliveHint') }}</p>
+        <div class="probe-row keepalive-switch-row">
+          <label class="probe-field-label" for="login-state-keepalive-switch">{{ t('sessionState.keepaliveSwitchLabel') }}</label>
+          <el-switch
+            id="login-state-keepalive-switch"
+            v-model="kaEnabled"
+            :aria-label="t('sessionState.keepaliveSwitchLabel')"
+            data-test="login-state-keepalive-switch"
+          />
+        </div>
+        <div class="probe-row">
+          <el-input
+            v-model="kaUrl"
+            class="probe-url-input"
+            :placeholder="t('sessionState.keepaliveUrlPlaceholder')"
+            data-test="login-state-keepalive-url"
+            clearable
+          />
+        </div>
+        <div class="probe-row">
+          <label class="probe-field-label" for="login-state-keepalive-interval">{{ t('sessionState.keepaliveIntervalLabel') }}</label>
+          <el-input
+            id="login-state-keepalive-interval"
+            v-model="kaInterval"
+            class="keepalive-interval-input"
+            type="number"
+            :min="5"
+            :max="1440"
+            :placeholder="t('sessionState.keepaliveIntervalPlaceholder')"
+            data-test="login-state-keepalive-interval"
+          />
+          <span class="keepalive-interval-hint" data-test="login-state-keepalive-interval-hint">{{ t('sessionState.keepaliveIntervalHint') }}</span>
+        </div>
+        <TaskTailDrawer
+          v-if="kaTailOpen"
+          :events="kaEvents"
+          :live="false"
+          :doors="kaDoors"
+          :expired="kaTrailExpired"
+          retention-param="ai.stream.event-retention-days"
+        />
+        <template #footer>
+          <el-button data-test="login-state-keepalive-history" @click="openKaHistory">
+            {{ t('sessionState.keepaliveHistory') }}
+          </el-button>
+          <el-button data-test="login-state-keepalive-cancel" @click="kaVisible = false">{{ t('common.close') }}</el-button>
+          <el-button type="primary" :loading="kaSaving" data-test="login-state-keepalive-save" @click="saveKeepAlive">
+            {{ t('sessionState.keepaliveSave') }}
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- R67 revisit entry of the keep-alive trail: run list + cursor replay
+           through the shared history base (same component, different door). -->
+      <RunHistoryDialog
+        v-model="kaHistVisible"
+        :load-runs="loadKaRuns"
+        :fetch-frames="fetchKaFrames"
+        :doors="kaDoors"
+        retention-param="ai.stream.event-retention-days"
+      />
 
       <!-- R67 revisit door : list this state's historical probe runs and
            replay any run's tail through the SHARED base (no second chain). -->
@@ -327,16 +444,18 @@ import {
   listSessionStatesPage,
   registerSessionState,
   setSessionStateEnabled,
+  setSessionStateKeepAlive,
   updateSessionState,
   type LoginStateRow,
   probeLoginState,
   listProbeEvents,
+  listKeepaliveEvents,
 } from '@/api/sessionState'
 import TaskTailDrawer from '@/components/TaskTailDrawer.vue'
 import RunHistoryDialog from '@/components/RunHistoryDialog.vue'
 import { listCredentials, type AppautoCredential } from '@/api/appauto'
-import { probeTrailDoors, listProbeRuns } from '@/api/taskEvents'
-import { useTestRunTail } from '@/composables/useTestRunTail'
+import { probeTrailDoors, listProbeRuns, keepaliveTrailDoors, listKeepaliveRuns } from '@/api/taskEvents'
+import { useTestRunTail, type TestRunEvent } from '@/composables/useTestRunTail'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -393,12 +512,18 @@ const LEDGER_COLUMNS: ColumnDef[] = [
   { key: 'scopeOrigins', labelKey: 'sessionState.scopeOrigins', width: null },
   { key: 'expiresAt', labelKey: 'sessionState.expiresAt', width: null },
   { key: 'lastVerifiedAt', labelKey: 'sessionState.lastVerifiedAt', width: null },
+  { key: 'keepalive', labelKey: 'sessionState.keepaliveColumn', width: null },
+  { key: 'lastKeepaliveAt', labelKey: 'sessionState.lastKeepaliveAt', width: null },
+  { key: 'lastKeepaliveVerdict', labelKey: 'sessionState.lastKeepaliveVerdict', width: null },
 ]
 const LIGHT_FLEX_MIN: Record<string, number> = {
   stateName: 160,
   scopeOrigins: 200,
   expiresAt: 170,
   lastVerifiedAt: 170,
+  keepalive: 230,
+  lastKeepaliveAt: 170,
+  lastKeepaliveVerdict: 170,
 }
 
 // single-pane host: this page has no tabs, so the settings host binds one pane
@@ -452,12 +577,61 @@ function lightTag(row: LoginStateRow): 'success' | 'warning' | 'danger' | 'info'
   }
 }
 
+/**
+ * Keep-alive column family : the scheduler's own bookkeeping, read
+ * straight off the ledger row. The page never re-derives a verdict or a
+ * cadence — the server values are the answer, and a stopped row shows WHY
+ * in the same cell with the way back out (cause + literal path + action).
+ */
+function keepaliveStopped(row: LoginStateRow): boolean {
+  return row.keepaliveEnabled === 0 && !!row.keepaliveStopReason
+}
+
+function keepaliveText(row: LoginStateRow): string {
+  if (row.keepaliveEnabled === 1) return t('sessionState.keepaliveOn')
+  if (keepaliveStopped(row)) return t('sessionState.keepalivePaused')
+  return t('sessionState.keepaliveOff')
+}
+
+function keepaliveTag(row: LoginStateRow): 'success' | 'warning' | 'info' {
+  if (row.keepaliveEnabled === 1) return 'success'
+  if (keepaliveStopped(row)) return 'warning'
+  return 'info'
+}
+
+/** Verdict words of the last keep-alive round (server enum, verbatim keys). */
+const VERDICT_LABEL: Record<string, string> = {
+  get VALID() { return t('sessionState.keepaliveVerdictValid') },
+  get EXPIRED() { return t('sessionState.keepaliveVerdictExpired') },
+  get UNKNOWN() { return t('sessionState.keepaliveVerdictUnknown') },
+  get FAILED() { return t('sessionState.keepaliveVerdictFailed') },
+}
+
+function verdictText(verdict: string | null): string {
+  if (!verdict) return '—'
+  return VERDICT_LABEL[verdict] ?? verdict
+}
+
+function verdictTag(verdict: string | null): 'success' | 'danger' | 'warning' | 'info' {
+  switch (verdict) {
+    case 'VALID':
+      return 'success'
+    case 'EXPIRED':
+      return 'danger'
+    case 'UNKNOWN':
+    case 'FAILED':
+      return 'warning'
+    default:
+      return 'info'
+  }
+}
+
 function scopeText(row: LoginStateRow): string {
   return (row.scopeOrigins ?? []).join(', ')
 }
 
 /** Columns whose values are ISO timestamps and get the site datetime trim. */
-const DATETIME_COLUMNS = new Set(['expiresAt', 'lastVerifiedAt'])
+const DATETIME_COLUMNS = new Set(['expiresAt', 'lastVerifiedAt', 'lastKeepaliveAt'])
 
 function cellText(row: LoginStateRow, key: string): string {
   const value = (row as unknown as Record<string, unknown>)[key]
@@ -838,6 +1012,110 @@ async function runProbe() {
     await load()
   } catch (error) {
     ElMessage.error(bizErrorMsg(error, t('sessionState.probeFailed')))
+  }
+}
+
+// ---------- keep-alive door : per-row cadence + transition trail ----------
+const kaVisible = ref(false)
+const kaRow = ref<LoginStateRow | null>(null)
+const kaEnabled = ref(false)
+const kaUrl = ref('')
+/** Raw text of the cadence override: blank = follow the global key. */
+const kaInterval = ref('')
+const kaSaving = ref(false)
+const kaEvents = ref<TestRunEvent[]>([])
+const kaTailOpen = ref(false)
+/** Runs existed but the window came back empty = the trail aged out (R67). */
+const kaTrailExpired = ref(false)
+const kaHistVisible = ref(false)
+/** gated read doors over the keep-alive trail : follow the open row */
+const kaDoors = computed(() => (kaRow.value ? keepaliveTrailDoors(kaRow.value.id) : undefined))
+
+function toTailRows(items: { cursor: number; level: string; summary: string; detail: string | null; landedAt: string }[]): TestRunEvent[] {
+  return items.map((row) => ({
+    cursor: row.cursor, level: row.level, summary: row.summary, detail: row.detail, landedAt: row.landedAt,
+  }))
+}
+
+/**
+ * Open the row's keep-alive door. `presetEnabled` is only ever true when the
+ * cell's re-enable action asked for it (a stopped row), so the switch opens
+ * in the state the user just chose; nothing is sent until Save is clicked.
+ */
+async function openKeepAlive(row: LoginStateRow, presetEnabled: boolean | null) {
+  kaRow.value = row
+  kaEnabled.value = row.keepaliveEnabled === 1 || presetEnabled === true
+  kaUrl.value = row.keepaliveUrl ?? ''
+  kaInterval.value = row.keepaliveIntervalMinutes == null ? '' : String(row.keepaliveIntervalMinutes)
+  kaEvents.value = []
+  kaTailOpen.value = false
+  kaTrailExpired.value = false
+  kaVisible.value = true
+  await loadKeepaliveTrail()
+}
+
+/** Replay of the newest keep-alive transition run, read through the shared
+ *  event door (state transitions only — periodic rounds write no frames). */
+async function loadKeepaliveTrail() {
+  if (!kaRow.value) return
+  try {
+    const runs = await listKeepaliveRuns(kaRow.value.id)
+    const latest = runs[0]
+    if (!latest) return
+    const frames = toTailRows(await listKeepaliveEvents(kaRow.value.id, latest.runToken, 0))
+    kaEvents.value = frames
+    kaTrailExpired.value = frames.length === 0 && latest.eventCount > 0
+    kaTailOpen.value = frames.length > 0 || kaTrailExpired.value
+  } catch (e) {
+    ElMessage.error(bizErrorMsg(e, t('sessionState.keepaliveTrailFailed')))
+  }
+}
+
+function openKaHistory() {
+  kaHistVisible.value = true
+}
+
+async function loadKaRuns() {
+  if (!kaRow.value) return []
+  return listKeepaliveRuns(kaRow.value.id)
+}
+
+async function fetchKaFrames(runToken: string, cursor: number) {
+  if (!kaRow.value) return []
+  return toTailRows(await listKeepaliveEvents(kaRow.value.id, runToken, cursor))
+}
+
+async function saveKeepAlive() {
+  if (!kaRow.value) return
+  const raw = kaInterval.value.trim()
+  let interval: number | null = null
+  if (raw) {
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) {
+      ElMessage.warning(t('sessionState.keepaliveIntervalInvalid'))
+      return
+    }
+    interval = parsed
+  }
+  kaSaving.value = true
+  try {
+    await setSessionStateKeepAlive(kaRow.value.id, {
+      enabled: kaEnabled.value,
+      url: kaUrl.value.trim() || null,
+      intervalMinutes: interval,
+    })
+    const name = kaRow.value.stateName
+    kaVisible.value = false
+    ElMessage.success(kaEnabled.value
+      ? t('sessionState.keepaliveTurnedOn', { name })
+      : t('sessionState.keepaliveTurnedOff', { name }))
+    await reload()
+  } catch (e) {
+    // core owns every refusal sentence (double pre-check, range, address
+    // shape); this page shows it verbatim and adds no second validation.
+    ElMessage.error(bizErrorMsg(e, t('sessionState.keepaliveSaveFailed')))
+  } finally {
+    kaSaving.value = false
   }
 }
 
