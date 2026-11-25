@@ -45,12 +45,12 @@ class AppautoReservationBindBatchTest {
 
     @BeforeEach
     void setUp() {
-        String code = "arbb" + System.nanoTime();
+        String code = fixtureProjectCode("arbb");
         jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "预约绑批项目-" + code, code);
         projectId = jdbcTemplate.queryForObject("SELECT id FROM tp_project WHERE code = ?",
                 Long.class, code);
-        String foreignCode = "arbbf" + System.nanoTime();
+        String foreignCode = fixtureProjectCode("arbbf");
         jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "预约绑批他人项目-" + foreignCode, foreignCode);
         foreignProjectId = jdbcTemplate.queryForObject("SELECT id FROM tp_project WHERE code = ?",
@@ -73,6 +73,19 @@ class AppautoReservationBindBatchTest {
         jdbcTemplate.update("DELETE FROM tp_appauto_device WHERE id = ?", deviceId);
         jdbcTemplate.update("DELETE FROM tp_project WHERE id IN (?, ?)",
                 projectId, foreignProjectId);
+    }
+
+    // tp_project.code is VARCHAR(20); base36-encoded nanoTime keeps the value
+    // within the column limit for any machine uptime while staying per-test unique.
+    private static String fixtureProjectCode(String prefix) {
+        return prefix + Long.toUnsignedString(System.nanoTime(), 36);
+    }
+
+    @Test
+    void fixtureProjectCodeShapeFitsProjectCodeColumnWidth() {
+        String worstCase = "arbbf" + Long.toUnsignedString(Long.MAX_VALUE, 36);
+        assertTrue(worstCase.length() <= 20,
+                "fixture project code shape must fit tp_project.code VARCHAR(20)");
     }
 
     private long insertBatch(long ownerProjectId, String tag) {
