@@ -156,7 +156,8 @@ class McpConnectivityServiceTest {
     void 重新探测成功_保留已勾选工具开放态() throws Exception {
         MockMcpServerFixture fx = startFixture("normal");
         Long id = register(fx.endpoint(), null);
-        assertTrue(mcpConnectivityService.test(1L, id).success(), "首次探测应成功建快照");
+        McpProbeResult first = mcpConnectivityService.test(1L, id);
+        assertTrue(first.success(), "首次探测应成功建快照: " + first.message());
 
         mcpServerService.updateTools(1L, id, new McpToolSelectionInput(List.of("jira_get_issue")));
         String selected = toolsJsonOf(id);
