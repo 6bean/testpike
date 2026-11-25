@@ -41,19 +41,68 @@ class UpgradePlanServiceTest {
 
     private static final String N1 = "upl-t321-n1";
     private static final String N2 = "upl-t321-n2";
+    private static final String FIXTURE_NODE_PREFIX = "upl-t321-%";
+    private static final List<String> LEDGER_SNAPSHOT_COLUMNS = List.of(
+            "node_id", "component_family", "current_version", "target_version",
+            "requirement", "support_state", "state_reason", "source", "reported_at");
+
+    /**
+     * Snapshot of the live cluster ledger rows taken before each test. Real agents
+     * keep upserting tp_cluster_component on the shared dev database and the fleet
+     * scan can flip those rows to YELLOW at any moment, while plan preview reads the
+     * whole ledger — so "the ledger holds only my seed rows" must be established, not
+     * assumed. Otherwise preview/judgement tests fail depending on ambient cluster
+     * activity (defect ledger of 2026-11, reproducible on a clean baseline too).
+     */
+    private List<Map<String, Object>> foreignLedgerRows = List.of();
 
     @BeforeEach
+    void quarantineForeignLedgerRows() {
+        String cols = String.join(", ", LEDGER_SNAPSHOT_COLUMNS);
+        foreignLedgerRows = jdbcTemplate.queryForList(
+                "SELECT " + cols + " FROM tp_cluster_component WHERE node_id NOT LIKE ?",
+                FIXTURE_NODE_PREFIX);
+        jdbcTemplate.update("DELETE FROM tp_cluster_component WHERE node_id NOT LIKE ?",
+                FIXTURE_NODE_PREFIX);
+        cleanFixtureOwned();
+    }
+
     @AfterEach
-    void cleanAll() {
+    void cleanFixtureAndRestoreLedger() {
+        cleanFixtureOwned();
+        restoreForeignLedgerRows();
+        configCacheHolder.remove(COOL_KEY);
+    }
+
+    /** Drop every row this class seeds, so a crashed earlier run leaves no residue. */
+    private void cleanFixtureOwned() {
         cleanLedger();
         jdbcTemplate.update("DELETE FROM tp_upgrade_plan_step WHERE node_id LIKE 'upl-t321-%'");
         jdbcTemplate.execute("DELETE FROM tp_upgrade_plan WHERE operator = 't321-test'");
         jdbcTemplate.execute("DELETE FROM tp_release_manifest WHERE version LIKE '9.321.%'");
-        configCacheHolder.remove(COOL_KEY);
+    }
+
+    /**
+     * Restore-snapshot write-back: ON CONFLICT DO NOTHING keeps a fresher heartbeat
+     * row that the live agent re-created during the test in favour of the snapshot.
+     */
+    private void restoreForeignLedgerRows() {
+        if (foreignLedgerRows.isEmpty()) {
+            return;
+        }
+        String cols = String.join(", ", LEDGER_SNAPSHOT_COLUMNS);
+        String placeholders = LEDGER_SNAPSHOT_COLUMNS.stream().map(c -> "?")
+                .reduce((a, b) -> a + ", " + b).orElseThrow();
+        for (Map<String, Object> row : foreignLedgerRows) {
+            Object[] values = LEDGER_SNAPSHOT_COLUMNS.stream().map(row::get).toArray();
+            jdbcTemplate.update("INSERT INTO tp_cluster_component (" + cols + ") VALUES ("
+                    + placeholders + ") ON CONFLICT (node_id, component_family) DO NOTHING", values);
+        }
+        foreignLedgerRows = List.of();
     }
 
     private void cleanLedger() {
-        jdbcTemplate.update("DELETE FROM tp_cluster_component WHERE node_id LIKE 'upl-t321-%'");
+        jdbcTemplate.update("DELETE FROM tp_cluster_component WHERE node_id LIKE ?", FIXTURE_NODE_PREFIX);
     }
 
     
