@@ -9,9 +9,13 @@ import com.sixbean.testpike.core.audit.domain.service.AuditLogService;
 import com.sixbean.testpike.core.config.api.dto.ConfigInfo;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
+import com.sixbean.testpike.core.testsupport.TableSnapshotSupport;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @SpringBootTest(classes = CoreApplication.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AuditChainServiceTest {
 
     @Autowired
@@ -50,6 +55,33 @@ class AuditChainServiceTest {
 
     private static final String GATE_KEY = "tp.audit_retention_allowed";
 
+    /** Whole-class snapshot window: factory audit rows replayed on teardown. */
+    private TableSnapshotSupport factoryTables;
+
+    /**
+     * The empty-chain scenarios need the audit tables drained, but a bare
+     * factory-table truncation without replay left the fresh-install suite
+     * order-dependent (downstream hash-chain probes read the emptied or
+     * tampered state). Snapshot once per class, clear per test, replay the
+     * captured rows byte-identically on teardown.
+     */
+    @BeforeAll
+    void snapshotFactoryAuditTables() {
+        factoryTables = new TableSnapshotSupport(jdbcTemplate,
+                "tp_audit_log", "tp_audit_retention_break");
+        factoryTables.snapshotAndClear();
+    }
+
+    @BeforeEach
+    void startEachTestWithEmptyChain() {
+        factoryTables.clear();
+    }
+
+    @AfterAll
+    void restoreFactoryAuditTables() {
+        factoryTables.restore();
+    }
+
     @AfterEach
     void restoreThreshold() {
         setThresholdViaConfigService(DEFAULT_THRESHOLD);
@@ -62,13 +94,7 @@ class AuditChainServiceTest {
                 Map.of("status", "待评审"), Map.of("status", "已通过", "version", (int) i));
     }
 
-    private void truncateChain() {
-        jdbcTemplate.execute("TRUNCATE tp_audit_log");
-        jdbcTemplate.execute("TRUNCATE tp_audit_retention_break");
-        jdbcTemplate.update("DELETE FROM tp_export_task WHERE report_type = ?",
-                AuditChainServiceImpl.TASK_TYPE);
-    }
-
+    
     
     private long tamperOldestRow() {
         Long id = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_audit_log", Long.class);
@@ -94,7 +120,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_完整链返回verdict且条数正确() {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         auditLogService.record(input(3));
@@ -110,7 +135,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_结果进审计action_verify且不含链内容() {
-        truncateChain();
         auditLogService.record(input(1));
         long before = auditRowCount();
 
@@ -134,7 +158,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_篡改行报出断裂行id() {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         auditLogService.record(input(3));
@@ -147,7 +170,6 @@ class AuditChainServiceTest {
 
     @Test
     void verifyChain探针与结构化校验同源() {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         assertTrue(auditLogService.verifyChain());
@@ -160,7 +182,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_超阈值走异步任务且完成后可查结果() throws Exception {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         setThresholdViaConfigService("1");
@@ -188,7 +209,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_异步断裂任务结论报出行id() {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         long brokenId = tamperOldestRow();
@@ -204,7 +224,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_并发双击复用进行中任务幂等() {
-        truncateChain();
         auditLogService.record(input(1));
         auditLogService.record(input(2));
         setThresholdViaConfigService("1");
@@ -221,7 +240,6 @@ class AuditChainServiceTest {
 
     @Test
     void verify_纯读零写入除审计记录() {
-        truncateChain();
         auditLogService.record(input(1));
         long auditBefore = auditRowCount();
 
@@ -232,7 +250,6 @@ class AuditChainServiceTest {
 
     @Test
     void taskResult_不存在任务404人话() {
-        truncateChain();
         ServiceException e = assertThrows(ServiceException.class,
                 () -> auditChainService.taskResult(999999999L));
         assertTrue(e.getMessage().contains("不存在"), e.getMessage());

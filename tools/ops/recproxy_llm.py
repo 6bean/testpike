@@ -18,6 +18,7 @@ Modes:
 """
 
 import argparse
+import http.client
 import json
 import os
 import signal
@@ -45,6 +46,48 @@ def hits_path():
 def upstream_base(default=None):
     raw = os.environ.get(UPSTREAM_ENV, "").strip() or default or ""
     return raw.rstrip("/")
+
+
+def read_body(handler):
+    """Drain a request body framed either by Content-Length or by chunks.
+
+    Prompt clients on the JVM post chunked bodies; reading only the
+    Content-Length header left the ledger empty while every real call was
+    still answered, so a truth-source window read "no evidence" instead of
+    the prompts it was built to observe (observed on the slot6 window).
+    """
+    if "chunked" in handler.headers.get("Transfer-Encoding", "").lower():
+        parts = []
+        while True:
+            line = handler.rfile.readline(64)
+            if not line:
+                break
+            try:
+                size = int(line.split(b";")[0].strip(), 16)
+            except ValueError:
+                break
+            if size == 0:
+                handler.rfile.readline(2)
+                break
+            parts.append(handler.rfile.read(size))
+            handler.rfile.readline(2)
+        return b"".join(parts)
+    length = int(handler.headers.get("Content-Length", "0") or 0)
+    return handler.rfile.read(length) if length else b""
+
+
+def joined_target(upstream, path):
+    """Join upstream and request path without repeating the /v1 prefix.
+
+    The launcher passes the model base exactly as configured for direct
+    clients (already ending in /v1) while client paths also start with /v1;
+    concatenating both made the real upstream answer 404, so every observed
+    call silently degraded to the fallback provider instead of the bound
+    observation model.
+    """
+    if upstream.endswith("/v1") and path.startswith("/v1"):
+        path = path[len("/v1"):] or "/"
+    return upstream + path
 
 
 def pidfile_path(port):
@@ -77,7 +120,8 @@ def make_handler(upstream):
             pass
 
         def _relay(self, body):
-            req = urllib.request.Request(upstream + self.path, data=body, method=self.command)
+            req = urllib.request.Request(
+                joined_target(upstream, self.path), data=body, method=self.command)
             for key in ("Content-Type", "Authorization", "Accept"):
                 val = self.headers.get(key)
                 if val:
@@ -105,8 +149,7 @@ def make_handler(upstream):
             self.wfile.write(payload)
 
         def do_POST(self):
-            length = int(self.headers.get("Content-Length", "0"))
-            self._relay(self.rfile.read(length) if length else b"")
+            self._relay(read_body(self))
 
         def do_GET(self):
             if self.path.rstrip("/") in ("", "/health", "/v1/health"):
@@ -136,8 +179,17 @@ def selftest():
             pass
 
         def do_POST(self):
-            n = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(n)
+            if self.path != "/v1/chat/completions":
+                # Real FastAPI-style providers 404 unknown routes; the guard
+                # is what turns a doubled /v1 prefix into a caught defect.
+                miss = json.dumps({"detail": "Not Found"}).encode()
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(miss)))
+                self.end_headers()
+                self.wfile.write(miss)
+                return
+            body = read_body(self)
             echo = json.dumps({"echo": json.loads(body)["messages"][0]["content"]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -162,6 +214,26 @@ def selftest():
             record = json.loads(fh.readline())
         assert echoed == "hello-mark", "passthrough body corrupted"
         assert record["messages"][0]["content"] == "hello-mark", "ledger missed messages"
+        # Chunked framing (the JVM prompt client's shape) must pass through
+        # and land in the ledger too; without it a window sees zero evidence.
+        chunked = json.dumps({"model": "m", "messages": [
+            {"role": "user", "content": "chunked-mark"}]}).encode()
+        conn = http.client.HTTPConnection("127.0.0.1", px_port, timeout=10)
+        conn.putrequest("POST", "/v1/chat/completions")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Transfer-Encoding", "chunked")
+        conn.endheaders()
+        for i in range(0, len(chunked), 24):
+            piece = chunked[i:i + 24]
+            conn.send(b"%x\r\n%s\r\n" % (len(piece), piece))
+        conn.send(b"0\r\n\r\n")
+        echoed2 = json.loads(conn.getresponse().read())["echo"]
+        conn.close()
+        with open(hits, encoding="utf-8") as fh:
+            lines = [json.loads(x) for x in fh if x.strip()]
+        assert echoed2 == "chunked-mark", "chunked passthrough broken"
+        assert [r["messages"][0]["content"] for r in lines] == [
+            "hello-mark", "chunked-mark"], "ledger missed a framed body"
         print("RECPROXY-SELFTEST-OK")
         return 0
     finally:

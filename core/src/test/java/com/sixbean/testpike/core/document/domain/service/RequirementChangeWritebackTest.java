@@ -6,6 +6,7 @@ import com.sixbean.testpike.core.document.api.dto.DocChangeAnalysisInfo;
 import com.sixbean.testpike.core.events.api.dto.RequirementEventMessage;
 import com.sixbean.testpike.core.events.api.dto.RequirementEventType;
 import com.sixbean.testpike.core.events.domain.component.RabbitEventConfig;
+import com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventMessage;
 import com.sixbean.testpike.core.project.api.dto.ProjectCreateInput;
 import com.sixbean.testpike.core.project.domain.service.ProjectService;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Document-change disposition writeback tests: confirming a change analysis now
@@ -207,8 +209,31 @@ class RequirementChangeWritebackTest {
             assertEquals(projectId, evt.projectId());
             assertEquals(2, evt.requirementVersion(),
                     "payload carries the post-write version (consumer idempotency key source)");
-            assertNull(rabbitTemplate.receive(queueName, 1500),
-                    "the no-op row must not emit an event");
+            // The save chain deliberately emits two frames per really-written row
+            // on this routing key: the typed event above plus the generic linkage
+            // announcement (RequirementServiceImpl#publishLinkageAnnouncement).
+            // The old bare receive-null probe conflated the second frame of the
+            // written row with an event for the no-op row; classify each drained
+            // frame instead and keep the no-op absence guarantee per frame type.
+            boolean sawAnnouncementForWrittenRow = false;
+            Message frame;
+            while ((frame = rabbitTemplate.receive(queueName, 1500)) != null) {
+                Object pojo = caseEventMessageConverter.fromMessage(frame);
+                if (pojo instanceof ObjectChangedEventMessage announcement) {
+                    assertEquals(Long.valueOf(written), announcement.objectId(),
+                            "the generic linkage announcement must reference the written row");
+                    sawAnnouncementForWrittenRow = true;
+                } else if (pojo instanceof RequirementEventMessage typed) {
+                    assertEquals(written, typed.requirementId(),
+                            "the no-op row must not emit a typed requirement.changed event");
+                } else {
+                    throw new AssertionError("unexpected payload type on requirement.changed: "
+                            + pojo.getClass().getName());
+                }
+            }
+            assertTrue(sawAnnouncementForWrittenRow,
+                    "the written row must also carry the generic linkage announcement "
+                            + "(dual-frame save-chain contract)");
         } finally {
             amqpAdmin.deleteQueue(queueName, true, true);
         }
