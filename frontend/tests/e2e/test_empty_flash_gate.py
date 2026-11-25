@@ -81,7 +81,7 @@ EMPTY_PAGES = [
 # (dialogs/wizards mount after a user action, same-document). Registered, not
 # silent — each carries the measurement that justified the exemption.
 FORM_EXEMPTIONS = [
-    ("src/views/apitest/MockStubDirectWizard.vue",
+    ("src/components/mock/MockStubDirectWizard.vue",
      "wizard form: no el-table in-flight empty-copy surface (grep 2026-11-04: no v-loading/empty block)"),
     ("src/views/apitest/SpecImportWizard.vue",
      "positive-length guards v-if=specs.length>0 / v-if=extractableDocs.length>0: table physically not painted before rows exist"),

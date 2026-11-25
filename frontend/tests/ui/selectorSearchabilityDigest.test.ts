@@ -251,7 +251,7 @@ describe('SE-1 exemption digestion (assertion builder)', () => {
 // six selects must offer client-side search.
 describe('SE-1 filterable digestion (slice5 batch3 mock space pickers + recycle project)', () => {
   const cases = [
-    ['views/apitest/MockStubDirectWizard.vue', 'stub-direct-space-select'],
+    ['components/mock/MockStubDirectWizard.vue', 'stub-direct-space-select'],
     ['views/mock/MockDocsView.vue', 'mock-docs-space-select'],
     ['views/mock/MockInspectorView.vue', 'mock-inspector-space-select'],
     ['views/mock/MockRecordingView.vue', 'mock-recording-space-select'],

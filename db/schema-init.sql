@@ -25124,6 +25124,50 @@ VALUES
      '变更类操作暂未开放到对话，请在对应功能页面执行')
 ON CONFLICT (endpoint_key) DO NOTHING;
 
+-- ################ V668__keepalive_and_mock_job_governance_rows.sql ################
+-- Migration: register governance verdicts for the three login-state keep-alive
+-- endpoints that landed with the session ledger keep-alive batch. A fresh
+-- install replays only schema-init/migrations, so a catalog entry without a
+-- seed row answers with the generic "not registered" refusal and the
+-- coverage contract goes red there even though live audits pass on a
+-- database where the rows were registered out-of-band. No reachability
+-- change: the two GETs serve the row-level process-detail replay of the
+-- keep-alive tail window (internal plumbing for the ledger page), the PATCH
+-- flips one ledger row's keep-alive switch — a change-class operation that
+-- stays closed on the dialogue door and behind the human confirm gate.
+
+INSERT INTO tp_ai_api_access_governance
+    (endpoint_key, scope_verified, reachable, ai_desc, exclude_reason)
+VALUES
+    ('GET /internal/session-states/{id}/keepalive-events', 0, 0, NULL,
+     '该接口服务于登录态账本页行级保活过程回放的读侧装配，不是业务查询面，无需在对话使用'),
+    ('GET /internal/session-states/{id}/keepalive-runs', 0, 0, NULL,
+     '该接口服务于登录态账本页行级保活轮次清单的读侧装配，不是业务查询面，无需在对话使用'),
+    ('PATCH /internal/session-states/{id}/keepalive', 0, 0, NULL,
+     '变更类操作暂未开放到对话，请在对应功能页面执行'),
+    ('GET /internal/mock/jobs/{id}/process-events', 0, 0, NULL,
+     '该接口服务于契约批量作业过程详情流的读侧装配，不是业务查询面，无需在对话使用')
+ON CONFLICT (endpoint_key) DO NOTHING;
+
+-- ################ V669__mock_stub_enrichment_provenance.sql ################
+-- Dual provenance for mock rules: source/source_ref stay the birth facts
+-- (openapi + spec:{id} for contract rows, nl-ai + job:{id} for AI-born rows).
+-- enriched_by records which AI enrichment job last improved a contract-direct
+-- rule, so the rule list can badge "contract direct" vs "AI enriched" and the
+-- enrichment trail stays retracable to the job row.
+ALTER TABLE tp_mock_stub ADD COLUMN IF NOT EXISTS enriched_by VARCHAR(120);
+COMMENT ON COLUMN tp_mock_stub.enriched_by IS 'Provenance anchor of the AI enrichment job that improved this contract-direct rule (job:{id}); NULL means the rule was filed as-is';
+
+-- ################ V670__mock_stub_contract_stale.sql ################
+-- Adds the contract-staleness flag to mock rules.
+-- When a newer version of the source contract drops an endpoint, the rule that
+-- served it is disabled and flagged instead of deleted: hit accounting and the
+-- traffic plane keep their provenance, and the UI can point the user at the
+-- fix path from the badge.
+ALTER TABLE tp_mock_stub ADD COLUMN IF NOT EXISTS contract_stale BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN tp_mock_stub.contract_stale IS 'True when the source contract no longer declares this endpoint; the rule is disabled and flagged instead of deleted so traffic history stays attributable.';
+
 -- ################ patch section: objects first executed by hand (DDL verified against the dev database, never captured as migrations) ################
 CREATE SEQUENCE IF NOT EXISTS tp_plan_deviation_id_seq;
 CREATE TABLE IF NOT EXISTS tp_plan_deviation (
