@@ -76,7 +76,7 @@ public class AiChatStreamController {
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
         SseEmitter emitter = sseWindow.openEmitter();
-        SseFrameWriter writer = new SseFrameWriter(emitter);
+        SseFrameWriter writer = new SseFrameWriter(emitter, response);
         // Virtual thread per stream: the pump blocks on ledger polls, which is
         // exactly what virtual threads are for; no bounded pool to starve.
         Thread.ofVirtual().name("ai-chat-stream-" + sessionId).start(() -> {

@@ -1,7 +1,10 @@
 package com.sixbean.testpike.admin.aichat.app.component;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,5 +106,59 @@ class SseFrameWriterWindowExpiryTest {
 
         assertEquals(1, emitter.sealCount(),
                 "a vanished client must not keep the async request open either");
+    }
+
+    @Test
+    void containerOrderedTimeoutRewritesTheNoticeOnTheRawResponse() throws Exception {
+        // The live shape: Spring marks the emitter completed BEFORE the
+        // timeout callback runs, so the emitter send is physically impossible
+        // (proven 2026-11-26 on a real 15s window: the stream sealed with
+        // zero notice frames). The writer must fall back to the door's own
+        // response bytes, and those bytes must be the full SSE notice block.
+        FlakySendSseEmitter emitter = new FlakySendSseEmitter();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        new SseFrameWriter(emitter, response);
+
+        emitter.containerTimeoutDispatch();
+
+        String body = response.getContentAsString();
+        assertTrue(body.contains("event:" + SseFrameWriter.WINDOW_EXPIRED_EVENT),
+                "the notice block must reach the wire even when the emitter is already completed, got: " + body);
+        assertTrue(body.contains(SseFrameWriter.WINDOW_EXPIRED_NOTICE),
+                "the degrade sentence must ride the raw block byte-for-byte");
+        assertEquals(0, emitter.sendCount(),
+                "the completed emitter must not be sent through a second time");
+        assertEquals(1, emitter.sealCount(),
+                "the timeout dispatch still owns exactly one async-cycle seal");
+    }
+
+    @Test
+    void containerTimeoutNoticeRidesTheByteStreamWhenTheWriterIsForbidden()
+            throws IOException {
+        // Tomcat shape, the gap that hid the live defect: the door's SSE
+        // handler already owns the response byte stream, so from that point
+        // on the spec forbids getWriter(). A notice written through the
+        // writer never lands (its failure was swallowed); it must ride the
+        // stream instead, and this fixture is what makes that provable
+        // in-process.
+        MockHttpServletResponse captured = new MockHttpServletResponse();
+        StreamExclusiveHttpServletResponse response =
+                new StreamExclusiveHttpServletResponse(captured);
+        // First frame through the byte stream, exactly like the live door.
+        response.getOutputStream()
+                .write(":hb\n\n".getBytes(StandardCharsets.UTF_8));
+        FlakySendSseEmitter emitter = new FlakySendSseEmitter();
+        new SseFrameWriter(emitter, response);
+
+        emitter.containerTimeoutDispatch();
+
+        String body = captured.getContentAsString();
+        assertTrue(body.contains("event:" + SseFrameWriter.WINDOW_EXPIRED_EVENT),
+                "with the writer spec-forbidden, the notice block must still "
+                        + "reach the byte stream, got: " + body);
+        assertTrue(body.contains(SseFrameWriter.WINDOW_EXPIRED_NOTICE),
+                "the degrade sentence must ride the raw block byte-for-byte");
+        assertEquals(1, emitter.sealCount(),
+                "the timeout dispatch still owns exactly one async-cycle seal");
     }
 }

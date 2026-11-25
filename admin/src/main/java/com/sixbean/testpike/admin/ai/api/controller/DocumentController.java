@@ -248,7 +248,7 @@ public class DocumentController {
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
         SseEmitter emitter = sseWindow.openEmitter();
-        SseFrameWriter writer = new SseFrameWriter(emitter);
+        SseFrameWriter writer = new SseFrameWriter(emitter, response);
         // Virtual thread per drawer: the pump blocks on cursor polls, which is
         // exactly what virtual threads are for.
         Thread.ofVirtual().name("doc-extract-tail-" + id).start(() -> {

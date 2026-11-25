@@ -8,6 +8,8 @@ import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
+import com.sixbean.testpike.core.support.FleetViewQuiescer;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +65,12 @@ class PerfRunTargetVersionPinningTest {
     private long envBId;
     private long operatorId;
 
+    /** Fixture-family executor name prefix: seats seeded or quiesced by this
+     *  suite only — teardown never reaches factory or live-service rows (R37). */
+    private static final String EXEC_PREFIX = "tpf-perf-ver-";
+
+    private List<Long> agedExecutors;
+
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
@@ -76,10 +84,24 @@ class PerfRunTargetVersionPinningTest {
                 "INSERT INTO tp_project_env (project_id, name, env_type, base_url) " + "VALUES (?, '测试-版本B', 2, 'http://perf-b.local/api')", projectId);
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
+        // Fresh-install determinism (open-source CI triage): the perf routing gate
+        // reads the shared fleet registry, so another suite's leftover online row
+        // without an engines face rejects every launch here ("online 1, capable 0")
+        // whenever no dev runner fills that seat. Seed this suite's own
+        // engine-capable executor and quiesce the rest for the window — the
+        // routing verdict becomes deterministic on CI and on dev alike, and the
+        // persistent runner can no longer mask or hijack these launches.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+        agedExecutors = FleetViewQuiescer.quiesceOthers(jdbcTemplate, EXEC_PREFIX + "%");
     }
 
     @AfterEach
     void cleanup() {
+        if (agedExecutors != null) {
+            FleetViewQuiescer.restore(jdbcTemplate, agedExecutors);
+            agedExecutors = null;
+        }
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, EXEC_PREFIX);
         cleanupRows();
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
@@ -205,6 +227,37 @@ class PerfRunTargetVersionPinningTest {
         assertEquals(0, jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_perf_run WHERE project_id = ?", Integer.class, projectId),
                 "被拒发起零运行行: " + e.getMessage());
+    }
+
+    /** Leak reproduction anchor: an engine-less executor row left online by
+     *  another suite must never shadow the routing decision. Pre-fixture this
+     *  launch hit the no-capable-executor routing reject on fresh installs
+     *  (perf suite family, PerfEngineRoutingSupport.explainNoCapablePerfExecutorForEnvelope).
+     *  The quiesce below pins the evidence deterministic on dev as well: a live
+     *  runner would otherwise supply a capable seat from outside this suite. */
+    @Test
+    void launch_无引擎在线残行在场_仍按本套件席位路由不误拒() throws Exception {
+        addWhitelist(envAId, 100);
+        setEnvVersion(envAId, "release-leak-proof");
+        long scenario = newScenario(envAId, "泄漏残行复现场景");
+        Long leakId = jdbcTemplate.queryForObject(
+                "INSERT INTO tp_executor (name, end_types, browsers, capacity, running_cnt, status,"
+                        + " version, capabilities, last_heartbeat)"
+                        + " VALUES (?, 'web,app', 'chromium', 1, 0, 1, '1.0.0',"
+                        + " CAST('{}' AS jsonb), now()) RETURNING id",
+                Long.class, EXEC_PREFIX + "leak" + (System.nanoTime() % 100000));
+        try {
+            List<Long> aged = FleetViewQuiescer.quiesceOthers(jdbcTemplate, EXEC_PREFIX + "%");
+            try {
+                long run = perfRunService.launch(projectId, scenario, operatorId);
+                assertEquals("release-leak-proof", snapshotOf(run).path("targetVersion").asText(),
+                        "泄漏残行在场时发起必须命中本套件自带席位，不得被无引擎行遮蔽");
+            } finally {
+                FleetViewQuiescer.restore(jdbcTemplate, aged);
+            }
+        } finally {
+            jdbcTemplate.update("DELETE FROM tp_executor WHERE id = ?", leakId);
+        }
     }
 
     private static void assertTrue(boolean value, String message) {

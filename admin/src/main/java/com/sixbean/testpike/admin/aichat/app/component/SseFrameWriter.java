@@ -1,8 +1,14 @@
 package com.sixbean.testpike.admin.aichat.app.component;
 
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -17,6 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SseFrameWriter implements StreamFrameWriter {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SseFrameWriter.class);
+
     /**
      * Wire-only event name of the window-expiry degrade notice. Deliberately
      * outside the ledger frame vocabulary: it never lands in the ledger, so
@@ -29,10 +37,24 @@ public class SseFrameWriter implements StreamFrameWriter {
             "实时进度推送窗口已到时关闭；任务仍在后台继续，页面会自动改用轮询续读进度，无需手动操作。";
 
     private final SseEmitter emitter;
+    /** Raw servlet response the door wrote its frames through, captured so the
+     *  expiry notice can still reach the wire. Spring's container-timeout
+     *  callback flips the emitter to completed BEFORE the registered delegates
+     *  run, so emitter.send() inside onTimeout always throws
+     *  IllegalStateException ("ResponseBodyEmitter has already completed") —
+     *  proven live on 2026-11-26 when the 15s window sealed a real stream with
+     *  zero notice frames. The response itself is still writable inside the
+     *  timeout dispatch: bytes flushed here ride the final async dispatch. */
+    private final HttpServletResponse rawResponse;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public SseFrameWriter(SseEmitter emitter) {
+        this(emitter, null);
+    }
+
+    public SseFrameWriter(SseEmitter emitter, HttpServletResponse rawResponse) {
         this.emitter = emitter;
+        this.rawResponse = rawResponse;
         emitter.onCompletion(() -> closed.set(true));
         emitter.onTimeout(this::sealExpiredWindow);
         emitter.onError(ex -> closed.set(true));
@@ -136,19 +158,54 @@ public class SseFrameWriter implements StreamFrameWriter {
      */
     private void sealExpiredWindow() {
         if (closed.compareAndSet(false, true)) {
+            // Prefer the emitter path (unit-testable wire shape); when the
+            // container has already flipped the emitter to completed — which
+            // is always the case on a real timeout dispatch — rewrite the same
+            // bytes straight to the response so the notice is never silently
+            // dropped (live defect 2026-11-26: window sealed with zero frames).
+            String block = "event:" + WINDOW_EXPIRED_EVENT + "\n"
+                    + "data:" + WINDOW_EXPIRED_NOTICE + "\n\n";
             try {
                 emitter.send(SseEmitter.event()
                         .name(WINDOW_EXPIRED_EVENT)
                         .data(WINDOW_EXPIRED_NOTICE, MediaType.TEXT_PLAIN));
             } catch (Exception wireGone) {
-                // The browser vanished before the notice; the ledger keeps
-                // every real frame, so nothing is lost by skipping it.
+                LOG.debug("expiry notice rejected by the completed emitter, "
+                        + "rewriting the block raw: {}", wireGone.toString());
+                writeRawNotice(block);
             }
             try {
                 emitter.complete();
             } catch (Exception alreadyRetired) {
                 // The container closed the cycle first — same end state.
             }
+        }
+    }
+
+    /** Last-resort transport for the expiry notice: raw bytes on the door's
+     *  own response, flushed inside the timeout dispatch so they reach the
+     *  client with the final async hop. A dead browser fails the write, which
+     *  is exactly the expected end state — the ledger keeps every real frame. */
+    private void writeRawNotice(String block) {
+        if (rawResponse == null) {
+            return;
+        }
+        try {
+            // The door's SSE frames already rode the response's byte stream
+            // (Spring writes emitters through ServletServerHttpResponse), and
+            // the servlet spec pins the two accessors to a single owner:
+            // getWriter() throws IllegalStateException on the real container
+            // once the stream is owned (live re-run 2026-11-26 proved the
+            // notice still landed zero frames that way), while a bare mock
+            // response happily allows both. Write onto the stream the
+            // handler itself owns instead.
+            rawResponse.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            ServletOutputStream out = rawResponse.getOutputStream();
+            out.write(block.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException | IllegalStateException wireAlsoGone) {
+            LOG.debug("window-expiry notice could not reach the raw "
+                    + "response either: {}", wireAlsoGone.toString());
         }
     }
 }

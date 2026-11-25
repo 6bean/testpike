@@ -135,7 +135,7 @@ public class AiController {
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
         SseEmitter emitter = sseWindow.openEmitter();
-        SseFrameWriter writer = new SseFrameWriter(emitter);
+        SseFrameWriter writer = new SseFrameWriter(emitter, response);
         Thread.ofVirtual().name("steps-gen-tail-" + taskId).start(() -> {
             try {
                 stepsGenStreamBridge.stream(taskId, cursor, writer);

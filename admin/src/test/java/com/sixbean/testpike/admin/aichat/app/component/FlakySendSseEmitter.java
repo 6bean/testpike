@@ -24,6 +24,9 @@ final class FlakySendSseEmitter extends SseEmitter {
     private final AtomicInteger seals = new AtomicInteger();
     private volatile boolean failSends;
     private volatile Runnable timeoutCallback;
+    /** Set by containerTimeoutDispatch() before the callback runs, mirroring
+     *  the framework's own completion latch ordering. */
+    private volatile boolean containerCompleted;
 
     @Override
     public void onTimeout(Runnable callback) {
@@ -33,6 +36,10 @@ final class FlakySendSseEmitter extends SseEmitter {
 
     @Override
     public void send(SseEventBuilder builder) throws IOException {
+        if (containerCompleted) {
+            throw new IllegalStateException(
+                    "ResponseBodyEmitter has already completed");
+        }
         sends.incrementAndGet();
         trace.add("send");
         collectFragments(builder);
@@ -58,6 +65,23 @@ final class FlakySendSseEmitter extends SseEmitter {
     /** True when the writer never registered a timeout callback at all. */
     boolean hasTimeoutCallback() {
         return timeoutCallback != null;
+    }
+
+    /**
+     * Replay the real Spring 6.2.8 container-timeout ordering: the framework
+     * callback marks the emitter completed BEFORE the registered delegates
+     * run, so any emitter.send() from inside the timeout callback throws
+     * IllegalStateException ("ResponseBodyEmitter has already completed").
+     * The plain fireTimeout() above models the test-side callback call and
+     * cannot see that ordering - this method is what makes the raw-response
+     * notice path provable in-process (live defect 2026-11-26).
+     */
+    void containerTimeoutDispatch() {
+        containerCompleted = true;
+        Runnable callback = timeoutCallback;
+        if (callback != null) {
+            callback.run();
+        }
     }
 
     List<String> trace() {
