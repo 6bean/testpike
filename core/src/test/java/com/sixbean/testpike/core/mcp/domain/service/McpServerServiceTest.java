@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @SpringBootTest(classes = CoreApplication.class)
+@TestPropertySource(properties = "testpike.prod-blacklist=jira.prod.example.com")
 class McpServerServiceTest {
 
     @Autowired

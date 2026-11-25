@@ -193,6 +193,10 @@ class DeadLetterAutoReplaySchedulerTest {
         // Strictly-over semantics pinned here; the over-threshold fan-out + same-window
         // dedup are exercised by the companion L4 live spectrum (a unit run firing real
         // admin letters would stack noise into the shared dev inbox — R37 discipline).
+        // Self-provisioned fixtures: a fresh-install ledger starts empty, and the
+        // count semantics under test must not lean on rows left by other suites.
+        insertRow("LLM_TIMEOUT", 0, 0, "pending");
+        insertRow("PROVIDER_TRANSIENT", 0, 0, "pending");
         long pendingGlobal = scheduler.countPendingLedgerRows();
         assertTrue(pendingGlobal >= 2, "fixtures must be visible to the count");
         assertEquals(0, scheduler.checkBacklogAlert((int) pendingGlobal),

@@ -25168,6 +25168,21 @@ ALTER TABLE tp_mock_stub ADD COLUMN IF NOT EXISTS contract_stale BOOLEAN NOT NUL
 
 COMMENT ON COLUMN tp_mock_stub.contract_stale IS 'True when the source contract no longer declares this endpoint; the rule is disabled and flagged instead of deleted so traffic history stays attributable.';
 
+-- ################ V671__api_access_governance_spec_upgrade_rows.sql ################
+-- Migration: register the two spec-upgrade bridge endpoints shipped after the
+-- V657 full-ledger sweep. The runtime catalog (handler-mapping scan) carries them
+-- while the governance table does not, so the coverage guard goes red. Rows keep
+-- the door's live verdict unchanged: both stay closed with reader-facing reasons
+-- (no reachability change; opening either needs its own named verification).
+INSERT INTO tp_ai_api_access_governance
+    (endpoint_key, scope_verified, reachable, ai_desc, exclude_reason)
+VALUES
+    ('GET /internal/mock/spec-upgrade/plan', 0, 0, NULL,
+     '该查询的数据可见范围尚未与页面对齐，暂未开放到对话，请在对应功能页面查看'),
+    ('POST /internal/mock/spec-upgrade/mark-removed', 0, 0, NULL,
+     '变更类操作暂未开放到对话，请在对应功能页面执行')
+ON CONFLICT (endpoint_key) DO NOTHING;
+
 -- ################ V671__mock_spec_preview_first_frame_key.sql ################
 -- First-frame budget for the contract-bulk preview round (MJ P7): a very
 -- large OpenAPI contract is still a deterministic synchronous render, but the
@@ -25184,6 +25199,62 @@ INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, enc
     ('mock.spec-import.preview-first-frame-ms', '1500', '接口仿真', 'int', 0,
      '契约批量生成预览等待多久后显示进度提示（默认 1500 毫秒；预览始终先按契约内容即时生成，提示只说明仍在处理中；修改即时生效）')
 ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V673__help_mock_contract_bulk_import_chapter.sql ################
+-- Migration V673: (renumbered from V672: the mainline gained a second V671 in parallel and yields its own later file) beginner-grade help chapter for the bulk contract-to-mock
+-- import journey (mock wizard, AI bulk enrichment, contract upgrade diff)
+-- introduced in this batch, plus a cross-reference bullet appended to the
+-- existing simulation-space chapter. R61 requires the chapter to ship in the
+-- same batch as the behavior; section names stay user-facing and every
+-- quoted word below is the literal label rendered on screen.
+-- Idempotent replay: INSERT guarded by NOT EXISTS on (domain_code, title),
+-- append guarded by NOT LIKE on its own marker.
+
+INSERT INTO tp_help_doc (domain_code, title, body_md, sort_no)
+SELECT 'T', '契约批量直出与 AI 完善：一份接口文档整批建起 Mock 规则',
+$hb672$## 这一页能做什么
+服务刚接入、或者接口契约刚升级时，最费工的是给几十个端点逐个配置仿真响应——手工一条条建慢，还容易漏。这一组能力解决的就是这件事：在「仿真文档」面（独立页面或空间工作台内的同名页签）点「契约直出 Mock 规则」，选一份接口契约，系统按每个端点的响应结构确定性地生成整批 Mock 规则草稿，你复核勾选后一键写入仿真空间；再用「AI 数据完善 · 批量」让大模型把响应内容补充得更真实、附上边缘场景草稿，同样由你勾选确认后才写入规则库。契约升级后重跑向导，会先给出「新增端点 / 响应体待更新 / 已从契约移除」三态差异和逐条处置建议，避免旧规则悄悄失真。解决的典型业务问题：新系统接入时批量起仿真、契约改版后的规则对账、给接口测试与联调准备可信的假响应数据。
+
+## 总体流程
+准备契约（上传新规范文档，或选已有契约） → 生成预览（确定性展开全部端点草稿，此时不写入） → 复核勾选（默认全选，可按搜索过滤、仅选 AI 建议、反选、复核未选清单） → 写入规则（完成行给出成功 / 跳过 / 失败三个数） → 契约升级后重跑：先看版本差异与处置建议，再继续勾选 → （可选）发起 AI 数据完善批量任务，用「进程详情」逐步回看执行过程，完成后「勾选确认 AI 草稿」入库。
+
+## 怎么用（按操作顺序）
+1. **找到入口**：左侧菜单「接口仿真 → 仿真文档」，或从「仿真空间」进入目标空间工作台后切到「仿真文档」页签——两处都有「契约直出 Mock 规则」钮，打开的是同一套向导。从空间工作台发起时写入目标已锁定当前空间，页面会显示「写入目标：当前仿真空间「名称」」，不需要再选一次。
+2. **定契约来源**：二选一。「选择已有契约」在清单里点选一行（清单按当前项目隔离，每份契约取最新版本行）；「上传新规范文档」点「选择契约文件」挑一份 Swagger 2.x / OpenAPI 3.x 的 .json / .yaml / .yml 文档，可填契约名称（不填取文件名），再点「上传并解析」——解析成功后文档进入接口契约库留档并自动选中。项目还没有契约时，清单空态会直接提示先上传。
+3. **生成预览**：选好契约（独立页面还需选目标空间）后点「生成预览」。预览是纯数据库计算，常规契约 1.5 秒内出结果；端点特别多时页面会提示「预览内容较多，仍在处理中，请稍候即可，无需重复点击生成预览」，等结果即可。
+4. **复核勾选**：草稿列表默认全部勾选，取消勾选的端点不会被写入。工具条提供「按名称/路径/方法」即时过滤、「全选/全不选」、「仅选 AI 建议」、「反选」和「复核未选清单」；上百条草稿会按资源路径首段自动分组，可逐组收起核对，统计行实时显示「共 N 条 · 已勾 M 条」。
+5. **写入规则**：点「写入 N 条规则」批量保存。完成行给出三个数——成功写入、自动跳过（同方法同路径已有规则）、失败（未通过保存校验），并附「查看接口清单」直达链接和「试调第一个」动作钮，点一下就能验证仿真响应是否生效。
+6. **处理契约升级**：契约出了新版本后再走一次本向导，预览前会多出「版本差异」一步：新增端点、响应体待更新、已从契约移除三类各列清单，每条带处置建议（建议新建 / 建议更新响应体 / 建议停用）。确认后点「继续预览并勾选」进入常规勾选；对被移除的端点，可点「停用已移除规则」一次处理完，规则行留下「契约已移除」徽标，历史调用记录保留。
+7. **AI 数据完善**：在「仿真文档」面点「AI 数据完善 · 批量」，按名称搜索并选中一个契约版本，点「提交批量完善」。任务卡片的状态依次走过「排队中 → 生成中 → 待勾选确认」；点卡片上的「进程详情」可逐帧回看每一步执行过程（执行中实时跟随，结束后随时可回看）。生成完成后打开「勾选确认 AI 草稿」，勾选取舍后点「确认入库」——只有勾选的条目进入规则库，入库的规则带「AI 完善」标记，任务状态变为「已确认入库」。
+
+## 操作背后系统做了什么
+- 契约直出不经过大模型：预览由契约的响应结构按固定规则展开，同样输入永远得到同样草稿，不消耗模型预算；大模型只在你明确发起「AI 数据完善」时才参与。
+- AI 的建议只是建议：无论预览勾选里的「仅选 AI 建议」过滤，还是 AI 完善生成的草稿，都先呈现给你复核，任何条目都要经你勾选确认才写入规则库，不勾选就不入库。
+- 重复导入自动去重：同一契约再次写入时，目标空间里已有同方法同路径规则的端点自动跳过；契约新增端点后重跑，只补差集。跳过即幂等，放心重跑。
+- 失败条目不部分生效：写入按完整保存校验逐条把关，不合法的条目计入失败数且不入库，可到「接口清单」核对后重新导入。
+- 契约升级不悄悄改你的规则：「响应体待更新」只提示不覆盖——已保存的规则体不会被自动改写，需要编辑时到「接口清单」逐条处理；「已从契约移除」的端点在你点「停用已移除规则」后停用，历史调用记录保留。
+- 过程有账、参数可调：批量完善任务的执行过程逐帧留档，单任务默认保留 2000 条，超出后最旧的自动清除（参数 mock.spec-import.history-frame-cap，「系统设置 → 参数设置」可改，修改即时生效）；每次模型调用默认覆盖 20 个接口，调大则分批更少（参数 mock.spec-import.enrich-batch-size）；单次批量任务的端点数有上限，超限会被拒绝并提示分批方式（参数 mock.spec-import.bulk-endpoint-limit）；首帧预览的等待提示阈值同样可调（参数 mock.spec-import.preview-first-frame-ms，缺省 1500 毫秒）。
+- Mock 与契约单向：规则由契约派生，在 Mock 侧编辑规则不会改动接口契约库里的契约本身。
+
+## 常见问题
+- **「上传并解析」提示契约上传解析失败？**——绝大多数是文档本身不是合法的 OpenAPI/Swagger，或从源系统导出时内容不完整。回到源系统重新导出完整的 .json / .yaml / .yml 文档，再点「上传并解析」重试即可。
+- **端点多时提交批量完善被拒绝？**——单次批量任务的端点数有上限，超限会被拒绝并提示分批方式：把契约按模块拆成几份分别提交，或调大「系统设置 → 参数设置」里的 mock.spec-import.bulk-endpoint-limit。上限的存在是防止一次任务过大导致长时间无反馈。
+- **「进程详情」打开是空的或提示记录已过期？**——两种设计内情形：任务在过程记录开始前就失败了（本就没有过程可回放，卡片上能看到失败原因）；或任务较老、过程记录超过保留条数被清除。保留条数可在「系统设置 → 参数设置」调长（参数 mock.spec-import.history-frame-cap，对之后的任务生效）。任务的最终结果与已入库规则不受影响，到「接口清单」照常可查。
+- **再次导入同一契约，成功数显示 0，是失败了吗？**——不是。完成行的「自动跳过」计数说明原因：所有端点在该空间都已存在同方法同路径的规则，重复写入被跳过，这正是幂等的表现；若契约新增了端点，重跑会只补这几条新的。
+- **契约移除的端点，Mock 还能响应吗？**——点过「停用已移除规则」后不再响应：对应规则被停用并挂「契约已移除」徽标，历史调用记录保留。想恢复仿真，可以编辑该规则改用其他端点，或导入更新后的契约重新直出。
+- **预览勾选里没看到想要的边缘场景？**——契约直出只按契约结构生成基础响应；超时、异常、边界值这类故障场景用「AI 数据完善 · 批量」补充，或到「状态场景」页维护，生成的草稿同样经你勾选后才入库。$hb672$::text,
+(SELECT COALESCE(MAX(sort_no),0)+1 FROM tp_help_doc t2 WHERE t2.domain_code='T')
+WHERE NOT EXISTS (SELECT 1 FROM tp_help_doc t WHERE t.domain_code='T' AND t.title='契约批量直出与 AI 完善：一份接口文档整批建起 Mock 规则');
+
+-- Cross-reference in the simulation-space chapter: the workbench gained the
+-- in-place contract import entry, so its chapter must point there too
+-- (behavior changed in the same batch). Appends idempotently.
+UPDATE tp_help_doc
+   SET body_md = body_md || '
+
+- 空间里的规则还少、想快速建起一批 Mock？——在本空间工作台的「仿真文档」页签点「契约直出 Mock 规则」，选一份接口契约即可整批生成草稿，勾选后一键写入当前空间；契约升级后重跑还会给出新增 / 待更新 / 已移除三类差异与处置建议。完整操作流程见「契约批量直出与 AI 完善」一章。'
+ WHERE domain_code = 'T' AND title = '仿真空间：建空间、发布对外服务、复制访问地址'
+   AND body_md NOT LIKE '%契约直出 Mock 规则%';
 
 -- ################ patch section: objects first executed by hand (DDL verified against the dev database, never captured as migrations) ################
 CREATE SEQUENCE IF NOT EXISTS tp_plan_deviation_id_seq;
