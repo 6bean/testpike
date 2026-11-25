@@ -79,14 +79,13 @@ class PerfReportNotifyTest {
     }
 
     private long seedUser(String username) {
-        jdbcTemplate.update(
+        // Read the id back through the shared RETURNING helper: an
+        // ORDER BY id DESC lookup can return another suite's explicit-id
+        // fixture row on a fresh-install database, collapsing operator and
+        // owner onto one user and shrinking the recipient set to one card.
+        return FixtureInserts.insertReturningId(jdbcTemplate,
                 "INSERT INTO tp_user (username, password_hash, display_name, role, status) "
                         + "VALUES (?, 'x', ?, 1, 1)", username, "卡片用户" + username);
-        return lastId("tp_user");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1", Long.class);
     }
 
     
