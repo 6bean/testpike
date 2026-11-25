@@ -8,6 +8,7 @@ import com.sixbean.testpike.core.linkage.api.dto.LinkageProposalInput;
 import com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventMessage;
 import com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventType;
 import com.sixbean.testpike.core.linkage.infrastructure.mq.ChangeLinkageConsumer;
+import com.sixbean.testpike.core.linkage.support.ObjectChangedEventQueueProbe;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -217,9 +218,10 @@ class PerfScenarioReapprovalLinkageTest {
 
     @Test
     void scenario_edit_on_the_bus_files_a_deterministic_reapproval_snapshot() {
-        linkageConsumer.onObjectChanged(new ObjectChangedEventMessage(
+        linkageConsumer.onObjectChanged(ObjectChangedEventQueueProbe.rawFrame(
+                new ObjectChangedEventMessage(
                 ObjectChangedEventType.PERF_SCENARIO.name(), scenarioId, projectId, operatorId,
-                2, List.of("pressure_config"), System.currentTimeMillis()));
+                2, List.of("pressure_config"), System.currentTimeMillis())));
 
         Long impactId = jdbc.queryForObject(
                 "SELECT id FROM tp_linkage_impact WHERE edge_key = ? AND upstream_object_id = ?"
@@ -253,9 +255,10 @@ class PerfScenarioReapprovalLinkageTest {
         jdbc.update("UPDATE tp_perf_approval SET status = 2, handled_at = NULL, approver_id = NULL"
                 + " WHERE id = ?", approvalId);
 
-        linkageConsumer.onObjectChanged(new ObjectChangedEventMessage(
+        linkageConsumer.onObjectChanged(ObjectChangedEventQueueProbe.rawFrame(
+                new ObjectChangedEventMessage(
                 ObjectChangedEventType.PERF_SCENARIO.name(), scenarioId, projectId, operatorId,
-                3, List.of("pressure_config"), System.currentTimeMillis()));
+                3, List.of("pressure_config"), System.currentTimeMillis())));
 
         Long impactId = jdbc.queryForObject(
                 "SELECT id FROM tp_linkage_impact WHERE edge_key = ? AND upstream_object_id = ?"

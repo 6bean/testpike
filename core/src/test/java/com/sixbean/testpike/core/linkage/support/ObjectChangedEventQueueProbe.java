@@ -9,6 +9,8 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.MessageConverter;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -54,5 +56,22 @@ public class ObjectChangedEventQueueProbe {
     public Object awaitRaw(Queue queue, long timeoutMs) {
         Message msg = rabbitTemplate.receive(queue.getName(), timeoutMs);
         return msg == null ? null : converter.fromMessage(msg);
+    }
+
+    /**
+     * Raw wire form of a generic announcement as the linkage listener receives
+     * it now (Map entry — the shape the JSON converter produces before any DTO
+     * narrowing). Single source for suites driving the consumer entry directly.
+     */
+    public static Map<String, Object> rawFrame(ObjectChangedEventMessage message) {
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put("eventType", message.eventType());
+        frame.put("objectId", message.objectId());
+        frame.put("projectId", message.projectId());
+        frame.put("operatorId", message.operatorId());
+        frame.put("objectVersion", message.objectVersion());
+        frame.put("changedFields", message.changedFields());
+        frame.put("occurredAt", message.occurredAt());
+        return frame;
     }
 }

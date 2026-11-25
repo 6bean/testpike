@@ -92,13 +92,11 @@ public class ChangeLinkageConsumer {
     }
 
     @RabbitListener(queues = ChangeLinkageQueueConfig.QUEUE_NAME)
-    public void onObjectChanged(ObjectChangedEventMessage message) {
-        if (message == null || message.objectId() == null) {
-            log.warn("linkage consumer received an announcement without objectId — "
-                    + "rejected into the dead letter, never silently acked");
-            throw new IllegalArgumentException(
-                    "object-changed announcement without objectId cannot be dispatched");
-        }
+    public void onObjectChanged(Map<String, Object> raw) {
+        dispatchFrame(normalizeFrame(raw));
+    }
+
+    private void dispatchFrame(ObjectChangedEventMessage message) {
         LinkageImpactSummary summary = dispatchService.detectDownstream(message);
         log.info("linkage dispatch eventType={} objectId={} version={} edges={} found={} "
                         + "created={} updated={} drafts={}",
@@ -108,6 +106,64 @@ public class ChangeLinkageConsumer {
                 summary.pendingDrafts().size());
         relayProposalRequests(message, summary.pendingDrafts());
     }
+
+    /**
+     * Map the raw bus payload onto the generic announcement shape. The entry
+     * stays raw (a Map, not the typed DTO) because the JSON converter strips
+     * unknown properties into the DTO — a legacy frame would surface here
+     * already missing its identity. Two shapes resolve: the generic frame
+     * (objectId/eventType) passes through; the pre-generic requirement frame
+     * (eventType CHANGED + requirementId/requirementVersion, still published
+     * by the knowledge-base ingest door under the same requirement.changed
+     * key) folds into the REQUIREMENT member so the wildcard binding never
+     * dead-letters an announcement that arms real edges. Anything without an
+     * identity in either shape propagates as a rejection — retries then the
+     * dead letter, never a silent ack of an undispatchable frame.
+     */
+    static ObjectChangedEventMessage normalizeFrame(Map<String, Object> raw) {
+        Object objectId = raw == null ? null : raw.get("objectId");
+        String eventType = raw == null ? null : str(raw.get("eventType"));
+        if (objectId == null && raw != null && "CHANGED".equals(eventType)
+                && raw.get("requirementId") != null) {
+            return new ObjectChangedEventMessage(
+                    com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventType
+                            .REQUIREMENT.name(),
+                    asLong(raw.get("requirementId")), asLong(raw.get("projectId")),
+                    asLong(raw.get("operatorId")), asInteger(raw.get("requirementVersion")),
+                    null, asLong(raw.get("occurredAt")));
+        }
+        if (objectId == null) {
+            log.warn("linkage consumer received an announcement without objectId — "
+                    + "rejected into the dead letter, never silently acked");
+            throw new IllegalArgumentException(
+                    "object-changed announcement without objectId cannot be dispatched");
+        }
+        return new ObjectChangedEventMessage(eventType, asLong(objectId),
+                asLong(raw.get("projectId")), asLong(raw.get("operatorId")),
+                asInteger(raw.get("objectVersion")), stringList(raw.get("changedFields")),
+                asLong(raw.get("occurredAt")));
+    }
+
+    private static String str(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static Long asLong(Object value) {
+        return value instanceof Number n ? n.longValue() : null;
+    }
+
+    private static Integer asInteger(Object value) {
+        return value instanceof Number n ? n.intValue() : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> stringList(Object value) {
+        return value instanceof List<?> list
+                ? ((List<Object>) list).stream().filter(java.util.Objects::nonNull)
+                        .map(String::valueOf).toList()
+                : null;
+    }
+
 
     private void relayProposalRequests(ObjectChangedEventMessage message, List<String> drafts) {
         String upstreamType = objectTypeToken(message.eventType());

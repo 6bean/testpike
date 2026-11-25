@@ -79,18 +79,23 @@ public class RequirementServiceImpl implements RequirementService {
     private final CaseService caseService;
     private final DedupGate dedupGate;
     private final RequirementEventPublisher requirementEventPublisher;
+    private final com.sixbean.testpike.core.linkage.domain.service.ObjectChangedEventPublisher
+            objectChangedEventPublisher;
     private final com.sixbean.testpike.core.config.domain.service.ConfigService configService;
     private final com.sixbean.testpike.core.behavior.domain.component.BehaviorOutcomeIntake behaviorOutcomeIntake;
 
     public RequirementServiceImpl(JdbcTemplate jdbcTemplate, CaseService caseService,
                                   DedupGate dedupGate,
                                   RequirementEventPublisher requirementEventPublisher,
+                                  com.sixbean.testpike.core.linkage.domain.service.ObjectChangedEventPublisher
+                                          objectChangedEventPublisher,
                                   com.sixbean.testpike.core.config.domain.service.ConfigService configService,
                                   com.sixbean.testpike.core.behavior.domain.component.BehaviorOutcomeIntake behaviorOutcomeIntake) {
         this.jdbcTemplate = jdbcTemplate;
         this.caseService = caseService;
         this.dedupGate = dedupGate;
         this.requirementEventPublisher = requirementEventPublisher;
+        this.objectChangedEventPublisher = objectChangedEventPublisher;
         this.configService = configService;
         this.behaviorOutcomeIntake = behaviorOutcomeIntake;
     }
@@ -397,6 +402,8 @@ public class RequirementServiceImpl implements RequirementService {
         requirementEventPublisher.publish(new RequirementEventMessage(
                 RequirementEventType.CHANGED.name(), updated.id(), updated.projectId(),
                 operatorId, updated.version(), System.currentTimeMillis()));
+        publishLinkageAnnouncement(updated.id(), updated.projectId(), operatorId,
+                updated.version());
         return updated;
     }
 
@@ -458,6 +465,8 @@ public class RequirementServiceImpl implements RequirementService {
             requirementEventPublisher.publish(new RequirementEventMessage(
                     RequirementEventType.REVIEW_PASSED.name(), id, current.projectId(),
                     operatorId, current.version(), System.currentTimeMillis()));
+            publishLinkageAnnouncement(id, current.projectId(), operatorId,
+                    current.version());
         }
         return current;
     }
@@ -492,7 +501,28 @@ public class RequirementServiceImpl implements RequirementService {
         requirementEventPublisher.publish(new RequirementEventMessage(
                 RequirementEventType.CHANGED.name(), id, current.projectId(),
                 operatorId, current.version() + 1, System.currentTimeMillis()));
+        publishLinkageAnnouncement(id, current.projectId(), operatorId,
+                current.version() + 1);
         return id;
+    }
+
+    /**
+     * Change-linkage bus announcement of a really-written requirement row —
+     * the generic object-changed frame alongside the legacy requirement
+     * family (same requirement.changed routing key, no second key invented;
+     * same posture as the case save chain in CaseServiceImpl). Empty changed
+     * fields mean conservative arming per the DTO contract, and the
+     * afterCommit discipline lives in the publisher. Re-announcing one
+     * version is harmless: the impact ledger is keyed by edge + row + version.
+     */
+    private void publishLinkageAnnouncement(long id, Long projectId, Long operatorId,
+                                            int version) {
+        objectChangedEventPublisher.publish(
+                new com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventMessage(
+                        com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventType
+                                .REQUIREMENT.name(),
+                        id, projectId, operatorId, version, List.of(),
+                        System.currentTimeMillis()));
     }
 
     @Audit(objectType = "requirement", action = "link",

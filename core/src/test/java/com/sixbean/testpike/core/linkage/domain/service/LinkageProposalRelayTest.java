@@ -105,7 +105,8 @@ class LinkageProposalRelayTest {
 
     private long armScriptDraft() {
         // arm through the consumer entry — the proposal-request relay lives there
-        linkageConsumer.onObjectChanged(caseEvent(List.of("title"), 2));
+        linkageConsumer.onObjectChanged(
+                ObjectChangedEventQueueProbe.rawFrame(caseEvent(List.of("title"), 2)));
         long impactId = readScriptImpactId();
         assertTrue(impactId > 0, "the content edit must arm the script draft edge");
         return impactId;
