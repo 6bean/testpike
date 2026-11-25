@@ -82,10 +82,6 @@ class PerfDatasetTemplateConsumptionTest {
         SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "PERFDS", "tp_perf_dataset");
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
-    }
-
     /** Upload one pool; column names double as {{VAR:}} names in step texts. */
     private long seedDataset(String csvBody) {
         return perfDatasetService.upload(projectId,

@@ -43,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Config flips are cache-holder only, restored in finally (no DB writes).
  */
 @SpringBootTest(classes = CoreApplication.class)
+@IsolatedCaptureRedis
 class CaptureSessionLifecycleContractTest {
 
     private static final long FIXTURE_PROJECT_ID = 900_000_000_001L;

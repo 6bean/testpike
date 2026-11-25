@@ -49,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * handed over (timeout invalidation belongs to the TTL window, R57).
  */
 @SpringBootTest(classes = CoreApplication.class)
+@IsolatedCaptureRedis
 class CaptureSessionClaimReportContractTest {
 
     private static final long FIXTURE_PROJECT_ID = 900_000_000_002L;

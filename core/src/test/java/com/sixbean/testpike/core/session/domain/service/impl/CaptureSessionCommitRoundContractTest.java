@@ -48,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ④ values without a commit signal are refused (no blind write door).
  */
 @SpringBootTest(classes = CoreApplication.class)
+@IsolatedCaptureRedis
 class CaptureSessionCommitRoundContractTest {
 
     private static final long FIXTURE_EXECUTOR_ID = 900_000_000_903L;

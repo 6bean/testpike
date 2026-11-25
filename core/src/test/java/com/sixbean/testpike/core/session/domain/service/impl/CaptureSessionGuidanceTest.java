@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * finally block (R57 double-sweep).
  */
 @SpringBootTest(classes = CoreApplication.class)
+@IsolatedCaptureRedis
 class CaptureSessionGuidanceTest {
 
     @Autowired

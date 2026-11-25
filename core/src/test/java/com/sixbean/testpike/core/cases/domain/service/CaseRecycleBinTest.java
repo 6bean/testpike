@@ -345,6 +345,12 @@ class CaseRecycleBinTest {
     void recycleBin_彻底删除后审计保留_还原再删可查() {
         long pid = createProject("audit");
         CaseInfo c = createCase(pid, "审计保留");
+        // High-water mark above every audit row that exists before this test acts:
+        // the anchor below can then only land on a row this very operation
+        // sequence wrote, never on a same-type row a concurrent suite appends
+        // meanwhile on the shared dev database (fixture self-evidence rule).
+        long auditBaseline = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(id), 0) FROM tp_audit_log", Long.class);
         caseService.delete(1L, c.id());
         caseService.restore(1L, c.id(), c.version());
         caseService.delete(1L, c.id());
@@ -352,8 +358,8 @@ class CaseRecycleBinTest {
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "SELECT action, operator_id FROM tp_audit_log WHERE object_type = 'case' AND object_id = ?"
                         + " AND id = (SELECT max(id) FROM tp_audit_log WHERE object_type = 'case'"
-                        + " AND object_id = ?)",
-                String.valueOf(c.id()), String.valueOf(c.id()));
+                        + " AND object_id = ? AND id > ?)",
+                String.valueOf(c.id()), String.valueOf(c.id()), auditBaseline);
         assertEquals("delete", row.get("action"));
     }
 }

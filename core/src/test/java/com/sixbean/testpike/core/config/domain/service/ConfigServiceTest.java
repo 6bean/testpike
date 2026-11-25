@@ -104,9 +104,13 @@ class ConfigServiceTest {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", row);
         }
         // The ids come back as they were, so the sequence has to continue above them - a number
-        // handed out later must never collide with a row that was just restored.
-        jdbcTemplate.execute("SELECT setval('tp_sys_config_id_seq', "
-                + "(SELECT COALESCE(MAX(id), 1) FROM tp_sys_config), true)");
+        // handed out later must never collide with a row that was just restored. And it must never
+        // be pulled back below what the sequence already handed out: on the shared dev database a
+        // concurrent suite may hold rows numbered above MAX(id) right now, and restarting the
+        // sequence under them would make the next insert collide with those live rows.
+        jdbcTemplate.execute("SELECT setval('tp_sys_config_id_seq', GREATEST("
+                + "(SELECT COALESCE(MAX(id), 1) FROM tp_sys_config),"
+                + " (SELECT last_value FROM tp_sys_config_id_seq)), true)");
     }
 
 

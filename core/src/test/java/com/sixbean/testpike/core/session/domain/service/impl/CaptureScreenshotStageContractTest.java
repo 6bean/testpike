@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * or duplicated names, over-cap batch) refuse before any key is written.
  */
 @SpringBootTest(classes = CoreApplication.class)
+@IsolatedCaptureRedis
 class CaptureScreenshotStageContractTest {
 
     @Autowired

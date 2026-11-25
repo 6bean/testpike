@@ -124,6 +124,11 @@ public enum PublicEndpointRegistry {
   *  same posture as EXPLORE_SESSION_PROCESS_EVENTS, no permission key). */
     BATCH_PROCESS_EVENTS("GET", "/api/v1/batches/{id}/process-events",
             "批次执行过程事件游标窗口（只读，归属校验在码）"),
+ /** R67 revisit door: per-run history rows of the batch tail, read-only,
+  *  ownership guarded in code from the batch row — same posture as the
+  *  cursor window above, no permission key. */
+    BATCH_PROCESS_RUNS("GET", "/api/v1/batches/{id}/process-runs",
+            "批次执行轮次历史（只读，归属校验在码）"),
  
     SCHEDULE_FIRES_LIST("GET", "/api/v1/schedule/fires", "定时触发留痕列表（K6 项目成员/H1 隔离闸）"),
  /** Cron next-fire preview (B-8; pure read-only computation over the caller's
@@ -285,6 +290,9 @@ public enum PublicEndpointRegistry {
     /** R67 revisit door: per-run history rows of the spec extraction tail. */
     AI_DOCUMENTS_SPEC_EXTRACTION_RUNS("GET", "/api/v1/ai/documents/{id}/spec-extraction-runs",
             "接口文档抽取轮次历史（K6 项目成员/H1 隔离闸）"),
+    /** R67 revisit door: per-run history rows of the document extraction tail. */
+    AI_DOCUMENTS_EXTRACTION_RUNS("GET", "/api/v1/ai/documents/{id}/extraction-runs",
+            "提取轮次历史（K6 项目成员/H1 隔离闸）"),
     
     AI_DOCUMENTS_CONFIRM("POST", "/api/v1/ai/documents/{id}/confirm-extraction",
             "提取勾选入库（K6 负责人/ADMIN 且非开发闸）"),
@@ -504,6 +512,10 @@ public enum PublicEndpointRegistry {
     EXPLORE_SESSION_GET("GET", "/api/v1/explore/sessions/{id}", "探索会话详情（K6 项目成员/H1 隔离闸）"),
     EXPLORE_SESSION_PROCESS_EVENTS("GET", "/api/v1/explore/sessions/{id}/process-events",
             "探索会话过程事件游标窗口（只读，归属校验在码）"),
+ /** R67 revisit door: per-run history rows of the explore session tail,
+  *  read-only, ownership guarded in code from the session row. */
+    EXPLORE_SESSION_PROCESS_RUNS("GET", "/api/v1/explore/sessions/{id}/process-runs",
+            "探索会话轮次历史（只读，归属校验在码）"),
     
     EXPLORE_STEP_SCREENSHOT("GET", "/api/v1/explore/sessions/{id}/steps/{seq}/screenshot",
             "探索单步取证预签名（K6 项目成员/H1 隔离闸）"),
