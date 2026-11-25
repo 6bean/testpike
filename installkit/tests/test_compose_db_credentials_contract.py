@@ -32,6 +32,15 @@ def test_postgres_credentials_read_install_env_keys():
     assert "pg_isready -U ${DB_USERNAME:-testpike}" in pg, pg
 
 
+def test_rabbitmq_credentials_read_install_env_keys():
+    # Same dual-source class as postgres: the broker seeds its account only
+    # when the volume is created, while the app tier and vhost reconciler
+    # consume the .env pair — hard-coded creds left installs on a mismatch.
+    mq = _block(r"^  rabbitmq:")
+    assert "RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-testpike}" in mq, mq
+    assert "RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-testpike_dev}" in mq, mq
+
+
 def test_dbinit_wait_is_bounded_and_diagnoses():
     init = _block(r"^  seaweedfs-dbinit:")
     assert "until psql" not in init, "unbounded ready-wait loop is back"

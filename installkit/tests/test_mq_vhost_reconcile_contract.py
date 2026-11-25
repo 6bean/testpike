@@ -167,3 +167,32 @@ def test_mq_vhost_source_ships_english_only():
     assert not offenders, (
         "install surface must not carry CJK operator text; offending lines: %s"
         % offenders[:3])
+
+
+def test_auth_refusal_is_taught_as_credential_mismatch_not_ports():
+    # A broker that answers 401 is reachable; the old single message sent
+    # operators hunting ports instead of the .env pair (dead pointer = defect).
+    for code in (401, 403):
+        transport = lambda m, p, body=None: (code, "User denied access")
+        ok, notes = mq_vhost.ensure_vhost(
+            transport=transport, vhost="/tp-slot9", user="ops",
+            password="sup3r-s3cret-pw", tries=2, sleep=0)
+        assert not ok
+        joined = " ".join(notes)
+        assert "RABBITMQ_PASSWORD" in joined and ".env" in joined, joined
+        assert "down -v" in joined and "re-run" in joined, joined
+        assert "taken by another service" not in joined, joined
+        assert "sup3r-s3cret-pw" not in joined, "red line 4: values never on screen"
+
+
+def test_non_auth_status_still_reports_unreachable_with_detail():
+    # The other branch keeps its hit case: an HTTP 500 answer must not be
+    # mistaken for a credential fault, and must carry the observed status.
+    transport = lambda m, p, body=None: (500, "Internal Server Error")
+    ok, notes = mq_vhost.ensure_vhost(
+        transport=transport, vhost="/tp-slot9", user="ops",
+        password="x", tries=1, sleep=0)
+    assert not ok
+    joined = " ".join(notes)
+    assert "last HTTP status 500" in joined, joined
+    assert "refused the management credentials" not in joined, joined

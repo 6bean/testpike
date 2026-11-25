@@ -91,23 +91,44 @@ def ensure_vhost(transport=None, vhost=None, user=None, password=None,
         transport = urlopen_transport(mgmt_url, user, password)
     quoted = urllib.parse.quote(vhost, safe="")
     listed = None
+    last_status = None
+    last_error = ""
     for attempt in range(max(1, tries)):
         try:
             status, text = transport("GET", "/api/vhosts")
             if status == 200:
                 listed = [v.get("name") for v in json.loads(text)]
                 break
-        except Exception:
-            pass
+            last_status = status
+        except Exception as exc:
+            last_error = str(exc) or type(exc).__name__
         if attempt + 1 < tries and sleep:
             time.sleep(sleep)
     if listed is None:
-        return False, ["RabbitMQ management API is unreachable at %s: the target "
+        if last_status in (401, 403):
+            # A reachable broker that refuses the credentials is a different
+            # fault than an absent console; pointing at ports here would be a
+            # dead end, so the note names the keys and the one-shot
+            # initialization rule instead.
+            return False, ["RabbitMQ refused the management credentials for user "
+                           "\"%s\" (HTTP %s) at %s: the broker takes its account "
+                           "pair once, when its data volume is first created "
+                           "(factory default: testpike / testpike_dev). Fix: set "
+                           "RABBITMQ_USERNAME and RABBITMQ_PASSWORD in the "
+                           "project .env to the pair the broker actually holds, "
+                           "or (fresh install, nothing to keep) run docker "
+                           "compose down -v and re-run this command to resume "
+                           "from the failed step"
+                           % (user, last_status, mgmt_url)]
+        detail = "" if last_status is None else " (last HTTP status %s)" % last_status
+        if last_status is None and last_error:
+            detail = " (last error: %s)" % last_error
+        return False, ["RabbitMQ management API is unreachable at %s%s: the target "
                        "vhost \"%s\" cannot be reconciled. Fix: confirm the "
                        "middleware is running and the management port is not "
                        "taken by another service, then re-run this command to "
                        "resume from the failed step"
-                       % (mgmt_url, vhost)]
+                       % (mgmt_url, detail, vhost)]
     notes = []
     created = False
     if vhost not in listed:

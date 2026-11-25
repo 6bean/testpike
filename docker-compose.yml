@@ -105,8 +105,10 @@ services:
     image: rabbitmq:3.13-management
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: testpike
-      RABBITMQ_DEFAULT_PASS: testpike_dev
+      # Single source: same install-time keys the app tier and the vhost
+      # reconciler read; applied when the data volume is first created.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-testpike}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-testpike_dev}
       TZ: Asia/Shanghai
     ports:
       - "${MQ_AMQP_HOST_PORT:-5672}:5672"    # AMQP
