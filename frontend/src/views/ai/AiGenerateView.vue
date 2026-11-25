@@ -135,7 +135,7 @@
             <el-icon><InfoFilled /></el-icon>
             <div class="budget-tip-body">
               <div v-if="autoEnumerate === 1" class="budget-tip-title" data-test="ai-gen-single-auto-hint">
-                {{ t('aiGenerate.autoEnumHintOn') }}
+                {{ t('aiGenerate.autoEnumHintOnSingle') }}
               </div>
               <div class="budget-tip-title">{{ t('aiGenerate.budgetTipTitle') }}</div>
               <ul>
@@ -422,7 +422,7 @@
           <el-empty v-else :description="t('aiGenerate.emptySingleDesc')" :image-size="80">
             <template v-if="projectId && form.requirement.trim()">
               <div class="task-sub" data-test="ai-gen-empty-auto-hint">
-                {{ autoEnumerate === 1 ? t('aiGenerate.autoEnumHintOn') : t('aiGenerate.autoEnumHintOff') }}
+                {{ autoEnumerate === 1 ? t('aiGenerate.autoEnumHintOnSingle') : t('aiGenerate.autoEnumHintOffSingle') }}
               </div>
               <el-button type="primary" plain @click="submit">
                 {{ t('aiGenerate.submitNowBtn') }}

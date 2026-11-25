@@ -38,6 +38,22 @@ class CaseFlakyServiceTest {
     private final java.util.List<Long> flakyTrackedProjects =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    /** Suite-owned actor on the high test band: the shared dev database's
+     * factory administrator (id=1) is a notification recipient set and must
+     * never be role-mutated by a suite (its ensure helper overwrites the
+     * role column in place). */
+    private static final long OPERATOR_ID = 9_312_001L;
+
+    @BeforeEach
+    void seedSuiteActor() {
+        CaseTestMembers.ensureUserWithRole(jdbcTemplate, OPERATOR_ID, "admin");
+    }
+
+    @AfterEach
+    void removeSuiteActor() {
+        CaseTestMembers.dropUser(jdbcTemplate, OPERATOR_ID);
+    }
+
     @BeforeEach
     @AfterEach
     void cleanTables() {
@@ -54,13 +70,12 @@ class CaseFlakyServiceTest {
     }
 
     private long createProject(String code) {
-        return ProjectFixtureRig.createSelfHeal(jdbcTemplate, projectService, 1L,
+        return ProjectFixtureRig.createSelfHeal(jdbcTemplate, projectService, OPERATOR_ID,
                 flakyTrackedProjects, "项目" + code, code);
     }
 
     private CaseInfo createCase(long pid, String title) {
-        CaseTestMembers.ensureUserWithRole(jdbcTemplate, 1L, "admin");
-        return caseService.create(1L, new CaseCreateInput(pid, title, "前置", "预期",
+        return caseService.create(OPERATOR_ID, new CaseCreateInput(pid, title, "前置", "预期",
                 1, 2, "web", 3, 2, 1, null, List.of()));
     }
 
@@ -78,12 +93,12 @@ class CaseFlakyServiceTest {
         long pid = createProject("q3a");
         CaseInfo info = createCase(pid, "登录偶发失败");
 
-        CaseInfo isolated = caseService.setFlaky(1L, info.id(), true, "登录页偶发元素定位失败");
+        CaseInfo isolated = caseService.setFlaky(OPERATOR_ID, info.id(), true, "登录页偶发元素定位失败");
         assertEquals(1, isolated.flaky());
         assertEquals("登录页偶发元素定位失败", isolated.flakyReason());
         assertNotNull(isolated.flakyMarkedAt());
 
-        CaseInfo again = caseService.setFlaky(1L, info.id(), true, "改为：断言超时");
+        CaseInfo again = caseService.setFlaky(OPERATOR_ID, info.id(), true, "改为：断言超时");
         assertEquals(1, again.flaky());
         assertEquals("改为：断言超时", again.flakyReason());
 
@@ -98,11 +113,11 @@ class CaseFlakyServiceTest {
         long pid = createProject("q3b");
         CaseInfo info = createCase(pid, "偶发用例");
 
-        CaseInfo isolated = caseService.setFlaky(1L, info.id(), true, null);
+        CaseInfo isolated = caseService.setFlaky(OPERATOR_ID, info.id(), true, null);
         assertNotNull(isolated.flakyReason(), "空理由→默认人话文案");
         assertTrue(isolated.flakyReason().contains("不稳定"), "默认文案含「不稳定」: " + isolated.flakyReason());
 
-        CaseInfo cleared = caseService.setFlaky(1L, info.id(), false, null);
+        CaseInfo cleared = caseService.setFlaky(OPERATOR_ID, info.id(), false, null);
         assertEquals(0, cleared.flaky());
         assertNull(cleared.flakyReason(), "解除清空理由");
         assertNull(cleared.flakyMarkedAt(), "解除清空标记时间");
@@ -159,7 +174,7 @@ class CaseFlakyServiceTest {
     void 已隔离用例_窗口翻转不足且一致不足5_保持隔离不建议() {
         long pid = createProject("q3e");
         CaseInfo info = createCase(pid, "曾翻转用例");
-        caseService.setFlaky(1L, info.id(), true, null);
+        caseService.setFlaky(OPERATOR_ID, info.id(), true, null);
         seedExec(pid, info.id(), 4, 50);
         seedExec(pid, info.id(), 4, 40);
         seedExec(pid, info.id(), 3, 30);
@@ -180,7 +195,7 @@ class CaseFlakyServiceTest {
     void 已隔离用例_最近连续5次一致_计入建议解除并保持标记() {
         long pid = createProject("q3f");
         CaseInfo info = createCase(pid, "隔离后恢复用例");
-        caseService.setFlaky(1L, info.id(), true, null);
+        caseService.setFlaky(OPERATOR_ID, info.id(), true, null);
         for (int i = 5; i >= 1; i--) {
             seedExec(pid, info.id(), 3, i * 10);
         }

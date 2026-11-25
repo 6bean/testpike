@@ -99,6 +99,13 @@ _SIGNATURES = (
         "repository does not exist",
         "error from registry: manifest unknown",
     )),
+    # The metadata-init container gave up waiting for PostgreSQL: its own marker
+    # line covers every give-up reason (wrong credentials, role missing, server
+    # still initializing), and a raw auth failure from any psql stage maps here too.
+    ("dbinit_unreachable", (
+        "swf-dbinit: cannot connect",
+        "password authentication failed",
+    )),
     ("egress_dead", (
         "temporary failure in name resolution",
         "name or service not known",
@@ -168,6 +175,22 @@ def teach(kind, **facts):
             "Drop it by hand only when you are sure the data is unneeded, and "
             "back it up before deleting.\n%s"
             % (db, RESUME_HINT)
+        )
+    if kind == "dbinit_unreachable":
+        return (
+            "The metadata-init container could not connect to PostgreSQL. Two "
+            "causes, both visible in the error line above: wrong credentials "
+            "(FATAL: password authentication failed / role does not exist) or "
+            "the database server still starting/restarting.\n"
+            "Credentials: check DB_USERNAME and DB_PASSWORD in .env — the "
+            "postgres container initializes with exactly this pair on a fresh "
+            "data volume. If the volume was created with another pair, either "
+            "set .env back to that pair, or (fresh install, nothing to keep) "
+            "reset with: docker compose down -v\n"
+            "Server state: docker compose logs postgres — a schema init over "
+            "25k SQL lines can take a few minutes on slow disks; wait, then "
+            "re-run.\n"
+            "%s" % RESUME_HINT
         )
     if kind == "registry_blocked":
         images = facts.get("images") or images_in_output(facts.get("output") or "")

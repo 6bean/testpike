@@ -14,6 +14,7 @@ import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiBatchCli
 import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiScenarioPreviewClient;
 import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiTaskClient;
 import com.sixbean.testpike.admin.aichat.app.component.SseFrameWriter;
+import com.sixbean.testpike.admin.aichat.app.component.SseWindowSettings;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
 import com.sixbean.testpike.admin.project.app.component.ProjectAccessGuard;
@@ -45,9 +46,7 @@ public class AiController {
     private final ProjectAccessGuard guard;
     private final IdempotentGuard idempotentGuard;
     private final StepsGenEventStreamBridge stepsGenStreamBridge;
-
-    /** Hard ceiling for one live tail drawer — the pump's own guards seal far earlier. */
-    private static final long SSE_TIMEOUT_MILLIS = 30 * 60 * 1000L;
+    private final SseWindowSettings sseWindow;
 
     /** Page ceiling of the requirement live-generation annotation : one table page at a time. */
     private static final int LIVE_REQUIREMENT_IDS_MAX = 200;
@@ -55,13 +54,15 @@ public class AiController {
     public AiController(CoreAiTaskClient coreAiTaskClient, CoreAiBatchClient coreAiBatchClient,
                         CoreAiScenarioPreviewClient coreAiScenarioPreviewClient,
                         ProjectAccessGuard guard, IdempotentGuard idempotentGuard,
-                        StepsGenEventStreamBridge stepsGenStreamBridge) {
+                        StepsGenEventStreamBridge stepsGenStreamBridge,
+                        SseWindowSettings sseWindow) {
         this.coreAiTaskClient = coreAiTaskClient;
         this.coreAiBatchClient = coreAiBatchClient;
         this.coreAiScenarioPreviewClient = coreAiScenarioPreviewClient;
         this.guard = guard;
         this.idempotentGuard = idempotentGuard;
         this.stepsGenStreamBridge = stepsGenStreamBridge;
+        this.sseWindow = sseWindow;
     }
 
     
@@ -133,7 +134,7 @@ public class AiController {
         // failure the tail exists to prevent (same header pair as the dialog door).
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
+        SseEmitter emitter = sseWindow.openEmitter();
         SseFrameWriter writer = new SseFrameWriter(emitter);
         Thread.ofVirtual().name("steps-gen-tail-" + taskId).start(() -> {
             try {

@@ -53,7 +53,7 @@ class ScenarioPreviewBridgeTest {
     private final com.sixbean.testpike.admin.ai.app.service.StepsGenEventStreamBridge
             stepsBridge = mock(
                     com.sixbean.testpike.admin.ai.app.service.StepsGenEventStreamBridge.class);
-    private final AiController controller = new AiController(
+    private final AiController controller = StreamDoorTestAssembly.aiController(
             taskClient, batchClient, previewClient, guard, idempotentGuard, stepsBridge);
 
     @AfterEach

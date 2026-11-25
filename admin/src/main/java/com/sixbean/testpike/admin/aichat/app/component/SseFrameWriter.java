@@ -17,13 +17,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SseFrameWriter implements StreamFrameWriter {
 
+    /**
+     * Wire-only event name of the window-expiry degrade notice. Deliberately
+     * outside the ledger frame vocabulary: it never lands in the ledger, so
+     * replay semantics of the nine stored frame types are untouched.
+     */
+    public static final String WINDOW_EXPIRED_EVENT = "stream-window-expired";
+
+    /** Human-readable degrade sentence carried by {@link #WINDOW_EXPIRED_EVENT}. */
+    public static final String WINDOW_EXPIRED_NOTICE =
+            "实时进度推送窗口已到时关闭；任务仍在后台继续，页面会自动改用轮询续读进度，无需手动操作。";
+
     private final SseEmitter emitter;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public SseFrameWriter(SseEmitter emitter) {
         this.emitter = emitter;
         emitter.onCompletion(() -> closed.set(true));
-        emitter.onTimeout(() -> closed.set(true));
+        emitter.onTimeout(this::sealExpiredWindow);
         emitter.onError(ex -> closed.set(true));
     }
 
@@ -109,6 +120,34 @@ public class SseFrameWriter implements StreamFrameWriter {
                 emitter.complete();
             } catch (Exception alreadyGone) {
                 // The container retired the request itself — nothing left to seal.
+            }
+        }
+    }
+
+    /**
+     * Container-side window expiry: one degrade notice reaches the wire,
+     * then the async cycle is completed INSIDE the callback. A plain abort
+     * latch (the previous behavior) left Spring to dispatch the timeout as
+     * AsyncRequestTimeoutException — the repeated WARN bursts in the admin
+     * log (R53 audit 2026-11-25) — and the client saw a silent stream end
+     * with no word about what happened. Completing here retires the request
+     * cleanly; the notice is transport-only (no cursor id, never a ledger
+     * row), so reconnecting consumers still replay from the true anchor.
+     */
+    private void sealExpiredWindow() {
+        if (closed.compareAndSet(false, true)) {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name(WINDOW_EXPIRED_EVENT)
+                        .data(WINDOW_EXPIRED_NOTICE, MediaType.TEXT_PLAIN));
+            } catch (Exception wireGone) {
+                // The browser vanished before the notice; the ledger keeps
+                // every real frame, so nothing is lost by skipping it.
+            }
+            try {
+                emitter.complete();
+            } catch (Exception alreadyRetired) {
+                // The container closed the cycle first — same end state.
             }
         }
     }

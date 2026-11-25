@@ -6,6 +6,7 @@ import com.sixbean.testpike.admin.aichat.api.dto.ChatInjectView;
 import com.sixbean.testpike.admin.aichat.api.dto.ChatMessageView;
 import com.sixbean.testpike.admin.aichat.api.dto.ChatStreamRequest;
 import com.sixbean.testpike.admin.aichat.app.component.SseFrameWriter;
+import com.sixbean.testpike.admin.aichat.app.component.SseWindowSettings;
 import com.sixbean.testpike.admin.aichat.app.service.ChatStreamBridge;
 import com.sixbean.testpike.admin.aichat.infrastructure.remote.client.CoreAiChatClient;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
@@ -37,18 +38,17 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/v1/ai/chat")
 public class AiChatStreamController {
 
-    /** Hard ceiling only — the pump's idle/budget timers close streams far earlier. */
-    private static final long EMITTER_TIMEOUT_MILLIS = 30 * 60 * 1000L;
-
     private final ChatStreamBridge bridge;
     private final CoreAiChatClient coreClient;
     private final ProjectAccessGuard accessGuard;
+    private final SseWindowSettings sseWindow;
 
     public AiChatStreamController(ChatStreamBridge bridge, CoreAiChatClient coreClient,
-                                  ProjectAccessGuard accessGuard) {
+                                  ProjectAccessGuard accessGuard, SseWindowSettings sseWindow) {
         this.bridge = bridge;
         this.coreClient = coreClient;
         this.accessGuard = accessGuard;
+        this.sseWindow = sseWindow;
     }
 
     /**
@@ -75,7 +75,7 @@ public class AiChatStreamController {
         // dead spinner" failure the protocol exists to prevent.
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
+        SseEmitter emitter = sseWindow.openEmitter();
         SseFrameWriter writer = new SseFrameWriter(emitter);
         // Virtual thread per stream: the pump blocks on ledger polls, which is
         // exactly what virtual threads are for; no bounded pool to starve.

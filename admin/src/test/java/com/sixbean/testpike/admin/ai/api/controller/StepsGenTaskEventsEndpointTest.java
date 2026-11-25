@@ -2,16 +2,9 @@ package com.sixbean.testpike.admin.ai.api.controller;
 
 import com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView;
 import com.sixbean.testpike.admin.ai.api.dto.AiTaskView;
-import com.sixbean.testpike.admin.ai.app.service.StepsGenEventStreamBridge;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiBatchClient;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiScenarioPreviewClient;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiTaskClient;
 import com.sixbean.testpike.admin.aichat.app.component.StreamFrameWriter;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
-import com.sixbean.testpike.admin.auth.app.component.UserContext;
-import com.sixbean.testpike.admin.project.app.component.ProjectAccessGuard;
 import com.sixbean.testpike.common.clientobject.Response;
-import com.sixbean.testpike.common.idempotent.IdempotentGuard;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -51,25 +44,11 @@ import static org.mockito.Mockito.when;
  */
 class StepsGenTaskEventsEndpointTest {
 
-    private final CoreAiTaskClient taskClient = mock(CoreAiTaskClient.class);
-    private final CoreAiBatchClient batchClient = mock(CoreAiBatchClient.class);
-    private final CoreAiScenarioPreviewClient previewClient =
-            mock(CoreAiScenarioPreviewClient.class);
-    private final ProjectAccessGuard guard = mock(ProjectAccessGuard.class);
-    private final IdempotentGuard idempotentGuard = mock(IdempotentGuard.class);
-    private final StepsGenEventStreamBridge stepsBridge =
-            mock(StepsGenEventStreamBridge.class);
-    private final AiController controller = new AiController(
-            taskClient, batchClient, previewClient, guard, idempotentGuard, stepsBridge);
+    private final StreamDoorTestAssembly wiring = new StreamDoorTestAssembly();
 
     @AfterEach
     void tearDown() {
-        UserContext.clear();
-    }
-
-    private void loginMember() {
-        UserContext.set(new CurrentUser(5L, "tester", "T", "项目成员", List.of("MEMBER"),
-                System.currentTimeMillis() + 3600_000, null));
+        wiring.clearLogin();
     }
 
     private AiTaskView task(long id, long projectId) {
@@ -79,14 +58,14 @@ class StepsGenTaskEventsEndpointTest {
 
     @Test
     void cursorWindowDoorSlicesByTheTaskOwningProjectAndEchoesLedgerWindow() {
-        loginMember();
-        when(taskClient.getTask(7L)).thenReturn(task(7, 42));
-        when(taskClient.taskProcessEvents(7L, 3L, 50)).thenReturn(List.of(
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(7L)).thenReturn(task(7, 42));
+        when(wiring.taskClient.taskProcessEvents(7L, 3L, 50)).thenReturn(List.of(
                 new AiTaskEventView(4L, "step", "第1/2片完成", null, "2026-11-11T10:02:00")));
 
-        Response<List<AiTaskEventView>> resp = controller.taskProcessEvents(7L, 3L, 50);
+        Response<List<AiTaskEventView>> resp = wiring.aiController.taskProcessEvents(7L, 3L, 50);
 
-        verify(guard).assertCanView(any(CurrentUser.class), eq(42L));
+        verify(wiring.guard).assertCanView(any(CurrentUser.class), eq(42L));
         assertEquals("0", resp.getCode());
         assertEquals(1, resp.getData().size());
         assertEquals(4L, resp.getData().get(0).cursor());
@@ -95,46 +74,46 @@ class StepsGenTaskEventsEndpointTest {
 
     @Test
     void streamDoorSealsBufferingHeadersAndHandsOffToTheSharedPump() throws Exception {
-        loginMember();
-        when(taskClient.getTask(8L)).thenReturn(task(8, 42));
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(8L)).thenReturn(task(8, 42));
         CountDownLatch tailStarted = new CountDownLatch(1);
         doAnswer(call -> {
             tailStarted.countDown();
             return null;
-        }).when(stepsBridge).stream(eq(8L), eq(0L), any(StreamFrameWriter.class));
+        }).when(wiring.stepsBridge).stream(eq(8L), eq(0L), any(StreamFrameWriter.class));
 
         HttpServletResponse http = mock(HttpServletResponse.class);
-        SseEmitter emitter = controller.taskProcessEventStream(8L, 0L, http);
+        SseEmitter emitter = wiring.aiController.taskProcessEventStream(8L, 0L, http);
 
         assertNotNull(emitter);
         assertTrue(tailStarted.await(2, TimeUnit.SECONDS),
                 "the door must hand the cursor off to the shared tail pump");
-        verify(guard).assertCanView(any(CurrentUser.class), eq(42L));
+        verify(wiring.guard).assertCanView(any(CurrentUser.class), eq(42L));
         verify(http).setHeader("X-Accel-Buffering", "no");
         verify(http).setHeader("Cache-Control", "no-cache");
     }
 
     @Test
     void streamDoorRefusesANonMemberBeforeStartingAnyTail() {
-        loginMember();
-        when(taskClient.getTask(9L)).thenReturn(task(9, 42));
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(9L)).thenReturn(task(9, 42));
         doThrow(new IllegalStateException("forbidden project view"))
-                .when(guard).assertCanView(any(CurrentUser.class), eq(42L));
+                .when(wiring.guard).assertCanView(any(CurrentUser.class), eq(42L));
 
         assertThrows(IllegalStateException.class,
-                () -> controller.taskProcessEventStream(9L, 0L, mock(HttpServletResponse.class)));
-        verify(stepsBridge, never()).stream(anyLong(), anyLong(), any());
+                () -> wiring.aiController.taskProcessEventStream(9L, 0L, mock(HttpServletResponse.class)));
+        verify(wiring.stepsBridge, never()).stream(anyLong(), anyLong(), any());
     }
 
     @Test
     void missingTaskKeepsTheOldEchoShapeWithoutAnOwnershipProbe() {
-        loginMember();
-        when(taskClient.getTask(404L)).thenReturn(null);
-        when(taskClient.taskProcessEvents(404L, 0L, null)).thenReturn(List.of());
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(404L)).thenReturn(null);
+        when(wiring.taskClient.taskProcessEvents(404L, 0L, null)).thenReturn(List.of());
 
-        Response<List<AiTaskEventView>> resp = controller.taskProcessEvents(404L, 0L, null);
+        Response<List<AiTaskEventView>> resp = wiring.aiController.taskProcessEvents(404L, 0L, null);
 
-        verify(guard, never()).assertCanView(any(), anyLong());
+        verify(wiring.guard, never()).assertCanView(any(), anyLong());
         assertTrue(resp.getData().isEmpty());
     }
 }

@@ -261,9 +261,16 @@ const diffShown = computed(() =>
 )
 
 function applyDraftSelection(): void {
-  // Default = everything checked: the contract is the trusted source here;
-  // the checkbox gate still means nothing writes without a human click.
-  selected.value = new Set(drafts.value.map((d) => d.endpointKey))
+  // Default set = the rows core's pre-adjudication recommended (flagged
+  // defaultChecked). Starting from "everything checked" would make the
+  // advice channel decorative and let a one-click import carry rows the
+  // review pass never endorsed; rows without advice stay unchecked until
+  // a human opts in via the bulk buttons or individual checkboxes.
+  const next = new Set<string>()
+  for (const d of drafts.value) {
+    if (d.defaultChecked === true) next.add(d.endpointKey)
+  }
+  selected.value = next
 }
 
 async function onMarkRemoved(): Promise<void> {

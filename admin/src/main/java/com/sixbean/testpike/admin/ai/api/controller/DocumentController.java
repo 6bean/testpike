@@ -13,6 +13,7 @@ import com.sixbean.testpike.admin.ai.api.dto.ExtractionPreviewView;
 import com.sixbean.testpike.admin.ai.app.service.ExtractionEventStreamBridge;
 import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreDocumentClient;
 import com.sixbean.testpike.admin.aichat.app.component.SseFrameWriter;
+import com.sixbean.testpike.admin.aichat.app.component.SseWindowSettings;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
 import com.sixbean.testpike.admin.project.api.dto.PageView;
@@ -39,18 +40,18 @@ import java.io.IOException;
 @RequestMapping("/api/v1/ai/documents")
 public class DocumentController {
 
-    /** Hard ceiling for one live tail drawer — the pump's own guards seal far earlier. */
-    private static final long SSE_TIMEOUT_MILLIS = 30 * 60 * 1000L;
-
     private final CoreDocumentClient coreDocumentClient;
     private final ProjectAccessGuard guard;
     private final ExtractionEventStreamBridge eventStreamBridge;
+    private final SseWindowSettings sseWindow;
 
     public DocumentController(CoreDocumentClient coreDocumentClient, ProjectAccessGuard guard,
-                              ExtractionEventStreamBridge eventStreamBridge) {
+                              ExtractionEventStreamBridge eventStreamBridge,
+                              SseWindowSettings sseWindow) {
         this.coreDocumentClient = coreDocumentClient;
         this.guard = guard;
         this.eventStreamBridge = eventStreamBridge;
+        this.sseWindow = sseWindow;
     }
 
     /**
@@ -246,7 +247,7 @@ public class DocumentController {
         // failure the tail exists to prevent (same header pair as the dialog door).
         response.setHeader("X-Accel-Buffering", "no");
         response.setHeader("Cache-Control", "no-cache");
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
+        SseEmitter emitter = sseWindow.openEmitter();
         SseFrameWriter writer = new SseFrameWriter(emitter);
         // Virtual thread per drawer: the pump blocks on cursor polls, which is
         // exactly what virtual threads are for.

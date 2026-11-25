@@ -1,11 +1,8 @@
 package com.sixbean.testpike.admin.ai.api.controller;
 
 import com.sixbean.testpike.admin.ai.api.dto.DocumentInfoView;
-import com.sixbean.testpike.admin.ai.app.service.ExtractionEventStreamBridge;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreDocumentClient;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.LoggedUserFixture;
-import com.sixbean.testpike.admin.project.app.component.ProjectAccessGuard;
 import com.sixbean.testpike.common.clientobject.Response;
 import com.sixbean.testpike.common.exception.ServiceException;
 import org.junit.jupiter.api.AfterEach;
@@ -35,9 +32,7 @@ import static org.mockito.Mockito.when;
  */
 class DocumentExtractionCancelBridgeTest {
 
-    private final CoreDocumentClient coreDocumentClient = mock(CoreDocumentClient.class);
-    private final ProjectAccessGuard guard = mock(ProjectAccessGuard.class);
-    private final DocumentController controller = new DocumentController(coreDocumentClient, guard, mock(ExtractionEventStreamBridge.class));
+    private final StreamDoorTestAssembly wiring = new StreamDoorTestAssembly();
 
     @AfterEach
     void tearDown() {
@@ -52,14 +47,14 @@ class DocumentExtractionCancelBridgeTest {
     @Test
     void cancel_gatesOnOwningProjectThenDelegatesToCore() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 3, null));
-        when(coreDocumentClient.cancelExtraction(12L))
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 3, null));
+        when(wiring.coreDocumentClient.cancelExtraction(12L))
                 .thenReturn(docFixture(12L, 42L, 1, "提取已由用户取消"));
 
-        Response<DocumentInfoView> resp = controller.cancelExtraction(12L);
+        Response<DocumentInfoView> resp = wiring.documentController.cancelExtraction(12L);
 
         assertEquals("0", resp.getCode());
-        verify(guard).assertCanWriteRequirement(any(CurrentUser.class), eq(42L));
+        verify(wiring.guard).assertCanWriteRequirement(any(CurrentUser.class), eq(42L));
         assertEquals(1, resp.getData().status(), "取消后行态=待提取(1)，由 core 落定");
         assertEquals("提取已由用户取消", resp.getData().errorMsg(), "取消人话原样透传");
     }
@@ -67,23 +62,23 @@ class DocumentExtractionCancelBridgeTest {
     @Test
     void cancel_writeDoorRefused_coreNeverCalled() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 3, null));
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 3, null));
         org.mockito.Mockito.doThrow(new ServiceException("无权限操作该文档", 403))
-                .when(guard).assertCanWriteRequirement(any(CurrentUser.class), eq(42L));
+                .when(wiring.guard).assertCanWriteRequirement(any(CurrentUser.class), eq(42L));
 
-        assertThrows(ServiceException.class, () -> controller.cancelExtraction(12L));
-        verify(coreDocumentClient, never()).cancelExtraction(12L);
+        assertThrows(ServiceException.class, () -> wiring.documentController.cancelExtraction(12L));
+        verify(wiring.coreDocumentClient, never()).cancelExtraction(12L);
     }
 
     @Test
     void cancel_honestRejectionFromCore_propagates() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 4, null));
-        when(coreDocumentClient.cancelExtraction(12L))
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L, 4, null));
+        when(wiring.coreDocumentClient.cancelExtraction(12L))
                 .thenThrow(new ServiceException("当前没有进行中的提取任务，无需取消", 409));
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> controller.cancelExtraction(12L));
+                () -> wiring.documentController.cancelExtraction(12L));
         assertEquals("当前没有进行中的提取任务，无需取消", ex.getMessage(),
                 "无事可取消的拒止人话不得被桥吞成假成功");
     }

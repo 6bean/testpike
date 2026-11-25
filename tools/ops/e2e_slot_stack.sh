@@ -17,7 +17,7 @@
 # three user-facing services); a requested role with no built jar is a red,
 # never a silent pass.
 check_jars_fresh() {
-  local roles="$*" role jar newest rc=0
+  local roles="$*" role jar newest rc=0 basis out mrc built
   [ -n "$roles" ] || roles="admin core api"
   for role in $roles; do
     jar="$(ls -t "$REPO_ROOT/$role"/target/testpike-${role}-*.jar 2>/dev/null \
@@ -27,10 +27,27 @@ check_jars_fresh() {
       rc=1
       continue
     fi
-    newest="$(find "$REPO_ROOT/$role/src/main" -name '*.java' -newer "$jar" 2>/dev/null | head -1)"
+    # Manifest-first: the sidecar written at successful `mvn package`
+    # pins the exact build moment of these bytes; repackaged mtimes are not
+    # evidence. Without a matching manifest the gate falls back to the
+    # conjunctive mtime comparison and announces it on the verdict line.
+    basis=""
+    out="$(python3 "$REPO_ROOT/tools/ops/jar_manifest.py" check "$REPO_ROOT" "$role" "$jar" 2>/dev/null)"
+    mrc=$?
+    if [ "$mrc" -eq 0 ]; then
+      built="${out##*built_at=}"; built="${built%% *}"
+      basis=" manifest@${out##*head=}"
+      newest="$(find "$REPO_ROOT/$role/src/main" -name '*.java' -newermt "@$built" 2>/dev/null | head -1)"
+    else
+      if [ "$mrc" -eq 2 ]; then basis=" (no build manifest; mtime conjunctive fallback)"
+      else basis=" (manifest invalid for these bytes; mtime conjunctive fallback)"; fi
+      newest="$(find "$REPO_ROOT/$role/src/main" -name '*.java' -newer "$jar" 2>/dev/null | head -1)"
+    fi
     if [ -n "$newest" ]; then
-      say "$WINDOW_TAG: FAIL $role jar stale vs $newest (build first, do not start the window on a stale jar)"
+      say "$WINDOW_TAG: FAIL $role jar stale vs $newest (build first, do not start the window on a stale jar)$basis"
       rc=1
+    else
+      say "$WINDOW_TAG: OK $role jar covers sources$basis"
     fi
   done
   if [ "$rc" -eq 0 ]; then

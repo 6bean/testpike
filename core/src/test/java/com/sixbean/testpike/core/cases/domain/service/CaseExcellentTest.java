@@ -39,6 +39,22 @@ class CaseExcellentTest {
     private final java.util.List<Long> trackedProjects =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    /** Suite-owned actor on the high test band: the shared dev database's
+     * factory administrator (id=1) is a notification recipient set and must
+     * never be role-mutated by a suite (its ensure helper overwrites the
+     * role column in place). */
+    private static final long OPERATOR_ID = 9_311_001L;
+
+    @BeforeEach
+    void seedSuiteActor() {
+        CaseTestMembers.ensureUserWithRole(jdbcTemplate, OPERATOR_ID, "admin");
+    }
+
+    @AfterEach
+    void removeSuiteActor() {
+        CaseTestMembers.dropUser(jdbcTemplate, OPERATOR_ID);
+    }
+
     @BeforeEach
     @AfterEach
     void cleanFixtureRows() {
@@ -52,14 +68,13 @@ class CaseExcellentTest {
     private long createProject(String code) {
         // Same-code self-heal drops a crashed run's leftover before creating,
         // so the unique key never collides without touching other suites' rows.
-        return ProjectFixtureRig.createSelfHeal(jdbcTemplate, projectService, 1L,
+        return ProjectFixtureRig.createSelfHeal(jdbcTemplate, projectService, OPERATOR_ID,
                 trackedProjects, "项目" + code, code);
     }
 
     
     private CaseInfo createCase(long pid, String title, int status) {
-        CaseTestMembers.ensureUserWithRole(jdbcTemplate, 1L, "admin");
-        CaseInfo info = caseService.create(1L, new CaseCreateInput(pid, title, "前置", "预期",
+        CaseInfo info = caseService.create(OPERATOR_ID, new CaseCreateInput(pid, title, "前置", "预期",
                 1, 2, "web", 3, 2, 1, null, List.of()));
         jdbcTemplate.update("UPDATE tp_test_case SET status = ? WHERE id = ?", status, info.id());
         return caseService.get(info.id());
@@ -70,7 +85,7 @@ class CaseExcellentTest {
         long pid = createProject("d3a");
         CaseInfo info = createCase(pid, "优秀候选", 3);
 
-        CaseInfo marked = caseService.markExcellent(1L, info.id(), true, info.version());
+        CaseInfo marked = caseService.markExcellent(OPERATOR_ID, info.id(), true, info.version());
         assertEquals(1, marked.excellent(), "回显 excellent=1");
         assertEquals(info.version() + 1, marked.version(), "乐观锁 version+1");
 
@@ -90,7 +105,7 @@ class CaseExcellentTest {
         CaseInfo draft = createCase(pid, "待评审用例", 1);
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> caseService.markExcellent(1L, draft.id(), true, draft.version()));
+                () -> caseService.markExcellent(OPERATOR_ID, draft.id(), true, draft.version()));
         assertTrue(ex.getMessage().contains("仅已通过用例可标记优秀"), "人话文案: " + ex.getMessage());
         assertTrue(ex.getMessage().contains("待评审"), "含当前状态 label: " + ex.getMessage());
         assertEquals(0, caseService.get(draft.id()).excellent(), "被拒不落标");
@@ -100,10 +115,10 @@ class CaseExcellentTest {
     void 取消标记不限状态_回退待评审后仍可取消() {
         long pid = createProject("d3c");
         CaseInfo info = createCase(pid, "先标后取消", 3);
-        CaseInfo marked = caseService.markExcellent(1L, info.id(), true, info.version());
+        CaseInfo marked = caseService.markExcellent(OPERATOR_ID, info.id(), true, info.version());
 
         jdbcTemplate.update("UPDATE tp_test_case SET status = 1 WHERE id = ?", info.id());
-        CaseInfo unmarked = caseService.markExcellent(1L, info.id(), false, marked.version());
+        CaseInfo unmarked = caseService.markExcellent(OPERATOR_ID, info.id(), false, marked.version());
         assertEquals(0, unmarked.excellent(), "取消不限态（TC-D3-02）");
 
         Integer auditCount = jdbcTemplate.queryForObject(
@@ -118,7 +133,7 @@ class CaseExcellentTest {
         CaseInfo info = createCase(pid, "并发冲突", 3);
 
         OptimisticLockingException ex = assertThrows(OptimisticLockingException.class,
-                () -> caseService.markExcellent(1L, info.id(), true, info.version() + 99));
+                () -> caseService.markExcellent(OPERATOR_ID, info.id(), true, info.version() + 99));
         assertTrue(ex.getMessage().contains("版本冲突"), "乐观锁文案: " + ex.getMessage());
         assertTrue(ex.getMessage().contains("当前版本"), "含当前版本提示: " + ex.getMessage());
     }
@@ -128,7 +143,7 @@ class CaseExcellentTest {
         long pid = createProject("d3e");
         CaseInfo good = createCase(pid, "优秀用例", 3);
         createCase(pid, "普通用例", 3);
-        caseService.markExcellent(1L, good.id(), true, good.version());
+        caseService.markExcellent(OPERATOR_ID, good.id(), true, good.version());
 
         CaseQuery excellentOnly = new CaseQuery(pid, null, null, null, null, null, null,
                 null, null, null, 1, 10, true);

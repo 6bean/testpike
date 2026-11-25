@@ -2,15 +2,8 @@ package com.sixbean.testpike.admin.ai.api.controller;
 
 import com.sixbean.testpike.admin.ai.api.dto.AiBatchView;
 import com.sixbean.testpike.admin.ai.api.dto.AiTaskView;
-import com.sixbean.testpike.admin.ai.app.service.StepsGenEventStreamBridge;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiBatchClient;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiScenarioPreviewClient;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreAiTaskClient;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
-import com.sixbean.testpike.admin.auth.app.component.UserContext;
-import com.sixbean.testpike.admin.project.app.component.ProjectAccessGuard;
 import com.sixbean.testpike.common.clientobject.Response;
-import com.sixbean.testpike.common.idempotent.IdempotentGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -45,25 +38,11 @@ import static org.mockito.Mockito.when;
  */
 class AiTaskCancelEndpointTest {
 
-    private final CoreAiTaskClient taskClient = mock(CoreAiTaskClient.class);
-    private final CoreAiBatchClient batchClient = mock(CoreAiBatchClient.class);
-    private final CoreAiScenarioPreviewClient previewClient =
-            mock(CoreAiScenarioPreviewClient.class);
-    private final ProjectAccessGuard guard = mock(ProjectAccessGuard.class);
-    private final IdempotentGuard idempotentGuard = mock(IdempotentGuard.class);
-    private final StepsGenEventStreamBridge stepsBridge =
-            mock(StepsGenEventStreamBridge.class);
-    private final AiController controller = new AiController(
-            taskClient, batchClient, previewClient, guard, idempotentGuard, stepsBridge);
+    private final StreamDoorTestAssembly wiring = new StreamDoorTestAssembly();
 
     @AfterEach
     void tearDown() {
-        UserContext.clear();
-    }
-
-    private void loginMember() {
-        UserContext.set(new CurrentUser(5L, "tester", "T", "项目成员", List.of("MEMBER"),
-                System.currentTimeMillis() + 3600_000, null));
+        wiring.clearLogin();
     }
 
     private AiTaskView task(long id, long projectId) {
@@ -73,36 +52,36 @@ class AiTaskCancelEndpointTest {
 
     @Test
     void stopDoorGuardsOnTheTasksOwningProjectThenForwardsOnce() {
-        loginMember();
-        when(taskClient.getTask(7L)).thenReturn(task(7, 42));
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(7L)).thenReturn(task(7, 42));
 
-        Response<Void> resp = controller.cancel(7L);
+        Response<Void> resp = wiring.aiController.cancel(7L);
 
-        verify(guard).assertCanWriteCase(any(CurrentUser.class), eq(42L));
-        verify(taskClient).cancelTask(7L);
+        verify(wiring.guard).assertCanWriteCase(any(CurrentUser.class), eq(42L));
+        verify(wiring.taskClient).cancelTask(7L);
         assertEquals("0", resp.getCode());
     }
 
     @Test
     void writeGateRefusalStopsBeforeAnyForwardReachesCore() {
-        loginMember();
-        when(taskClient.getTask(9L)).thenReturn(task(9, 42));
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(9L)).thenReturn(task(9, 42));
         doThrow(new IllegalStateException("开发人员为只读角色，无法执行该操作"))
-                .when(guard).assertCanWriteCase(any(CurrentUser.class), eq(42L));
+                .when(wiring.guard).assertCanWriteCase(any(CurrentUser.class), eq(42L));
 
-        assertThrows(IllegalStateException.class, () -> controller.cancel(9L));
-        verify(taskClient, never()).cancelTask(anyLong());
+        assertThrows(IllegalStateException.class, () -> wiring.aiController.cancel(9L));
+        verify(wiring.taskClient, never()).cancelTask(anyLong());
     }
 
     @Test
     void unknownTaskKeepsTheRetryPassThroughPostureWithoutAnOwnershipProbe() {
-        loginMember();
-        when(taskClient.getTask(404L)).thenReturn(null);
+        wiring.loginMember();
+        when(wiring.taskClient.getTask(404L)).thenReturn(null);
 
-        controller.cancel(404L);
+        wiring.aiController.cancel(404L);
 
-        verify(guard, never()).assertCanWriteCase(any(), anyLong());
-        verify(taskClient).cancelTask(404L);
+        verify(wiring.guard, never()).assertCanWriteCase(any(), anyLong());
+        verify(wiring.taskClient).cancelTask(404L);
     }
 
     @Test
@@ -123,13 +102,13 @@ class AiTaskCancelEndpointTest {
 
     @Test
     void batchDoorEchoesTheCancelledCountToTheViewer() {
-        loginMember();
-        when(batchClient.getBatch(3L)).thenReturn(new AiBatchView(3L, 42L, 5L, 10,
+        wiring.loginMember();
+        when(wiring.batchClient.getBatch(3L)).thenReturn(new AiBatchView(3L, 42L, 5L, 10,
                 0, 0, 6, 1, 3, "2026-11-12T10:00:00", List.of(), null));
 
-        Response<AiBatchView> resp = controller.getBatch(3L);
+        Response<AiBatchView> resp = wiring.aiController.getBatch(3L);
 
-        verify(guard).assertCanView(any(CurrentUser.class), eq(42L));
+        verify(wiring.guard).assertCanView(any(CurrentUser.class), eq(42L));
         assertEquals(3, resp.getData().cancelled());
     }
 }

@@ -3,6 +3,10 @@ package com.sixbean.testpike.admin.aichat.app.component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -12,13 +16,26 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 final class FlakySendSseEmitter extends SseEmitter {
 
+    /** Ordered wire trace: every send and every seal lands here in order. */
+    private final List<String> trace = Collections.synchronizedList(new ArrayList<>());
+    /** Raw payload fragments of every sent block (for wire-content asserts). */
+    private final List<String> fragments = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger sends = new AtomicInteger();
     private final AtomicInteger seals = new AtomicInteger();
     private volatile boolean failSends;
+    private volatile Runnable timeoutCallback;
+
+    @Override
+    public void onTimeout(Runnable callback) {
+        this.timeoutCallback = callback;
+        super.onTimeout(callback);
+    }
 
     @Override
     public void send(SseEventBuilder builder) throws IOException {
         sends.incrementAndGet();
+        trace.add("send");
+        collectFragments(builder);
         if (failSends) {
             throw new IOException("client gone");
         }
@@ -27,6 +44,49 @@ final class FlakySendSseEmitter extends SseEmitter {
     @Override
     public void complete() {
         seals.incrementAndGet();
+        trace.add("seal");
+    }
+
+    /** Simulate the container's async-window timeout dispatch. */
+    void fireTimeout() {
+        Runnable callback = timeoutCallback;
+        if (callback != null) {
+            callback.run();
+        }
+    }
+
+    /** True when the writer never registered a timeout callback at all. */
+    boolean hasTimeoutCallback() {
+        return timeoutCallback != null;
+    }
+
+    List<String> trace() {
+        return List.copyOf(trace);
+    }
+
+    List<String> fragments() {
+        return List.copyOf(fragments);
+    }
+
+    /**
+     * Snapshot the block's payload objects before the send decision, so a
+     * degrade notice is content-inspectable even when the socket is dead.
+     * DataWithMediaType is container-internal; reflection stays test-side.
+     */
+    private void collectFragments(SseEventBuilder builder) {
+        for (Object entry : builder.build()) {
+            try {
+                Method getter = entry.getClass().getDeclaredMethod("getData");
+                getter.setAccessible(true);
+                Object data = getter.invoke(entry);
+                if (data != null) {
+                    fragments.add(data.toString());
+                }
+            } catch (ReflectiveOperationException unreadableEntry) {
+                // Fragment shape changed upstream: content asserts degrade to
+                // counts only, never to a silent pass on missing evidence.
+            }
+        }
     }
 
     /** Make every subsequent send throw, simulating a dead browser socket. */

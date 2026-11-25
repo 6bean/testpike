@@ -384,3 +384,76 @@ def test_mock_enrich_bulk_tail_worstcase_revisit(logged_in, collectors, api_clie
     finally:
         _restore_cap(previous_cap)
         _purge(api_client, pid, space_id)
+
+
+def test_mock_bulk_enable_journey_click_budget(logged_in, collectors, api_client, uniq):
+    """Click-budget contract: enabling a fresh contract as mocks is reachable
+    in at most four deliberate user clicks - entry button, pick the
+    contract, see the advised default set (preview), one-click enable - the
+    acceptance line the MJ ruling pins for the key journey.
+
+    The counter counts every click the journey actually costs in the shared
+    wizard's list-pick channel, the channel the ruling's "pick a contract"
+    branch describes for a contract that is already an audited spec row.
+    Seeing the default set must not cost any selection click: after
+    preview the advised endpoints are pre-checked and the enable door is
+    already enabled, otherwise a hidden fifth click would slip past the
+    budget as silent re-checking work.
+    """
+    page = logged_in
+    tag = f"MockCib{uniq[:6].upper()}"
+    pid = _mk_project(api_client, f"MockCib {uniq}", tag)
+    space = _mk_space(api_client, pid, f"cib-space-{uniq}", uniq.lower())
+    space_id = space["id"] if isinstance(space, dict) else space
+    _publish(api_client, space_id)
+    _upload_contract(api_client, pid, f"cib-contract-{uniq}")
+    clicks = 0
+    try:
+        page.goto(f"{BASE_URL}/#/mock/spaces/{space_id}?projectId={pid}&tab=docs",
+                  wait_until="domcontentloaded")
+        expect(page.locator('[data-test="mock-docs-page"]')).to_be_visible(timeout=20000)
+
+        # Click 1: the workbench entry opens the shared wizard in its
+        # default list-pick mode - no mode switch before the budget starts.
+        page.locator('[data-test="mock-docs-import-contract"]').click()
+        clicks += 1
+        dialog = page.locator('[data-test="stub-direct-dialog"]')
+        expect(dialog).to_be_visible(timeout=8000)
+
+        # Click 2: pick the contract row.
+        row = dialog.locator('[data-test="stub-direct-spec-table"] tbody tr').first
+        expect(row).to_be_visible(timeout=8000)
+        row.click()
+        clicks += 1
+
+        # Click 3: preview. The screen then shows the advised default set:
+        # every advised endpoint already carries a check and the enable
+        # door is live without any further selection click.
+        dialog.locator('[data-test="stub-direct-preview-btn"]').click()
+        clicks += 1
+        expect(dialog.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=20000)
+        expect(dialog.locator('[data-test="stub-direct-check-all"]')) \
+            .to_have_class(re.compile(r"is-checked"), timeout=8000)
+        expect(dialog.locator(
+            '[data-test^="stub-direct-check-"]:not([data-test="stub-direct-check-all"]).is-checked'
+        )).to_have_count(2, timeout=8000)
+        expect(dialog.locator('[data-test="stub-direct-import-btn"]')).to_be_enabled(timeout=8000)
+
+        # Click 4: one-click enable; the receipt reports the created count.
+        dialog.locator('[data-test="stub-direct-import-btn"]').click()
+        clicks += 1
+        expect(dialog.locator('[data-test="stub-direct-done-created"]')) \
+            .to_contain_text("2", timeout=20000)
+
+        assert clicks <= 4, (
+            f"the bulk-enable journey costs {clicks} clicks; the ruling caps it at 4")
+
+        # The enabled stubs are real rows in the space, not dialog state.
+        stored = _scalar(f"SELECT count(*) FROM tp_mock_stub WHERE space_id={space_id}")
+        assert stored == "2", f"one-click enable left {stored} stub rows, expected 2"
+
+        assert_no_errors(collectors, "bulk-enable click-budget contract")
+        assert_no_browser_issues(
+            collectors.get("browser_issues", []), "bulk-enable click-budget contract")
+    finally:
+        _purge(api_client, pid, space_id)

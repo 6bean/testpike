@@ -133,10 +133,13 @@ def test_t360c_stub_direct_full_journey(logged_in, collectors, api_client, uniq)
         assert stubs[0]["method"] == "POST" and stubs[0]["pathPattern"] == "/orders"
         assert stubs[0]["source"] == "openapi" and stubs[0]["sourceRef"] == f"spec:{spec['id']}"
 
-        # idempotence: re-open, import ALL -> the covered POST comes back skipped
+        # Idempotence: re-open. Rows already covered sit outside the advice
+        # set, so the default selection is only the missing endpoint; the
+        # journey opts into the overwrite run explicitly via check-all.
         dialog.locator('[data-test="stub-direct-close-btn"]').click()
         dialog2 = _open_wizard(page, pid, space_id)
         expect(dialog2.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=10000)
+        dialog2.locator('[data-test="stub-direct-check-all"]').click()
         import2 = dialog2.locator('[data-test="stub-direct-import-btn"]')
         expect(import2).to_be_enabled(timeout=5000)
         import2.click()

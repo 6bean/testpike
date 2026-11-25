@@ -159,8 +159,15 @@ def check_freshness(repo_root, accept_stale=None):
         if art_stamp is None or not change_stamp:
             rows.append(("WARN", module, "no artifact or no resolvable change; skipped"))
             continue
-        rows.append(artifact_verdict(module, origin, change_stamp, art_stamp,
-                                     art_path, records))
+        # Manifest-first: the recorded build moment of exactly these bytes is
+        # the artifact stamp; without a manifest the conjunctive mtime verdict
+        # still runs but can no longer claim a clean PASS.
+        built_at, mnote = manifest_coverage(art_path)
+        level, name, message = artifact_verdict(
+            module, origin, change_stamp, built_at or art_stamp, art_path, records)
+        if level == "PASS" and not built_at:
+            level = "WARN"
+        rows.append((level, name, f"{message}; {mnote}"))
     return rows
 
 
@@ -231,7 +238,49 @@ def module_change_stamp(repo_root, module):
     return 0, "unknown"
 
 
-def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_resolver=None):
+_JM_MODULE = None
+
+
+def _jar_manifest_helper():
+    """Load tools/ops/jar_manifest.py once (single source, never a copy)."""
+    global _JM_MODULE
+    if _JM_MODULE is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "ops", "jar_manifest.py")
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("jar_manifest", path)
+            if spec is None or spec.loader is None:
+                _JM_MODULE = False
+            else:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _JM_MODULE = mod
+        except Exception:
+            _JM_MODULE = False
+    return _JM_MODULE or None
+
+
+def manifest_coverage(art_path):
+    """Manifest-first artifact watermark for the bytes on disk.
+
+    Returns (built_at, note) when a build-time manifest pins these exact jar
+    bytes; returns (None, note) when it is absent or the bytes moved past it,
+    which downgrades the caller to the conjunctive mtime judgement loudly.
+    """
+    helper = _jar_manifest_helper()
+    if helper is None:
+        return None, "manifest helper unavailable (mtime conjunctive fallback)"
+    if not art_path:
+        return None, "no artifact (mtime conjunctive fallback)"
+    rec = helper.load(art_path)
+    if rec is None:
+        return None, "no build manifest (mtime conjunctive fallback)"
+    return int(rec.get("built_at") or 0), f"manifest head={str(rec.get('head'))[:9]}"
+
+
+def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_resolver=None,
+                  coverage=None):
     """The service answering the window must be running the module's newest code.
 
     Comparing files in the repository is not enough: a service started before the
@@ -241,6 +290,7 @@ def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_res
     """
     rows = []
     resolve_start = start_resolver or process_start
+    cov_resolve = coverage or (lambda m: manifest_coverage(find_artifact(repo_root, m)[1]))
     for entry in (services if services is not None else SERVICE_PORTS):
         module, _, port = entry.strip().partition(":")
         if not module or not port:
@@ -256,6 +306,21 @@ def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_res
             rows.append(("WARN", f"{module}@{port}",
                          "start time or change stamp unresolvable; freshness unverified"))
             continue
+        # Manifest-first extra: a process started before the recorded build of
+        # the on-disk jar answers from pre-build bytes even when source history
+        # looks covered - exactly the voided-round form measured before.
+        built_at, mnote = cov_resolve(module)
+        if built_at and built_at > changed and started < built_at:
+            reason = _accept_reason(module, accept_stale)
+            if reason:
+                rows.append(("WARN", f"{module}@{port}",
+                             f"service predates the manifest build by "
+                             f"{int(built_at - started)}s; downgraded by record: {reason}"))
+            else:
+                rows.append(("FAIL", f"{module}@{port}",
+                             f"pid {pid} started {int(built_at - started)}s before the "
+                             f"manifest build ({mnote}) - swap the service onto the built jar"))
+            continue
         drift = int(changed - started)
         if drift > 0:
             reason = _accept_reason(module, accept_stale)
@@ -270,7 +335,8 @@ def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_res
                              f"- rebuild and swap, or record an accept-stale reason"))
         else:
             rows.append(("PASS", f"{module}@{port}",
-                         f"pid {pid} covers the newest {origin} change (-{-drift}s margin)"))
+                         f"pid {pid} covers the newest {origin} change "
+                         f"(-{-drift}s margin); {mnote}"))
     return rows
 
 
@@ -300,6 +366,48 @@ def check_health(timeout_s=6):
         except Exception as exc:
             rows.append(("FAIL", hostport, f"{type(exc).__name__}: {str(exc)[:80]}"))
     return rows
+
+
+# The recording reverse proxy is shared tooling that belongs to no slot band
+# (scripts/slot_topology.py keeps its port off-band), so grading it is opt-in:
+# only windows that read recorded prompts as evidence depend on it.
+RECORDING_PROXY_PORT = _preflight_env(os.environ, "TP_RECORD_PROXY_PORT", "18091")
+
+
+def recording_proxy_declared() -> bool:
+    """True when the caller declares a window whose evidence reads the proxy."""
+    return os.environ.get("TP_PREFLIGHT_RECORDING_PROXY", "").strip() == "1"
+
+
+def _http_answers(url, timeout_s=5):
+    """Any HTTP answer below 500 counts as alive (the proxy answers on "/")."""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout_s) as resp:
+            return resp.getcode() < 500
+    except Exception:
+        return False
+
+
+def check_recording_proxy(port=None, probe=None):
+    """Liveness of the prompt-recording proxy a declared window reads evidence from.
+
+    A window that scans the recorded-prompt file for its own traffic cannot tell
+    a dead proxy from a generation run that produced nothing: the ledger simply
+    stays empty and the step reports no hits. That silent shape is why the grade
+    blocks the start instead of letting the window run and explain itself later.
+    """
+    probe = _http_answers if probe is None else probe
+    port = RECORDING_PROXY_PORT if port is None else str(port).strip()
+    if not port:
+        return [("WARN", "recording-proxy",
+                 "no proxy port declared (TP_RECORD_PROXY_PORT unreadable), "
+                 "liveness is unknown rather than green")]
+    if probe(f"http://localhost:{port}/"):
+        return [("PASS", "recording-proxy", f"HTTP answer on :{port}")]
+    return [("FAIL", "recording-proxy",
+             f"no HTTP answer on http://localhost:{port}/ - start the in-tree single "
+             f"source (tools/ops/recproxy_llm.py serve) "
+             f"before this window: recorded-prompt evidence would stay empty")]
 
 
 def _load_db_target(repo_root):
@@ -893,6 +1001,7 @@ def runner_unit_transition(to_quiet: bool):
     return 0 if ok else 1
 
 def run(args):
+    grades = (getattr(args, "grades", "") or "").strip()
     sections = [
         ("artifact-freshness", lambda: check_freshness(args.repo_root, args.accept_stale)),
         ("service-runtime", lambda: check_runtime(args.repo_root, args.accept_stale)),
@@ -913,6 +1022,22 @@ def run(args):
     ]
     if backend_l2_window_declared():
         sections.append(("backend-l2-runner", check_backend_l2_runner))
+    if recording_proxy_declared() or "recording-proxy" in grades:
+        sections.append(("recording-proxy", lambda: check_recording_proxy()))
+    if grades:
+        # Narrow-scope recipes (capture windows, L3 evidence runs) depend on a
+        # subset of these grades; --grades names that subset instead of letting
+        # each recipe re-implement the probes (single source). A name that
+        # resolves to no runnable section exits non-zero rather than running an
+        # empty check list and reporting a green that was never measured.
+        wanted = [g.strip() for g in grades.split(",") if g.strip()]
+        known = {name for name, _ in sections}
+        unknown = [g for g in wanted if g not in known]
+        if unknown:
+            print(f"PREFLIGHT-VERDICT=NOGO (unknown grade(s) {unknown}; "
+                  f"runnable here: {sorted(known)})")
+            return 2
+        sections = [s for s in sections if s[0] in wanted]
     report, blocked = [], []
     print(f"[preflight] {' '.join(os.uname()[0:2])} | workers={args.workers} "
           f"| eta cap={args.eta_cap_s}s")
@@ -1037,18 +1162,59 @@ def selftest():
                                  services=[live], start_resolver=lambda pid: stamp - 3600)
         assert recorded[0][0] == "WARN" and "swap deferred" in recorded[0][2], \
             f"a recorded downgrade must warn, never hide: {recorded}"
+        cover_ref = max(stamp, manifest_coverage(find_artifact(REPO_UNDER_TEST, "admin")[1])[0] or 0)
         current = check_runtime(REPO_UNDER_TEST, services=[live],
-                                start_resolver=lambda pid: stamp + 60)
+                                start_resolver=lambda pid: cover_ref + 60)
         assert current[0][0] == "PASS", f"a service newer than every change must pass: {current}"
         dead = check_runtime(REPO_UNDER_TEST, services=[f"admin:{port + 1}"],
                              start_resolver=lambda pid: stamp + 60)
         assert dead[0][0] == "FAIL", "a missing listener must block the window"
+
+        # Manifest two-sided proof (build-time manifest): a pinned
+        # build moment blocks a process predating it, passes one covering it,
+        # and any byte change past the pin falls back loudly, never silently.
+        jm = _jar_manifest_helper()
+        assert jm, "tools/ops/jar_manifest.py must load as the single manifest source"
+        with tempfile.TemporaryDirectory() as mdir:
+            fake = os.path.join(mdir, "app.jar")
+            with open(fake, "w") as handle:
+                handle.write("boot")
+            rec = jm.record(REPO_UNDER_TEST, fake, "admin")
+            cov, note = manifest_coverage(fake)
+            assert cov == rec["built_at"] and "manifest head=" in note, (cov, note)
+            pre = check_runtime(REPO_UNDER_TEST, services=[live],
+                                start_resolver=lambda pid: rec["built_at"] - 120,
+                                coverage=lambda m: (rec["built_at"], "manifest head=selftest"))
+            assert pre[0][0] == "FAIL" and "manifest build" in pre[0][2], \
+                f"a process older than the recorded build must block: {pre}"
+            post = check_runtime(REPO_UNDER_TEST, services=[live],
+                                 start_resolver=lambda pid: max(stamp, rec["built_at"]) + 120,
+                                 coverage=lambda m: (rec["built_at"], "manifest head=selftest"))
+            assert post[0][0] == "PASS" and "manifest head=" in post[0][2], \
+                f"a process covering the recorded build must pass with the pin: {post}"
+            with open(fake, "a") as handle:
+                handle.write("x")
+            gone, fallback = manifest_coverage(fake)
+            assert gone is None and "no build manifest" in fallback, \
+                f"changed bytes must void the manifest loudly: {gone} {fallback}"
 
         global ENDPOINTS
         keep = ENDPOINTS
         ENDPOINTS = [f"127.0.0.1:{port}:actuator/health", "127.0.0.1:1:actuator/health"]
         health = check_health(timeout_s=3)
         ENDPOINTS = keep
+        # Recording proxy grade (opt-in, shared tooling): three states proven
+        # against the planted listener - live port passes, dead port blocks a
+        # window that declared it, unset port stays WARN instead of green.
+        # The probe pins the host to 127.0.0.1 because the planted listener binds
+        # IPv4 only; the real default resolves "localhost" like the window does.
+        pinned = lambda url: _http_answers(url.replace("localhost", "127.0.0.1", 1))
+        assert check_recording_proxy(port=str(port), probe=pinned)[0][0] == "PASS", \
+            "a listening recording proxy must pass the declared window"
+        assert check_recording_proxy(port="1", probe=pinned)[0][0] == "FAIL", \
+            "a dead recording proxy must block a window that declared it"
+        assert check_recording_proxy(port="", probe=pinned)[0][0] == "WARN", \
+            "an unset proxy port reads as unknown, never as green"
         server.shutdown()
         levels = {row[1]: row[0] for row in health}
         assert levels[f"127.0.0.1:{port}"] == "PASS", "live endpoint must pass"
@@ -1277,6 +1443,11 @@ def main(argv=None):
                         default=int(os.environ.get("TP_E2E_TIMEOUT_S", 180)))
     parser.add_argument("--accept-stale", default=ACCEPT_STALE,
                         help='recorded downgrade, e.g. "admin=swap deferred to quiet window"')
+    parser.add_argument("--grades", default=os.environ.get("TP_PREFLIGHT_GRADES", ""),
+                        help="comma-separated subset of grade names a narrow window "
+                             "depends on (e.g. artifact-freshness,service-health,"
+                             "recording-proxy); an unknown name exits 2 instead of "
+                             "running an empty check list")
     parser.add_argument("--stray-age-s", type=int,
                         default=int(os.environ.get("TP_PREFLIGHT_STRAY_AGE_S", 600)))
     parser.add_argument("--out")

@@ -4,11 +4,8 @@ import com.sixbean.testpike.admin.ai.api.dto.ChunkContextView;
 import com.sixbean.testpike.admin.ai.api.dto.ChunkNeighborView;
 import com.sixbean.testpike.admin.ai.api.dto.DocumentInfoView;
 import com.sixbean.testpike.admin.ai.api.dto.ExtractRequest;
-import com.sixbean.testpike.admin.ai.app.service.ExtractionEventStreamBridge;
-import com.sixbean.testpike.admin.ai.infrastructure.remote.client.CoreDocumentClient;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.LoggedUserFixture;
-import com.sixbean.testpike.admin.project.app.component.ProjectAccessGuard;
 import com.sixbean.testpike.common.clientobject.Response;
 import com.sixbean.testpike.common.exception.ServiceException;
 import org.junit.jupiter.api.AfterEach;
@@ -45,9 +42,7 @@ import static org.mockito.Mockito.when;
  */
 class DocumentChunkReadBridgeTest {
 
-    private final CoreDocumentClient coreDocumentClient = mock(CoreDocumentClient.class);
-    private final ProjectAccessGuard guard = mock(ProjectAccessGuard.class);
-    private final DocumentController controller = new DocumentController(coreDocumentClient, guard, mock(ExtractionEventStreamBridge.class));
+    private final StreamDoorTestAssembly wiring = new StreamDoorTestAssembly();
 
     @AfterEach
     void tearDown() {
@@ -67,10 +62,10 @@ class DocumentChunkReadBridgeTest {
     @Test
     void 上下文门直通_邻块与位置标记原样透传_先取文档后验权() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
-        when(coreDocumentClient.chunkContext(12L, 2L)).thenReturn(contextFixture());
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
+        when(wiring.coreDocumentClient.chunkContext(12L, 2L)).thenReturn(contextFixture());
 
-        Response<ChunkContextView> resp = controller.chunk(12L, 2L);
+        Response<ChunkContextView> resp = wiring.documentController.chunk(12L, 2L);
 
         assertEquals("0", resp.getCode());
         assertEquals(2L, resp.getData().chunkId(), "命中分块的行 ID 必须原样透传");
@@ -82,8 +77,8 @@ class DocumentChunkReadBridgeTest {
         assertEquals(1, resp.getData().preceding().size(), "邻块上下文必须原样到达");
         assertEquals(1L, resp.getData().preceding().get(0).id());
         assertEquals("上一块原文", resp.getData().preceding().get(0).content());
-        verify(guard).assertCanView(org.mockito.ArgumentMatchers.any(CurrentUser.class), eq(42L));
-        verify(coreDocumentClient, never()).chunks(anyLong());
+        verify(wiring.guard).assertCanView(org.mockito.ArgumentMatchers.any(CurrentUser.class), eq(42L));
+        verify(wiring.coreDocumentClient, never()).chunks(anyLong());
     }
 
     @Test
@@ -91,35 +86,35 @@ class DocumentChunkReadBridgeTest {
         // fix: a stale chunk is an expected fallback state, answered as a
         // 200 with found=false and no text, never as a 4xx on the wire.
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
-        when(coreDocumentClient.chunkContext(12L, 99L)).thenReturn(
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
+        when(wiring.coreDocumentClient.chunkContext(12L, 99L)).thenReturn(
                 new ChunkContextView(99L, 0, null, null, 0, 0, List.of(), false));
 
-        Response<ChunkContextView> resp = controller.chunk(12L, 99L);
+        Response<ChunkContextView> resp = wiring.documentController.chunk(12L, 99L);
 
         assertEquals("0", resp.getCode());
         assertFalse(resp.getData().found(), "过期块必须以 found=false 回答");
         assertNull(resp.getData().content(), "未命中分块不得携带任何正文");
-        verify(coreDocumentClient, never()).chunks(anyLong());
+        verify(wiring.coreDocumentClient, never()).chunks(anyLong());
     }
 
     @Test
     void 文档不存在_验权前404透传_不触碰上下文门() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(99L)).thenThrow(new ServiceException("文档不存在", 404));
+        when(wiring.coreDocumentClient.get(99L)).thenThrow(new ServiceException("文档不存在", 404));
 
-        assertThrows(ServiceException.class, () -> controller.chunk(99L, 1L));
-        verify(coreDocumentClient, never()).chunkContext(anyLong(), anyLong());
+        assertThrows(ServiceException.class, () -> wiring.documentController.chunk(99L, 1L));
+        verify(wiring.coreDocumentClient, never()).chunkContext(anyLong(), anyLong());
     }
 
     @Test
     void 定向补提白名单_经提取桥原样转发_旧构造缺省空() {
         LoggedUserFixture.loginAsTestLead(7L);
-        when(coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
+        when(wiring.coreDocumentClient.get(12L)).thenReturn(docFixture(12L, 42L));
 
-        controller.extract(12L, new ExtractRequest(null, null, false, List.of(148477L)));
+        wiring.documentController.extract(12L, new ExtractRequest(null, null, false, List.of(148477L)));
 
-        verify(coreDocumentClient).extract(eq(12L),
+        verify(wiring.coreDocumentClient).extract(eq(12L),
                 argThat(request -> request.chunkIds().equals(List.of(148477L))));
         assertTrue(new ExtractRequest("hint").chunkIds().isEmpty(), "两遍迁移旧构造缺省空集");
         assertTrue(new ExtractRequest("hint", "dim").chunkIds().isEmpty(), "三参前构造缺省空集");

@@ -406,10 +406,12 @@ public final class SharedDbFixtureSweep {
      * An empty window is a no-op.
      */
     public static void deleteSince(JdbcTemplate jdbc, String table, long idFloor) {
+        // tp_audit_log: run-owned audit rows stay in the ledger (chain
+        // integrity outranks hygiene; assertions never read foreign rows).
         if ("tp_audit_log".equals(table)) {
-            // NEVER surgically remove audit rows (same ruling as the audit
-            // branch in byIds): the ledger is append-only and mid-range
-            // removal forges a chain break. Fixture audit rows are harmless -
+            // Audit rows are never swept by fixtures (see byIds): even a
+            // tail-window delete would need the registered break ledger to
+            // stay verifiable; leaving run-owned rows is harmless because
             // every ledger assertion anchors on its own fixture.
             return;
         }
@@ -640,6 +642,26 @@ public final class SharedDbFixtureSweep {
         return new long[] {projectId, envId};
     }
 
+    /**
+     * Teardown twin of {@link #seedPerfFixtureProject}: sweep every row of the
+     * perf-suite fixture whose project code carries the given LIKE prefix
+     * (crash leftovers included), children first. tp_perf_run, tp_perf_scenario
+     * and tp_perf_whitelist are always covered; extraChildTables adds suite-
+     * specific tables such as tp_perf_dataset. An empty prefix match is a no-op.
+     */
+    public static void sweepPerfFixtureProject(JdbcTemplate jdbc, String codePrefix,
+            String... extraChildTables) {
+        String owned = "(SELECT id FROM tp_project WHERE code LIKE '" + codePrefix + "%')";
+        jdbc.update("DELETE FROM tp_perf_run WHERE project_id IN " + owned);
+        jdbc.update("DELETE FROM tp_perf_scenario WHERE project_id IN " + owned);
+        jdbc.update("DELETE FROM tp_perf_whitelist WHERE project_id IN " + owned);
+        for (String table : extraChildTables) {
+            jdbc.update("DELETE FROM " + table + " WHERE project_id IN " + owned);
+        }
+        jdbc.update("DELETE FROM tp_project_env WHERE project_id IN " + owned);
+        jdbc.update("DELETE FROM tp_project WHERE code LIKE '" + codePrefix + "%'");
+    }
+
     public static long projectIdByCode(JdbcTemplate jdbc, String code) {
         List<Long> rows = jdbc.queryForList(
                 "SELECT id FROM tp_project WHERE code = ?", Long.class, code);
@@ -804,6 +826,15 @@ public final class SharedDbFixtureSweep {
         }
     }
 
+    /**
+     * tp_audit_log is append-only: the V18d trigger rejects DELETE unless the
+     * transaction-local GUC {@code tp.audit_retention_allowed} is set, the same
+     * gate the product retention channel (AuditRetentionCleaner) opens. Fixture
+     * teardown legitimately removes only its own projects' audit rows, so it
+     * runs the delete inside a self-managed short transaction — SET LOCAL
+     * semantics end with the commit, so the pooled connection never leaks an
+     * open permission window to its next borrower.
+     */
     /**
      * Remove stale tp_asset_reference pins whose referrer_id sits in one asset
      * fixture suite's synthetic host range [hostBase, hostBase + 1e9). The

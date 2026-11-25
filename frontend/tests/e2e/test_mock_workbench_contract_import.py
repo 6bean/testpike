@@ -8,7 +8,8 @@ api-test mount does not exercise:
 2. the upload channel is the spec-domain single door — an OpenAPI file
    uploaded here lands as an audited contract version row, pre-selected,
    and the row is visible to the API-spec list afterwards;
-3. preview defaults to every detected endpoint checked, and the one-click
+3. preview defaults to the pre-adjudicated recommendation set (for a
+   brand-new contract that is every detected endpoint), and the one-click
    import is the human confirmation door (nothing imports before it);
 4. the outcome receipt states the three counts (detected / created /
    skipped) and the created stubs live in the docs list for real (reload
@@ -77,7 +78,7 @@ def _stub_rows(api, space_id):
 
 
 def test_workbench_contract_import_wizard(logged_in, collectors, api_client, uniq, tmp_path):
-    """Upload -> audited spec row -> all-checked preview -> one-click import -> docs truth."""
+    """Upload -> audited spec row -> advised-selection preview -> one-click import -> docs truth."""
     page = logged_in
     pid = _mk_project(api_client, f"MockCiw {uniq}", f"mcw{uniq}")
     space_key = f"mcw{uniq}".lower()
@@ -112,7 +113,8 @@ def test_workbench_contract_import_wizard(logged_in, collectors, api_client, uni
         names = [s.get("name", "") for s in listed["data"]["list"]]
         assert any("warehouse-contract" in n for n in names), f"uploaded row missing in spec list: {names}"
 
-        # Preview defaults to every endpoint checked (confirmation door intact).
+        # For a brand-new contract the advice recommends both endpoints, so
+        # the default set covers them all (confirmation door intact).
         dialog.locator('[data-test="stub-direct-preview-btn"]').click()
         expect(dialog.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=20000)
         expect(dialog.locator('[data-test="stub-direct-check-all"]'))\
@@ -134,13 +136,19 @@ def test_workbench_contract_import_wizard(logged_in, collectors, api_client, uni
         assert len(rows) == 2, f"expected 2 imported stubs, got {len(rows)}"
         assert all(s.get("source") == "openapi" for s in rows), f"source tag drift: {rows}"
 
-        # Idempotent second run: same contract re-imported reports skipped, no dupes.
+        # Idempotent second run: re-imported rows already have stubs, so the
+        # advice recommends nothing and the default set is empty — the confirm
+        # door stays disabled until a human explicitly opts into overwriting
+        # via check-all. The run then reports skipped, no dupes.
         page.locator('[data-test="mock-docs-import-contract"]').click()
         dialog2 = page.locator('[data-test="stub-direct-dialog"]')
         expect(dialog2).to_be_visible(timeout=8000)
         dialog2.locator('[data-test="stub-direct-spec-table"] tbody tr').first.click()
         dialog2.locator('[data-test="stub-direct-preview-btn"]').click()
         expect(dialog2.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=20000)
+        expect(dialog2.locator('[data-test="stub-direct-import-btn"]')).to_be_disabled(timeout=8000)
+        dialog2.locator('[data-test="stub-direct-check-all"]').click()
+        expect(dialog2.locator('[data-test="stub-direct-import-btn"]')).to_be_enabled(timeout=8000)
         dialog2.locator('[data-test="stub-direct-import-btn"]').click()
         expect(dialog2.locator('[data-test="stub-direct-done-created"]')).to_contain_text(
             "0", timeout=20000)

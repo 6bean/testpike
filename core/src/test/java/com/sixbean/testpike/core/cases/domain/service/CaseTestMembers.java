@@ -53,4 +53,13 @@ final class CaseTestMembers {
     static void removeMember(JdbcTemplate jdbc, long projectId, long userId) {
         jdbc.update("DELETE FROM tp_user_project WHERE project_id = ? AND user_id = ?", projectId, userId);
     }
+
+    /** Teardown pair for ensureUserWithRole: drops a suite-owned actor and
+     * its membership rows. Never pass a factory user id (the shared
+     * administrator id=1 is a notification recipient set). */
+    static void dropUser(JdbcTemplate jdbc, long userId) {
+        jdbc.update("DELETE FROM tp_user_role WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM tp_user_project WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM tp_user WHERE id = ?", userId);
+    }
 }

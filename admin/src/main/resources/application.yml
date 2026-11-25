@@ -49,6 +49,12 @@ core:
 aiservice:
   base-url: ${AISERVICE_BASE_URL:http://localhost:18084}
 
+# Live tail window ceiling for every SSE door (single source: SseWindowSettings).
+# The shipped default keeps the legacy 30-minute backstop; operators or
+# verification runs can shorten it through the install key.
+sse:
+  window-millis: ${TESTPIKE_SSE_WINDOW_MILLIS:1800000}
+
 # mock-server management connector (inspector health-bar bridge: GET /load-state self-check face; R-3 port-key convention)
 mockserver:
   management-url: ${MOCK_SERVER_MANAGEMENT_URL:http://localhost:18085}

@@ -71,6 +71,8 @@ tp_ensure_jar() { # module -> prints jar path on stdout ONLY (status notes go to
     fi
     echo "JAR_BUILD $1: mvn -pl $1 -am package -DskipTests" >&2
     ( cd "$REPO_ROOT" && mvn -q -pl "$1" -am package -DskipTests ) || return 1
+    ( cd "$REPO_ROOT" && python3 tools/ops/jar_manifest.py write "$REPO_ROOT" "$1" >/dev/null 2>&1 ) \
+      || echo "MANIFEST-WRITE-WARN $1 (gates fall back to mtime conjunctive)" >&2
     tp_jar "$1"
 }
 

@@ -143,6 +143,17 @@ describe('wizard wiring (static contract)', () => {
     expect(wizardSrc).toContain('stub-direct-invert')
   })
 
+  it('default selection is the advice-recommended set, never a bare select-all', () => {
+    // The wizard must start from what core's pre-adjudication recommended
+    // (rows flagged defaultChecked), not from "everything checked": a bare
+    // map over all drafts would make the recommendation channel decorative
+    // and invite blind one-click imports of rows advice did not endorse.
+    const apply = blockOf(wizardSrc, 'function applyDraftSelection')
+    expect(apply, 'applyDraftSelection must exist').not.toBe('')
+    expect(apply).toContain('defaultChecked')
+    expect(apply).not.toMatch(/drafts\.value\.map\(/)
+  })
+
   it('unchecked list is expandable for review with an honest cap', () => {
     expect(wizardSrc).toContain('stub-direct-unchecked-toggle')
     const block = blockOf(wizardSrc, 'uncheckedKeys')

@@ -6,6 +6,7 @@ import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import com.sixbean.testpike.core.perf.domain.service.PerfDatasetService;
 import com.sixbean.testpike.core.perf.domain.service.PerfScenarioService;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,37 +67,19 @@ class PerfDatasetTemplateConsumptionTest {
 
     @BeforeEach
     void seedFixtures() {
-        cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        String projectCode = "PERFDS" + uniq;
-        // Ids are read back through RETURNING: on a fresh-install database a
-        // foreign fixture row with an overridden id can out-rank max(id), which
-        // made this seed write env rows under the wrong project and collide on
-        // uq_project_env_type.
-        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
-                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "数据池模板消费项目_" + uniq, projectCode);
-        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
-                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-数据池模板测', 1, 'http://perf-target.local/api')",
-                projectId);
+        SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "PERFDS", "tp_perf_dataset");
+        // Single-source seed (R40): RETURNING-anchored ids so a foreign fixture
+        // row can never re-parent these inserts on the shared dev database.
+        long[] ids = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "数据池模板消费项目_", "PERFDS", "性能-数据池模板测", 1,
+                "http://perf-target.local/api", 0, null);
+        projectId = ids[0];
+        envId = ids[1];
     }
 
     @AfterEach
     void cleanup() {
-        cleanupRows();
-    }
-
-    private void cleanupRows() {
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFDS%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFDS%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_dataset WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFDS%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFDS%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFDS%'");
+        SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "PERFDS", "tp_perf_dataset");
     }
 
     private long lastId(String table) {

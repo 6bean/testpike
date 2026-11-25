@@ -4,6 +4,7 @@ import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import com.sixbean.testpike.core.perf.domain.service.PerfScenarioService;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,33 +48,19 @@ class K6AdapterTest {
 
     @BeforeEach
     void seedFixtures() {
-        cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        String projectCode = "K6ADP" + uniq;
-        // Ids are read back through RETURNING so a foreign fixture row with an
-        // overridden id can never out-rank max(id) and re-parent these rows.
-        projectId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
-                "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "k6适配测试项目_" + uniq, projectCode);
-        envId = com.sixbean.testpike.core.support.FixtureInserts.insertReturningId(jdbcTemplate,
-                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-k6适配测', 1, 'http://perf-target.local/api')",
-                projectId);
+        SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "K6ADP");
+        // Single-source seed (R40): RETURNING-anchored ids so a foreign fixture
+        // row can never re-parent these inserts on the shared dev database.
+        long[] ids = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "k6适配测试项目_", "K6ADP", "性能-k6适配测", 1,
+                "http://perf-target.local/api", 0, null);
+        projectId = ids[0];
+        envId = ids[1];
     }
 
     @AfterEach
     void cleanup() {
-        cleanupRows();
-    }
-
-    private void cleanupRows() {
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'K6ADP%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'K6ADP%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'K6ADP%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'K6ADP%'");
+        SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "K6ADP");
     }
 
     private static List<Map<String, Object>> requestSteps() {

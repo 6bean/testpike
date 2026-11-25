@@ -67,8 +67,11 @@ services:
     image: pgvector/pgvector:pg16
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-postgres
     environment:
-      POSTGRES_USER: testpike
-      POSTGRES_PASSWORD: testpike_dev
+      # Single source: the engine initializes with the same install-time keys every
+      # consumer (dbinit, app tier, storage checks) reads — a custom .env pair stays
+      # consistent instead of hanging the waiters on a credential mismatch.
+      POSTGRES_USER: ${DB_USERNAME:-testpike}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-testpike_dev}
       POSTGRES_DB: testpike
       TZ: Asia/Shanghai
     ports:
@@ -80,7 +83,7 @@ services:
       -c shared_preload_libraries=vector,pg_stat_statements
       -c search_path=public,vector
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U testpike -d testpike"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-testpike} -d testpike"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -131,9 +134,22 @@ services:
       PGPASSWORD: ${DB_PASSWORD:-testpike_dev}
       SWF_META_DB_NAME: ${SWF_META_DB_NAME:-seaweedfs}
     entrypoint: ["sh", "-c"]
+    # The ready-wait is bounded and prints the real psql error on give-up: an
+    # unbounded silent loop turns a credential mismatch into an open-ended hang
+    # instead of a fast, classifiable failure.
     command:
       - |
-        until psql -U "$$PGUSER" -d postgres -c 'select 1' >/dev/null 2>&1; do sleep 1; done
+        deadline=$$(date +%s); deadline=$$((deadline + 300))
+        while ! psql -U "$$PGUSER" -d postgres -c 'select 1' >/dev/null 2>&1; do
+          now=$$(date +%s)
+          if [ "$$now" -ge "$$deadline" ]; then
+            echo "swf-dbinit: cannot connect to postgres as $$PGUSER within 300s — last error:" >&2
+            psql -U "$$PGUSER" -d postgres -c 'select 1' >&2 || true
+            echo "swf-dbinit: check DB_USERNAME/DB_PASSWORD in .env against the postgres service" >&2
+            exit 1
+          fi
+          sleep 2
+        done
         if ! psql -U "$$PGUSER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$SWF_META_DB_NAME'" | grep -q 1; then
           psql -U "$$PGUSER" -d postgres -c "CREATE DATABASE \"$$SWF_META_DB_NAME\" OWNER \"$$PGUSER\" TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C' ENCODING 'UTF8'"
           echo "swf-dbinit: created $$SWF_META_DB_NAME"

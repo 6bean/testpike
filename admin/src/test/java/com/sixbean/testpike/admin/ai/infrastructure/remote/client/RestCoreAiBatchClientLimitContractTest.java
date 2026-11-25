@@ -1,9 +1,8 @@
 package com.sixbean.testpike.admin.ai.infrastructure.remote.client;
 
-import org.junit.jupiter.api.Test;
+import com.sixbean.testpike.admin.testsupport.RepoSourceReader;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,14 +20,7 @@ class RestCoreAiBatchClientLimitContractTest {
     private static final String KEY = "ai.gen.batch.auto-enumerate.enabled";
 
     private static String read(String rel) throws Exception {
-        // Surefire runs with the module dir as cwd; walk up until the repo root
-        // (the one holding db/migration) is found, then resolve from there.
-        Path dir = Path.of(System.getProperty("user.dir")).toAbsolutePath();
-        while (dir != null && !Files.isDirectory(dir.resolve("db/migration"))) {
-            dir = dir.getParent();
-        }
-        assertThat(dir).as("repository root with db/migration").isNotNull();
-        return Files.readString(dir.resolve(rel));
+        return RepoSourceReader.read(rel);
     }
 
     @Test
