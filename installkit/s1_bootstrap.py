@@ -3,6 +3,7 @@ pass
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -87,6 +88,29 @@ def _execute_tee(cmd):
         lines.append(line)
     rc = proc.wait()
     return rc, "".join(lines)[-_STAGE_TAIL_CHARS:]
+
+
+def _surface_dependency_logs(stage_cmd, tail):
+    """Print the real stderr of a one-shot dependency that failed to complete.
+
+    `compose up -d` reports `service "X" didn't complete successfully: exit 1`
+    but never shows what X actually printed, so the recovery claim (the cause
+    is in the output above) would be a lie without this surfacing step. The
+    returned text joins the tail for classification.
+    """
+    match = re.search(r'service "([^"]+)" didn\'t complete', tail)
+    if not match or os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
+        return ""
+    probe = list(stage_cmd) + ["logs", "--tail", "40", match.group(1)]
+    try:
+        out = subprocess.run(probe, capture_output=True, text=True, timeout=60).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    logs = "\n".join(out.splitlines()[-40:])
+    if logs.strip():
+        print("--- logs from %s (the failing dependency) ---" % match.group(1))
+        print(logs)
+    return logs
 
 
 def _run_stage(cmd):
@@ -196,6 +220,7 @@ def cmd_compose(args):
         return 1
     rc, tail = _run_stage(stages[0]["cmd"])
     if rc != 0:
+        tail += _surface_dependency_logs(stages[0]["cmd"], tail)
         print("compose bring-up failed (exit code %s) — the docker output above is the reason; "
               "after fixing it, re-run the same command and it resumes from the breakpoint" % rc, file=sys.stderr)
         note = stage_failure_note(tail)
@@ -214,6 +239,7 @@ def cmd_compose(args):
     for stage in stages[1:]:
         rc, tail = _run_stage(stage["cmd"])
         if rc != 0:
+            tail += _surface_dependency_logs(stage["cmd"], tail)
             print("tier service bring-up failed (exit code %s) — the docker output above is the reason; "
                   "after fixing it, re-run the same command and it resumes from the breakpoint" % rc, file=sys.stderr)
             note = stage_failure_note(tail)

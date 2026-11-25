@@ -58,3 +58,46 @@ def test_failure_guide_keeps_other_families_untouched():
            "password authentication failed noise from a wrapped vendor line")
     assert failure_guide.classify_failure(dup) == "pg_existing"
     assert failure_guide.classify_failure("step done, nothing unusual") is None
+
+
+def test_failed_dependency_logs_are_surfaced_and_classified(monkeypatch, capsys):
+    # compose up -d prints only `service "X" didn't complete successfully`
+    # without the container's own stderr: the installer must fetch and print
+    # those logs, otherwise the on-screen cause claim is a dead pointer.
+    import s1_bootstrap
+    monkeypatch.delenv("INSTALLKIT_COMPOSE_BIN", raising=False)
+    tail = 'Container x-seaweedfs-dbinit  service "seaweedfs-dbinit" didn\'t complete successfully: exit 1\n'
+    fake = ("swf-dbinit: cannot connect to postgres as ops within 300s — last error:\n"
+            'psql: error: FATAL: password authentication failed for user "ops"\n')
+
+    class _Done:
+        stdout = fake
+
+    def fake_run(cmd, **kw):
+        assert cmd[-4:-1] == ["logs", "--tail", "40"], cmd
+        assert cmd[-1] == "seaweedfs-dbinit"
+        return _Done()
+
+    monkeypatch.setattr(s1_bootstrap.subprocess, "run", fake_run)
+    joined = s1_bootstrap._surface_dependency_logs(["docker", "compose", "-f", "x"], tail)
+    assert "password authentication failed" in joined
+    assert "the failing dependency" in capsys.readouterr().out
+    note = failure_guide.note_for_failure(tail + joined)
+    assert note and "DB_USERNAME" in note and "docker compose down -v" in note
+
+
+def test_substitute_mode_never_probes_real_docker(monkeypatch, capsys):
+    # The skip branch needs a hit case too (no silent idle): with a substitute
+    # compose binary there is no container store to read, so nothing runs.
+    import s1_bootstrap
+    monkeypatch.setenv("INSTALLKIT_COMPOSE_BIN", "/bin/true")
+
+    def explode(*a, **k):
+        raise AssertionError("substitute mode must not invoke real docker")
+
+    monkeypatch.setattr(s1_bootstrap.subprocess, "run", explode)
+    tail = 'service "seaweedfs-dbinit" didn\'t complete successfully: exit 1'
+    assert s1_bootstrap._surface_dependency_logs(["docker", "compose"], tail) == ""
+    # And a healthy tail without the marker never probes either.
+    monkeypatch.delenv("INSTALLKIT_COMPOSE_BIN")
+    assert s1_bootstrap._surface_dependency_logs(["docker", "compose"], "everything fine") == ""

@@ -228,8 +228,11 @@ if [ -f "$LEDGER" ]; then
       && mv "$tmp_ledger" "$LEDGER" || rm -f "$tmp_ledger"
   fi
 fi
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%FT%T)" "$NAME" "$LOG" "$ANCHOR" "$CAP" \
-  "${NODELIST:-full-suite}" "$OWNER_TAG" >> "$LEDGER"
+# The slot column (8) names the launching chain: the log-noise ledger gives
+# each window log to that chain's own account instead of guessing from the
+# directory name; a row without the column reads as unattributed.
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%FT%T)" "$NAME" "$LOG" "$ANCHOR" "$CAP" \
+  "${NODELIST:-full-suite}" "$OWNER_TAG" "${TP_CHAIN_SLOT:-0}" >> "$LEDGER"
 
 echo "[launched] unit=tp-${NAME} log=${LOG} anchor=${ANCHOR} cap=${CAP}s heartbeat=${HEART}s ledger=${LEDGER}"
 echo "[poll-recipe] tail -5 ${LOG}; systemctl is-active tp-${NAME}; "
