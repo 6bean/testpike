@@ -5,13 +5,8 @@ import com.sixbean.testpike.core.project.domain.service.MemberService;
 import com.sixbean.testpike.core.project.domain.service.ProjectService;
 import com.sixbean.testpike.core.rbac.api.dto.RoleInfo;
 import com.sixbean.testpike.core.rbac.domain.service.RoleService;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -411,12 +406,11 @@ public final class SharedDbFixtureSweep {
      * An empty window is a no-op.
      */
     public static void deleteSince(JdbcTemplate jdbc, String table, long idFloor) {
-        // tp_audit_log is append-only (V18d trigger): route the sweep through
-        // the same transaction-local GUC channel deleteTree uses, so the
-        // fixture never trips 2F005 while pooled connections keep no open
-        // permission window.
         if ("tp_audit_log".equals(table)) {
-            sweepAuditWindow(jdbc, idFloor);
+            // NEVER surgically remove audit rows (same ruling as the audit
+            // branch in byIds): the ledger is append-only and mid-range
+            // removal forges a chain break. Fixture audit rows are harmless -
+            // every ledger assertion anchors on its own fixture.
             return;
         }
         List<Long> ids = jdbc.queryForList(
@@ -809,16 +803,6 @@ public final class SharedDbFixtureSweep {
             jdbc.update("DELETE FROM " + table + " WHERE " + matchCol + " IN (" + ids + ")");
         }
     }
-
-    /**
-     * tp_audit_log is append-only: the V18d trigger rejects DELETE unless the
-     * transaction-local GUC {@code tp.audit_retention_allowed} is set, the same
-     * gate the product retention channel (AuditRetentionCleaner) opens. Fixture
-     * teardown legitimately removes only its own projects' audit rows, so it
-     * runs the delete inside a self-managed short transaction — SET LOCAL
-     * semantics end with the commit, so the pooled connection never leaks an
-     * open permission window to its next borrower.
-     */
 
     /**
      * Remove stale tp_asset_reference pins whose referrer_id sits in one asset
