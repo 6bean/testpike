@@ -24,13 +24,15 @@ x-app-environment: &app-env
   S3_ACCESS_KEY: "${S3_ACCESS_KEY:-testpike}"
   S3_SECRET_KEY: "${S3_SECRET_KEY:-testpike_dev}"
   # Auth/secret pass-through for the backend tier. The admin SSO door refuses
-  # startup without SSO_JWT_SECRET (L4 r2 live evidence: core UP, admin
-  # crash-loop). Shipped defaults mirror .env.example (single source, R48);
-  # real values come from the install .env at runtime. REDIS_PASSWORD ships
+  # startup when SSO_JWT_SECRET is missing or shorter than its 32-character
+  # floor (JwtTokenService), crashing admin while core stays up. The shipped
+  # default satisfies that floor so a fresh install boots without extra
+  # config; replace it in the install .env before production use.
+  # Real values come from the install .env at runtime. REDIS_PASSWORD ships
   # empty because the gateway redis ships unauthenticated; AUTH_MODE/SSO_MODE
   # keep the local/mock defaults so a fresh install boots without config.
-  # The LLM_* family stays optional (feature off = honest guidance, R32).
-  SSO_JWT_SECRET: "${SSO_JWT_SECRET:-dev-only-change-me}"
+  # The LLM_* family stays optional (feature off = honest guidance).
+  SSO_JWT_SECRET: "${SSO_JWT_SECRET:-dev-only-change-me-0123456789abcdef}"
   STORAGE_URL_SIGN_SECRET: "${STORAGE_URL_SIGN_SECRET:-dev-hmac-change-me}"
   REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
   AUTH_MODE: "${AUTH_MODE:-local}"

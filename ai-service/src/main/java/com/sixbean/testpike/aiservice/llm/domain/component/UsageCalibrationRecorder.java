@@ -55,12 +55,12 @@ public class UsageCalibrationRecorder {
                 try {
                     coreGateway.recordLlmUsage(sample);
                 } catch (Exception e) {
-                    log.warn("usage 校准采样写失败（观测面不阻断）: {}", e.getMessage());
+                    log.warn("usage calibration sample write failed (observation surface, does not block): {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
             long total = dropped.incrementAndGet();
-            log.warn("usage 校准队列满/拒绝，丢弃采样（累计 {}）: {}", total, e.getMessage());
+            log.warn("usage calibration queue full/rejected, sample dropped (total dropped {}): {}", total, e.getMessage());
         }
     }
 
@@ -100,7 +100,7 @@ public class UsageCalibrationRecorder {
         long cached = Math.max(0, result.cachedTokens());
         cacheLedgerPrompt.addAndGet(prompt);
         cacheLedgerCached.addAndGet(cached);
-        log.info("prompt-cache 经济性: provider={} model={} 本次 cached={}/prompt={} ({}%) 累计命中率={}%",
+        log.info("prompt-cache economy: provider={} model={} cached={}/prompt={} ({}%) cumulative hit rate={}%",
                 result.provider(), result.model(), cached, prompt,
                 Math.round(100.0 * cached / prompt),
                 Math.round(100.0 * prefixCacheHitRatio()));

@@ -62,7 +62,7 @@ public class PromptSizeGuard {
             return new Verdict(Decision.PASS, est, effective);
         }
         if (compressible) {
-            log.info("PromptSizeGuard 超限判压缩 est={} limit={}（文档链重走 F5 压缩）", est, effective);
+            log.info("PromptSizeGuard over limit, compress decision est={} limit={} (document chain re-runs F5 compression)", est, effective);
             return new Verdict(Decision.COMPRESS, est, effective);
         }
         throw new ServiceException("提示词超出模型上限（实际 " + est + " tokens > 上限 "
@@ -82,7 +82,7 @@ public class PromptSizeGuard {
             return new Verdict(Decision.PASS, est, effective);
         }
         if (compressible) {
-            log.info("PromptSizeGuard 超限判压缩 est={} limit={} engine={}（文档链重走 F5 压缩）",
+            log.info("PromptSizeGuard over limit, compress decision est={} limit={} engine={} (document chain re-runs F5 compression)",
                     est, effective, estimator.engineId());
             return new Verdict(Decision.COMPRESS, est, effective);
         }

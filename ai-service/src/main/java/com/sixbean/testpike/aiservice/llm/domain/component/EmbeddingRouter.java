@@ -31,14 +31,14 @@ public class EmbeddingRouter {
                 String source = "project".equals(brief.source())
                         ? EmbeddingEndpointConfig.SOURCE_PROJECT
                         : EmbeddingEndpointConfig.SOURCE_DEFAULT_EMB;
-                log.info("Embedding 路由 projectId={} source={} model={} baseUrl={} dimension={}",
+                log.info("Embedding route projectId={} source={} model={} baseUrl={} dimension={}",
                         projectId, source, brief.modelName(), brief.baseUrl(), brief.embeddingDimension());
                 return toEndpoint(brief, source);
             }
-            log.info("Embedding 路由 projectId={} 无清单配置，回退配置文件 source={}",
+            log.info("Embedding route projectId={} has no catalog config, falling back to config file source={}",
                     projectId, EmbeddingEndpointConfig.SOURCE_CONFIG);
         } catch (Exception e) {
-            log.warn("Embedding 路由 core 查询失败 projectId={} err={}，回退配置文件",
+            log.warn("Embedding route core query failed projectId={} err={}, falling back to config file",
                     projectId, e.getMessage());
         }
         return new EmbeddingEndpointConfig(properties.getProvider(), properties.getModel(),

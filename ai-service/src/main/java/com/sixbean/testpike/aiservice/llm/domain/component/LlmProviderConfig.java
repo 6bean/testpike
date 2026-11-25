@@ -23,7 +23,7 @@ public class LlmProviderConfig {
     @Bean
     @ConditionalOnProperty(name = "llm.mock-enabled", havingValue = "false", matchIfMissing = true)
     public LlmProvider openAiCompatLlmProvider(LlmProperties properties, ObjectMapper objectMapper) {
-        log.info("LLM Provider 装配：真实供应商 provider={} baseUrl={} model={}（密钥不入日志）",
+        log.info("LLM provider assembled on real endpoint provider={} baseUrl={} model={} (secrets never logged)",
                 properties.getProvider(), properties.getBaseUrl(), properties.getModel());
         return new OpenAiCompatLlmProvider(properties, objectMapper);
     }
@@ -31,7 +31,7 @@ public class LlmProviderConfig {
     @Bean
     @ConditionalOnProperty(name = "llm.mock-enabled", havingValue = "true")
     public LlmProvider mockLlmProvider(LlmProperties properties) {
-        log.info("LLM Provider 装配：本地 mock 替身（供应商本地不可达，生产须 llm.mock-enabled=false）");
+        log.info("LLM provider assembled as local mock stand-in (provider unreachable locally; production must set llm.mock-enabled=false)");
         return new MockLlmProvider(properties.getModel());
     }
 

@@ -70,7 +70,7 @@ public class LlmPromptAssembler {
         String warn = dropped == 0 ? null
                 : "SKILL 超预算已省略 " + dropped + " 项（保留高优先级 " + injected + " 项）";
         if (dropped > 0) {
-            log.warn("SKILL 装配超预算丢弃 stage={} budget={} injected={} dropped={}",
+            log.warn("SKILL assembly over budget, segments dropped stage={} budget={} injected={} dropped={}",
                     stage, budgetTokens, injected, dropped);
         }
         return new SkillAssembly(result, estimator.countTokens(result), injected, dropped,

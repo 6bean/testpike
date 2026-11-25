@@ -114,6 +114,12 @@ _SIGNATURES = (
         "configcipher",
         "under radix 16",
     )),
+    # The admin login-token service refuses boot below its 32-char floor;
+    # both the Chinese boot refusal and any mention of the key in a crash
+    # tail map here.
+    ("jwt_secret_short", (
+        "sso_jwt_secret",
+    )),
     ("egress_dead", (
         "temporary failure in name resolution",
         "name or service not known",
@@ -210,6 +216,16 @@ def teach(kind, **facts):
             "sensitive config entries already encrypted under another key "
             "will not decrypt afterwards, so set the final key before saving "
             "real secrets.\n"
+            "%s" % RESUME_HINT
+        )
+    if kind == "jwt_secret_short":
+        return (
+            "The admin service refuses to boot without a usable SSO_JWT_SECRET "
+            "(the login-token signer requires at least 32 characters).\n"
+            "Generate one:  openssl rand -hex 16\n"
+            "Write it to SSO_JWT_SECRET in the project .env, then re-run. "
+            "Changing this value only invalidates already-issued login "
+            "sessions, never stored data.\n"
             "%s" % RESUME_HINT
         )
     if kind == "registry_blocked":

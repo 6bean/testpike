@@ -38,25 +38,10 @@ vi.mock('@/api/apiSpec', () => specApi)
 import wizardRaw from '@/components/mock/MockStubDirectWizard.vue?raw'
 import themeRaw from '@/styles/theme.scss?raw'
 import MockStubDirectWizard from '@/components/mock/MockStubDirectWizard.vue'
+import { wizardDraftRow, wizardSpecRow } from './wizardFixtures'
 
-const specRow = {
-  id: 21,
-  name: 'orders-contract',
-  specVersion: 3,
-  specFormat: 'OPENAPI3',
-  endpoints: [{ method: 'GET', path: '/orders' }],
-}
-
-const draftRow = {
-  endpointKey: 'GET /orders',
-  name: 'list orders',
-  method: 'GET',
-  pathMatchType: 'exact',
-  pathPattern: '/orders',
-  matchersJson: '{}',
-  responseJson: '{}',
-  source: 'spec',
-}
+const specRow = wizardSpecRow
+const draftRow = wizardDraftRow
 
 function spaceRow(over: Record<string, unknown> = {}) {
   return {
@@ -143,6 +128,61 @@ describe('wizard upload: localized pick button + file name echo', () => {
     // the pick action also forwards to the hidden input so the flow stays 1-click
     expect(wizardRaw).toContain('stub-direct-pick-file')
     expect(wizardRaw).toContain('.click()')
+  })
+
+  it('a finished upload chains straight into the advised preview when the space is already known', async () => {
+    // Click budget for the upload branch of the key enable journey:
+    // entry / pick source / file / upload / one-click enable must stay within
+    // four deliberate page clicks (the ruling names the nodes entry-button,
+    // pick-the-contract, see-the-advised-set, one-click-enable). Without the
+    // chain, a manual preview click after upload is a hidden fifth.
+    specApi.uploadApiSpec.mockResolvedValue(specRow)
+    const w = await open({ presetSpaceId: 9, presetSpaceName: '空间九' })
+    const radios = w.findAll('[data-test="stub-direct-source-radio"] input[type="radio"]')
+    await radios[1].setValue()
+    await flushPromises()
+    const input = w.find('[data-test="stub-direct-file-input"]')
+    const file = new File(['{}'], 'openapi-chain.yaml', { type: 'application/x-yaml' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+    await w.find('[data-test="stub-direct-upload-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(specApi.uploadApiSpec, 'the upload click persists the contract row').toHaveBeenCalledTimes(1)
+    // No preview-button click happened in between; the advised-set fetch must
+    // already have run and the selection step must already be on screen.
+    expect(mockApi.previewStubDraftsAdvised,
+      'upload success must auto-run the advised preview (no hidden fifth click)').toHaveBeenCalledTimes(1)
+    expect(mockApi.previewStubDraftsAdvised).toHaveBeenCalledWith(21, 9)
+    expect(w.find('[data-test="stub-direct-import-btn"]').exists(),
+      'the enable door is visible right after the upload click').toBe(true)
+  })
+
+  it('upload success stays on step 1 when no destination space is resolved', async () => {
+    // Contract-list mount posture: the space still has to be picked, so the
+    // chain must be a silent no-op there — the receipt shows and the preview
+    // door stays available for the manual click, exactly as before.
+    specApi.uploadApiSpec.mockResolvedValue(specRow)
+    const w = await open({ presetSpaceId: null, presetSpaceName: '' })
+    const radios = w.findAll('[data-test="stub-direct-source-radio"] input[type="radio"]')
+    await radios[1].setValue()
+    await flushPromises()
+    const input = w.find('[data-test="stub-direct-file-input"]')
+    const file = new File(['{}'], 'openapi-nopace.yaml', { type: 'application/x-yaml' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+    await w.find('[data-test="stub-direct-upload-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(specApi.uploadApiSpec).toHaveBeenCalledTimes(1)
+    expect(mockApi.previewStubDraftsAdvised,
+      'no space resolved -> no preview request may leave the wizard').not.toHaveBeenCalled()
+    expect(w.find('[data-test="stub-direct-upload-done"]').exists(),
+      'the upload receipt stays visible on step 1').toBe(true)
+    expect(w.find('[data-test="stub-direct-preview-btn"]').exists(),
+      'the preview door stays for the manual click').toBe(true)
   })
 })
 

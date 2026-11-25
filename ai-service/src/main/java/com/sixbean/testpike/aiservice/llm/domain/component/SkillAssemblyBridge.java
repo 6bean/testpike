@@ -42,7 +42,7 @@ public class SkillAssemblyBridge {
                         r.priority(), r.enabled(), r.name(), r.body(), r.kind()));
             }
         } catch (Exception e) {
-            log.warn("SKILL 装配取数失败（本阶段零注入，不阻断生成）projectId={} stage={}: {}",
+            log.warn("SKILL assembly fetch failed (zero injection this stage, generation not blocked) projectId={} stage={}: {}",
                     projectId, stage, e.getMessage());
             return "";
         }
@@ -56,7 +56,7 @@ public class SkillAssemblyBridge {
                 endpoint == null ? null : endpoint.promptLimitTokens());
         SkillAssembly assembly = assembler.assemble(stage, budget, items);
         if (assembly.warnMessage() != null) {
-            log.warn("SKILL 装配 projectId={} stage={}: {}", projectId, stage,
+            log.warn("SKILL assembly projectId={} stage={}: {}", projectId, stage,
                     assembly.warnMessage());
         }
         recorder.record(taskId, assembly.usageTraces());
@@ -87,7 +87,7 @@ public class SkillAssemblyBridge {
         memory.sort((a, b) -> Long.compare(b.skillId(), a.skillId()));
         int cap = memoryCap.memoryMaxItems();
         if (memory.size() > cap) {
-            log.warn("项目记忆超出上限 {} 条，按最新在前省略 {} 条 projectId={}",
+            log.warn("project memory exceeds cap {} entries, omitted {} beyond the newest-first window projectId={}",
                     cap, memory.size() - cap, rest.isEmpty() ? "?" : rest.get(0).skillId());
             memory = new ArrayList<>(memory.subList(0, cap));
         }

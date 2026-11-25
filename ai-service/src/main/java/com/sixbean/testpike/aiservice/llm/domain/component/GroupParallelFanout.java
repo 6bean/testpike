@@ -153,7 +153,7 @@ public final class GroupParallelFanout {
                 // loop back into the abort checkpoint above
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("组并行扇出等待被中断", interrupted);
+                throw new IllegalStateException("group fan-out wait interrupted", interrupted);
             } catch (ExecutionException failed) {
                 Throwable cause = failed.getCause();
                 if (cause instanceof RuntimeException runtime) {
@@ -162,7 +162,7 @@ public final class GroupParallelFanout {
                 if (cause instanceof Error error) {
                     throw error;
                 }
-                throw new IllegalStateException("组并行扇出执行异常: " + cause, cause);
+                throw new IllegalStateException("group fan-out execution failed: " + cause, cause);
             }
         }
     }
@@ -210,7 +210,7 @@ public final class GroupParallelFanout {
         } catch (RuntimeException | Error inline) {
             throw inline;
         } catch (Exception checked) {
-            throw new IllegalStateException("组并行扇出执行异常: " + checked, checked);
+            throw new IllegalStateException("group fan-out execution failed: " + checked, checked);
         }
     }
 

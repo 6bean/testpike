@@ -1416,19 +1416,12 @@
  "fb4_touch_reconcile": {
   "armed": true,
   "touched": [
-   ".env.example",
-   "PROGRESS.md",
+   "db/migration/V674__ocr_dialog_tool_desc_mutex.sql",
+   "db/schema-init.sql",
    "docs/.ui-audit-struct.json",
-   "src/main/java/com/sixbean/testpike/admin/ai/api/controller/AiController.java",
-   "src/main/java/com/sixbean/testpike/admin/ai/api/controller/DocumentController.java",
-   "src/main/java/com/sixbean/testpike/admin/aichat/api/controller/AiChatStreamController.java",
-   "src/main/resources/application.yml",
-   "src/test/java/com/sixbean/testpike/admin/ai/api/controller/AiTaskCancelEndpointTest.java",
-   "src/test/java/com/sixbean/testpike/admin/ai/api/controller/DocumentChunkReadBridgeTest.java",
-   "src/test/java/com/sixbean/testpike/admin/ai/api/controller/DocumentExtractionCancelBridgeTest.java",
-   "src/test/java/com/sixbean/testpike/admin/ai/api/controller/ScenarioPreviewBridgeTest.java",
-   "src/test/java/com/sixbean/testpike/admin/ai/api/controller/StepsGenTaskEventsEndpointTest.java",
-   "src/test/java/com/sixbean/testpike/admin/ai/infrastructure/remote/client/RestCoreAiBatchClientLimitContractTest.java"
+   "scripts/parallel_readiness_ledger.py",
+   "src/main/java/com/sixbean/testpike/core/tool/domain/component/OcrDialogToolSeedInitializer.java",
+   "src/test/java/com/sixbean/testpike/core/tool/domain/service/OcrDialogToolSeedTest.java"
   ],
   "violations": [],
   "deferred": [],

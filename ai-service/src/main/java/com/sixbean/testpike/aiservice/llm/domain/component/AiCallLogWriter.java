@@ -65,7 +65,7 @@ public class AiCallLogWriter {
                     .addValue("extractToken", extractToken)
                     .addValue("errorCode", errorCode));
         } catch (Exception e) {
-            log.warn("AI 调用留痕写入失败 function={} project={} err={}（观测面不阻断）",
+            log.warn("AI call log write failed function={} project={} err={} (observation surface, does not block)",
                     functionRow, projectId, e.getMessage());
         }
     }

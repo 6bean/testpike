@@ -67,11 +67,13 @@ public class OcrDialogToolSeedInitializer implements ApplicationRunner {
 
     private static final String DESC_TEXT =
             "逐行提取会话图片中的文字：每行给出内容、位置框与置信标注，标红行会单独点名；"
-                    + "适合把截图里的文字原样抄出来（包括非表格的截图）";
+                    + "适合把截图里的文字原样抄出来（包括非表格的截图）。两个工具二选一："
+                    + "需要把截图装配成行列表格时改用 ocr.grid_read，同一张图片只调用其中一个";
 
     private static final String DESC_GRID =
             "读取会话中表格或面板截图的行列内容：先识别文字再装配成行列表格，返回表格明细与网格判定；"
-                    + "适合看表格、表单类截图里的具体数值";
+                    + "适合看表格、表单类截图里的具体数值。两个工具二选一："
+                    + "只需要抄出全部文字时改用 ocr.text_extract，同一张图片只调用其中一个";
 
     private final ToolService toolService;
     private final JdbcTemplate jdbcTemplate;

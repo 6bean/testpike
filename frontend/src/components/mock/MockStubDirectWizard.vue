@@ -124,6 +124,14 @@ async function onUploadSpec(): Promise<void> {
     sourceMode.value = 'existing'
     uploadDone.value = t('apitest.stubImport.uploadedPicked', { n: saved.endpoints?.length ?? 0 })
     pickedFile.value = null
+    // The upload click doubles as the preview step: the ruling caps the key
+    // enable journey at four clicks (entry, pick the contract, see the
+    // advised default set, one-click enable), and a manual preview click
+    // after a finished upload would be the hidden fifth. onPreview's own
+    // space guard keeps this a no-op when the destination is not resolved
+    // yet — the wizard then simply waits on step 1 for the space pick plus
+    // a manual preview, the same posture a listed contract uses.
+    await onPreview()
   } catch (e) {
     uploadError.value = bizErrorMsg(e, t('apitest.stubImport.uploadFail'))
   } finally {

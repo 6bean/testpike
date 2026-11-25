@@ -19,7 +19,7 @@ public class OpenAiCompatLlmProvider implements LlmProvider {
     public OpenAiCompatLlmProvider(LlmProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
-            throw new IllegalStateException("LLM_API_KEY 未配置（llm.api-key 为空）：生产模式必须从 .env 注入供应商密钥");
+            throw new IllegalStateException("LLM_API_KEY is not configured (llm.api-key is empty): production mode must inject the provider key from .env");
         }
         // R56: mint through the floored factory seam — a raw constructor here
         // bypassed the 800s model-request floor whenever llm.timeout-seconds

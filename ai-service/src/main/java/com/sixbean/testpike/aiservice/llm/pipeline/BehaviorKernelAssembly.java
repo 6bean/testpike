@@ -111,7 +111,7 @@ public final class BehaviorKernelAssembly {
                     ? publishedRowRead.get() : null;
             return assembleHead(governanceRawValue, publishedRow, conservativeContract);
         } catch (RuntimeException e) {
-            LOG.warn("{}（不中断，回退内置契约）: {}", degradeLogPrefix, e.toString());
+            LOG.warn("{} (not fatal, falling back to the built-in contract): {}", degradeLogPrefix, e.toString());
             return prefixKernelClause(conservativeContract).strip();
         }
     }

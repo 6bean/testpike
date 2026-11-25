@@ -215,27 +215,46 @@ def admin_ready(base_url, timeout=5.0):
         return False
 
 
-def _config_aes_key_note(root):
-    """Pre-check the cipher key the core service constructor will parse.
+# Install-time secret shape rules, single source (R40): consumed by the
+# compose-step pre-check here and by the factory-default parity contract
+# test. A shipped default that fails the product's own boot-time floor turns
+# every untouched fresh install into a crash loop, so both carriers must be
+# proven against these rules. Empty values stay legal where the feature has
+# an honest fallback (cipher off, compose fallback default).
+SECRET_SHAPE_RULES = (
+    ("CONFIG_AES_KEY",
+     lambda v: re.fullmatch(r"(?i)[0-9a-f]{32}|[0-9a-f]{48}|[0-9a-f]{64}", v) is not None,
+     "must be pure hex of exactly 32, 48 or 64 characters (a 16/24/32-byte "
+     "AES key); generate a valid one with: openssl rand -hex 32"),
+    ("SSO_JWT_SECRET",
+     lambda v: len(v) >= 32,
+     "must be at least 32 characters (the admin JWT signing floor below that "
+     "refuses boot); generate one with: openssl rand -hex 16"),
+)
 
-    Same shape rule as ConfigCipher in the Java product: pure hex of 32/48/64
-    characters; empty means the feature is off (allowed). A malformed value
-    would otherwise burn image builds and only surface as a crash loop on the
-    service stage. Returns None when the key is absent or well-formed; the
-    precedence (exported env over project .env) mirrors compose interpolation.
+
+def _secret_keys_note(root):
+    """Refuse malformed install-time secrets before any image build.
+
+    Same precedence the containers get (exported env over project .env).
+    Returns None when every configured value is well-formed; the note names
+    each offending key and its fix command, never a value.
     """
     try:
         dotenv_map = host_ports.read_dotenv(root)
     except OSError:
         dotenv_map = {}
-    key = (os.environ.get("CONFIG_AES_KEY") or dotenv_map.get("CONFIG_AES_KEY") or "").strip()
-    if not key or re.fullmatch(r"(?i)[0-9a-f]{32}|[0-9a-f]{48}|[0-9a-f]{64}", key):
+    problems = []
+    for key, ok, why in SECRET_SHAPE_RULES:
+        value = (os.environ.get(key) or dotenv_map.get(key) or "").strip()
+        if value and not ok(value):
+            problems.append("%s in .env is not a usable value: it %s." % (key, why))
+    if not problems:
         return None
-    return ("CONFIG_AES_KEY in .env is not a usable AES key: it must be pure hex of "
-            "exactly 32, 48 or 64 characters (a 16/24/32-byte key). "
-            "Generate a valid one with: openssl rand -hex 32, write it to "
-            "CONFIG_AES_KEY in .env, then re-run the same command to resume from "
-            "the breakpoint. The key value itself is never echoed here.")
+    return ("\n".join(problems)
+            + "\nWrite the corrected values to the named keys in .env, then "
+              "re-run the same command to resume from the breakpoint. The key "
+              "values themselves are never echoed here.")
 
 
 def cmd_compose(args):
@@ -251,7 +270,7 @@ def cmd_compose(args):
               "(or point --repo-root at the repo root)" % compose_file, file=sys.stderr)
         return 1
     print("Bringing up middleware (postgres/redis/rabbitmq/seaweedfs; already in place = idempotent pass)...")
-    key_gate = _config_aes_key_note(root)
+    key_gate = _secret_keys_note(root)
     if key_gate:
         print(key_gate, file=sys.stderr)
         return 1

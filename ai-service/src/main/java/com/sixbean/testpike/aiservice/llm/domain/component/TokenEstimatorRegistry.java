@@ -29,7 +29,7 @@ public final class TokenEstimatorRegistry {
             return;
         }
         if (!(coefficient > 0) || !Double.isFinite(coefficient)) {
-            throw new IllegalArgumentException("校准系数必须为正有限数: " + coefficient);
+            throw new IllegalArgumentException("calibration coefficient must be a positive finite number: " + coefficient);
         }
         COEFFICIENTS.put(providerModelName.toLowerCase(Locale.ROOT), coefficient);
     }
@@ -56,7 +56,7 @@ public final class TokenEstimatorRegistry {
                 return infer(providerModelName);
             }
             default -> throw new IllegalArgumentException(
-                    "未知 tokenizer_family（合法=auto/qwen/deepseek/cl100k）: " + tokenizerFamily);
+                    "unknown tokenizer_family (allowed: auto/qwen/deepseek/cl100k): " + tokenizerFamily);
         }
     }
 

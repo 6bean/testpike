@@ -8,10 +8,10 @@ public final class CalibratedDelegator implements TokenEstimator {
 
     public CalibratedDelegator(TokenEstimator base, double coefficient) {
         if (base == null) {
-            throw new IllegalArgumentException("基座引擎必填（calibrated 层禁止委托 null）");
+            throw new IllegalArgumentException("base engine is required (calibrated layer must not delegate to null)");
         }
         if (!(coefficient > 0) || Double.isInfinite(coefficient)) {
-            throw new IllegalArgumentException("校准系数必须为正有限数: " + coefficient);
+            throw new IllegalArgumentException("calibration coefficient must be a positive finite number: " + coefficient);
         }
         this.base = base;
         this.coefficient = coefficient;

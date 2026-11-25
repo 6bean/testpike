@@ -33,7 +33,7 @@ public final class RecallDirectiveSwitch {
      */
     public static String segment(String rawValue, String key) {
         if (rawValue != null && !rawValue.isBlank() && !SysConfigBooleans.isLegal(rawValue)) {
-            LOG.warn("K8 {}={} 非法（允许 true/false），按出厂开启处理", key, rawValue);
+            LOG.warn("K8 {}={} invalid (allowed: true/false), treated as shipped default enabled", key, rawValue);
         }
         return ExhaustiveRecallDirectives.appendTo("", SysConfigBooleans.parse(rawValue, true));
     }

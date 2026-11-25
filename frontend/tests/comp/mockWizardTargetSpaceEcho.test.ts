@@ -30,27 +30,12 @@ vi.mock('@/api/apiSpec', () => specApi)
 
 import wizardRaw from '@/components/mock/MockStubDirectWizard.vue?raw'
 import MockStubDirectWizard from '@/components/mock/MockStubDirectWizard.vue'
+import { wizardDraftRow, wizardSpecRow } from './wizardFixtures'
 
 const ECHO = '[data-test="stub-direct-target-space-echo"]'
 
-const specRow = {
-  id: 21,
-  name: 'orders-contract',
-  specVersion: 3,
-  specFormat: 'OPENAPI3',
-  endpoints: [{ method: 'GET', path: '/orders' }],
-}
-
-const draftRow = {
-  endpointKey: 'GET /orders',
-  name: 'list orders',
-  method: 'GET',
-  pathMatchType: 'exact',
-  pathPattern: '/orders',
-  matchersJson: '{}',
-  responseJson: '{}',
-  source: 'spec',
-}
+const specRow = wizardSpecRow
+const draftRow = wizardDraftRow
 
 function spaceRow(over: Record<string, unknown> = {}) {
   return {

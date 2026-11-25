@@ -360,7 +360,7 @@ _JAVA_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"')
 # rule: one hit per offending call statement, multi-line argument continuations
 # joined into the statement. Probe-derived line counts differ by design and
 # were deliberately not reused here.
-JAVA_RUNTIME_CJK_BASELINE = 850  # gate's own rule; ratchet shrinks with each cleaned batch
+JAVA_RUNTIME_CJK_BASELINE = 824  # gate's own rule; ratchet shrinks with each cleaned batch
 
 
 def _call_statement(lines: list[str], idx: int, col: int, max_lines: int = 24) -> str:

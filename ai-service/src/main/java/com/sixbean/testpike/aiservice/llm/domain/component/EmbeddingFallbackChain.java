@@ -104,7 +104,7 @@ public class EmbeddingFallbackChain {
                         mergedTokens, mergedLatency);
             } catch (ServiceException e) {
                 last = e;
-                log.warn("embedding 供应商失败 projectId={} provider={} err={}（尝试降级下一供应商）",
+                log.warn("embedding provider failed projectId={} provider={} err={} (falling back to next provider)",
                         projectId, endpoint.provider(), e.getMessage());
             }
         }

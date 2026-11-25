@@ -104,7 +104,12 @@ def test_workbench_contract_import_wizard(logged_in, collectors, api_client, uni
         spec_file.write_text(json.dumps(SPEC, ensure_ascii=False), encoding="utf-8")
         dialog.locator('[data-test="stub-direct-file-input"]').set_input_files(str(spec_file))
         dialog.locator('[data-test="stub-direct-upload-btn"]').click()
-        expect(dialog.locator('[data-test="stub-direct-upload-done"]')).to_be_visible(timeout=20000)
+        # The upload click chains straight into the advised preview (click
+        # budget for the upload branch: entry / pick source / upload /
+        # enable = 4): the selection step must arrive with no further
+        # button press. The receipt line is transient by design here — the
+        # landing itself is proven by the spec-list check and the cards.
+        expect(dialog.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=20000)
 
         # The uploaded row is a real spec row (single door, not a side channel).
         listed = httpx.get(f"{API_BASE}/api-specs", params={"projectId": pid, "page": 1, "size": 50},
@@ -115,8 +120,6 @@ def test_workbench_contract_import_wizard(logged_in, collectors, api_client, uni
 
         # For a brand-new contract the advice recommends both endpoints, so
         # the default set covers them all (confirmation door intact).
-        dialog.locator('[data-test="stub-direct-preview-btn"]').click()
-        expect(dialog.locator('[data-test="stub-direct-card"]')).to_have_count(2, timeout=20000)
         expect(dialog.locator('[data-test="stub-direct-check-all"]'))\
             .to_have_class(re.compile(r"is-checked"), timeout=8000)
         per_item_checked = dialog.locator(

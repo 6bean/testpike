@@ -109,12 +109,21 @@ class OcrDialogToolSeedTest {
     @Test
     void catalogDescriptionsSeparateTheTwoPosts() {
         // The model picks a post by the directory description (L3 dual-instruction
-        // selection): character transcription vs table reading must be worded apart.
+        // selection): character transcription vs table reading must be worded apart,
+        // and each row must point at its sibling and forbid calling both for the
+        // same image — a redundant sibling call in one round costs a second engine
+        // round trip without changing the answer.
         String textDesc = description("ocr.text_extract");
         String gridDesc = description("ocr.grid_read");
         assertTrue(textDesc.contains("文字") && !textDesc.contains("行列网格"),
                 "character post description must not claim the grid job");
         assertTrue(gridDesc.contains("表格"), "grid post description must name tables");
+        assertTrue(textDesc.contains("ocr.grid_read") && textDesc.contains("二选一"),
+                "character post description must name the sibling post and forbid "
+                        + "calling both for one image, got " + textDesc);
+        assertTrue(gridDesc.contains("ocr.text_extract") && gridDesc.contains("二选一"),
+                "grid post description must name the sibling post and forbid "
+                        + "calling both for one image, got " + gridDesc);
     }
 
     @Test
