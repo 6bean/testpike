@@ -172,10 +172,11 @@ jobs:
                 test > /tmp/mvn-${{ matrix.module }}.log 2>&1
             RC=$?
             if [ $RC -eq 0 ]; then break; fi
-            if grep -q "DependencyResolutionException" "/tmp/mvn-${{ matrix.module }}.log" \
+            if { grep -q "DependencyResolutionException" "/tmp/mvn-${{ matrix.module }}.log" \
+                 || grep -q "The build could not read" "/tmp/mvn-${{ matrix.module }}.log"; } \
                && ! grep -q "Tests run:" "/tmp/mvn-${{ matrix.module }}.log"; then
               echo "RESOLVER-FLAKE attempt=$attempt: central 429 before any test ran, retrying"
-              sleep $((45 * attempt))
+              sleep $((60 * attempt))
               continue
             fi
             break

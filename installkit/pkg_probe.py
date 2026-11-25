@@ -5,9 +5,28 @@ import os
 import platform
 import shutil
 import socket
+import subprocess
 import sys
 
 PREREQS = ("docker", "node", "git", "python3")
+
+# Prerequisite docs entries for hosts without a registered package-manager
+# profile; literal URLs so the operator can follow them without guessing.
+PREREQ_DOCS = {
+    "docker": "https://docs.docker.com/engine/install/",
+    "node": "https://nodejs.org/en/download/package-manager",
+    "git": "https://git-scm.com/book/en/v2/Getting-Started-Installing-Git",
+    "python3": "https://docs.python.org/3/using-on-linux.html",
+}
+
+# Hot-reload switch: 0/off/false makes the preflight report-only again
+# (never installs) while keeping the same recovery routes on screen.
+SELF_REPAIR_KEY = "TP_PKG_SELF_REPAIR"
+REPAIR_TIMEOUT_S = int(os.environ.get("TP_PKG_REPAIR_TIMEOUT_S", "900"))
+
+# Returned when a repair was attempted and the prerequisite still does not
+# resolve afterwards. 2/3 are reserved for unregistered items / disk short.
+REPAIR_FAILED_RC = 4
 
 PREREQ_CMD = {
     "apt": {
@@ -138,6 +157,36 @@ def port_occupied(port):
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
+def self_repair_enabled():
+    """False only when the operator switched self-repair off explicitly."""
+    return os.environ.get(SELF_REPAIR_KEY, "1").strip().lower() not in (
+        "0", "false", "no", "off")
+
+
+def execute(cmd):
+    """Run one repair command and return its exit code; tests replace this seam.
+
+    The command comes from the same single-source table the report-only route
+    prints, so what the operator sees and what the installer runs stay equal.
+    """
+    try:
+        proc = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                              timeout=REPAIR_TIMEOUT_S)
+        return proc.returncode
+    except subprocess.TimeoutExpired:
+        print("  repair command timed out after %ds" % REPAIR_TIMEOUT_S,
+              file=sys.stderr)
+        return -1
+    except OSError as exc:
+        print("  repair command could not start: %s" % exc, file=sys.stderr)
+        return -1
+
+
+def _resume_route():
+    import failure_guide
+    return failure_guide.RESUME_HINT
+
+
 def preflight(require_items, ports, require_disk_mb=None, disk_root=None):
     pass
     os_kind = host_os()
@@ -156,16 +205,41 @@ def preflight(require_items, ports, require_disk_mb=None, disk_root=None):
               file=sys.stderr)
         return 2
 
+    repair_failed = []
     for req in require_items:
         if shutil.which(req):
             print("prerequisite %s: present" % req)
             continue
         print("missing prerequisite %s" % req)
-        if pm:
-            print("  install command for this profile: %s" % install_command(pm, req))
+        if pm is None:
+            print("  no package-manager profile for this distribution -- "
+                  "install %s manually per %s, then %s"
+                  % (req, PREREQ_DOCS.get(req, "the official docs"),
+                     _resume_route()))
+            continue
+        cmd = install_command(pm, req)
+        if not self_repair_enabled():
+            print("  self-repair switched off by %s -- run this exact "
+                  "command: %s ; then %s"
+                  % (SELF_REPAIR_KEY, cmd, _resume_route()))
+            continue
+        if not is_effective_root():
+            print("  installing %s needs elevated privileges and this "
+                  "installer never elevates -- run: %s ; then %s"
+                  % (req, cmd, _resume_route()))
+            continue
+        print("  self-repair: %s" % cmd)
+        rc = execute(cmd)
+        if rc == 0 and shutil.which(req):
+            print("prerequisite %s: installed and verified" % req)
         else:
-            print("  package-manager profile unknown -- install manually per the %s "
-                  "official docs, then re-run the preflight" % (os_kind or "this host"))
+            print("  self-repair did not land: exit code %s, %s still "
+                  "missing -- retry the exact command: %s ; if it keeps "
+                  "failing see %s, then %s"
+                  % (rc, req, install_command(pm, req),
+                     PREREQ_DOCS.get(req, "the official docs"),
+                     _resume_route()))
+            repair_failed.append(req)
 
     for port in ports:
         if port_occupied(port):
@@ -188,6 +262,8 @@ def preflight(require_items, ports, require_disk_mb=None, disk_root=None):
                                       available_mb=free_mb),
                   file=sys.stderr)
             return 3
+    if repair_failed:
+        return REPAIR_FAILED_RC
     return 0
 
 
