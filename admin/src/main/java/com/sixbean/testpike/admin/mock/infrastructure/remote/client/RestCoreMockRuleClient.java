@@ -11,6 +11,7 @@ import com.sixbean.testpike.admin.mock.api.dto.MockRecordingPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockRecordingView;
 import com.sixbean.testpike.admin.mock.api.dto.MockServingEndpointPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
+import com.sixbean.testpike.admin.mock.api.dto.MockSpecUpgradePlanView;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioInput;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioView;
@@ -301,6 +302,23 @@ public class RestCoreMockRuleClient implements CoreMockRuleClient {
                 BASE + "/stub/drafts-advised?" + tail, null,
                 new ParameterizedTypeReference<Response<List<MockStubDraftAdviceView>>>() {
                 }, UserContext.currentUserId());
+    }
+
+    @Override
+    public MockSpecUpgradePlanView specUpgradePlan(long spaceId, long specId) {
+        return RestClientInvoker.call(rest, HttpMethod.GET,
+                BASE + "/spec-upgrade/plan?spaceId=" + spaceId + "&specId=" + specId, null,
+                new ParameterizedTypeReference<Response<MockSpecUpgradePlanView>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
+    public int specUpgradeMarkRemoved(long spaceId, long specId) {
+        Integer marked = RestClientInvoker.call(rest, HttpMethod.POST,
+                BASE + "/spec-upgrade/mark-removed?spaceId=" + spaceId + "&specId=" + specId, null,
+                new ParameterizedTypeReference<Response<Integer>>() {
+                }, UserContext.currentUserId());
+        return marked == null ? 0 : marked;
     }
 
     @Override

@@ -15,6 +15,7 @@ import com.sixbean.testpike.admin.mock.api.dto.MockScenarioView;
 import com.sixbean.testpike.admin.mock.api.dto.MockSpaceInput;
 import com.sixbean.testpike.admin.mock.api.dto.MockSpaceView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
+import com.sixbean.testpike.admin.mock.api.dto.MockSpecUpgradePlanView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubImportResultView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubInput;
@@ -105,6 +106,12 @@ public interface CoreMockRuleClient {
      * yields advice-free rows (no conflict reading without a target space).
      */
     List<MockStubDraftAdviceView> previewStubDraftsAdvice(long specId, Long spaceId);
+
+    /** One-frame three-state contract-upgrade plan for a space against one version. */
+    MockSpecUpgradePlanView specUpgradePlan(long spaceId, long specId);
+
+    /** Disable + stale-flag the rules whose endpoint left the contract; honest count. */
+    int specUpgradeMarkRemoved(long spaceId, long specId);
 
     /**
      * Contract-direct import: posts the wizard's chosen drafts into core, which

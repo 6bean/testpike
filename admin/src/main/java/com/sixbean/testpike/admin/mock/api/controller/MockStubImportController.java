@@ -3,6 +3,7 @@ package com.sixbean.testpike.admin.mock.api.controller;
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
+import com.sixbean.testpike.admin.mock.api.dto.MockSpecUpgradePlanView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubImportResultView;
 import com.sixbean.testpike.admin.mock.infrastructure.remote.client.CoreMockRuleClient;
@@ -103,5 +104,36 @@ public class MockStubImportController {
                     "契约直出导入必须至少勾选一条规则草稿（预览结果为空时请先核对契约端点）", 400);
         }
         return Response.builderSuccess(coreMockRuleClient.importStubs(spaceId, drafts));
+    }
+
+    /**
+     * One-frame contract-upgrade plan for the wizard's difference step
+     * (MJ P6): added rows arrive advice-joined from core's single advice
+     * source, changed/removed rows name the exact rule. Read-only — the
+     * marking step below is the only write, and even that disables and
+     * flags rows instead of deleting them (traffic history preserved).
+     */
+    @GetMapping("/spaces/{spaceId}/specs/{specId}/upgrade-plan")
+    @RequirePermission("perm:mock:write")
+    public Response<MockSpecUpgradePlanView> upgradePlan(@PathVariable long spaceId,
+                                                         @PathVariable long specId) {
+        CurrentUser user = UserContext.current();
+        guard.assertCanWriteRequirement(user, coreApiSpecClient.get(specId).projectId());
+        return Response.builderSuccess(coreMockRuleClient.specUpgradePlan(spaceId, specId));
+    }
+
+    /**
+     * Apply the removed-state advice: disable + stale-flag exactly the rules
+     * the plan named (never delete, never touch the hit ledger). Replaying the
+     * call changes nothing, so the wizard can offer it without double-effect
+     * anxiety; returns the honest count of rows newly marked.
+     */
+    @PostMapping("/spaces/{spaceId}/specs/{specId}/upgrade-plan/mark-removed")
+    @RequirePermission("perm:mock:write")
+    public Response<Integer> upgradeMarkRemoved(@PathVariable long spaceId,
+                                                @PathVariable long specId) {
+        CurrentUser user = UserContext.current();
+        guard.assertCanWriteRequirement(user, coreApiSpecClient.get(specId).projectId());
+        return Response.builderSuccess(coreMockRuleClient.specUpgradeMarkRemoved(spaceId, specId));
     }
 }

@@ -149,7 +149,27 @@ jobs:
           python3 - <<'PYEOF'
           import json, os, urllib.request
           log = "/tmp/mvn-${{ matrix.module }}.log"
-          tail = open(log, errors="replace").read()[-55000:] if os.path.exists(log) else "(no log captured)"
+          text = open(log, errors="replace").read() if os.path.exists(log) else "(no log captured)"
+          lines = text.splitlines()
+          import itertools
+          out, seen = [], set()
+          # first context-load failure with its preceding root-cause block
+          for i, l in enumerate(lines):
+              if "Failed to load ApplicationContext" in l or "ApplicationContext failure" in l:
+                  lo = max(0, i - 90)
+                  for j in range(lo, i + 2):
+                      if lines[j] not in seen:
+                          out.append(lines[j]); seen.add(lines[j])
+                  break
+          # every distinct root-cause line across the run
+          for l in lines:
+              s = l.strip()
+              if ("Caused by" in s or "BeanCreationException" in s or "UnsatisfiedDependency" in s
+                  or "Connection refused" in s or "class path resource" in s or "No qualifying bean" in s) \
+                     and s not in seen:
+                  out.append(s); seen.add(s)
+          tail = "\n".join(out[:420]) + "\n--- tail ---\n" + "\n".join(lines[-40:])
+          tail = tail[:56000]
           req = urllib.request.Request(
               os.environ["GITHUB_API_URL"] + "/repos/" + os.environ["GITHUB_REPOSITORY"] + "/issues",
               data=json.dumps({

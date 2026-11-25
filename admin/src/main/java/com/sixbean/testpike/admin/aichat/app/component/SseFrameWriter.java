@@ -62,7 +62,7 @@ public class SseFrameWriter implements StreamFrameWriter {
             event.data(text, MediaType.TEXT_PLAIN);
             emitter.send(event);
         } catch (Exception clientGone) {
-            closed.set(true);
+            sealDeadWire();
         }
     }
 
@@ -74,7 +74,7 @@ public class SseFrameWriter implements StreamFrameWriter {
         try {
             emitter.send(SseEmitter.event().comment("hb"));
         } catch (Exception clientGone) {
-            closed.set(true);
+            sealDeadWire();
         }
     }
 
@@ -92,5 +92,24 @@ public class SseFrameWriter implements StreamFrameWriter {
     @Override
     public boolean isAborted() {
         return closed.get();
+    }
+
+    /**
+     * Latches the writer aborted AND ends the servlet async cycle, so the
+     * container retires the request the moment the wire is proven dead.
+     * Without the seal the request stayed open until the 30-minute emitter
+     * timeout and the admin log filled with AsyncRequestTimeoutException
+     * bursts for browsers that had long since navigated away (log audit
+     * 2026-11-25: 22 ghost timeouts in one day). The first failed
+     * send owns the single seal; later paths are no-ops.
+     */
+    private void sealDeadWire() {
+        if (closed.compareAndSet(false, true)) {
+            try {
+                emitter.complete();
+            } catch (Exception alreadyGone) {
+                // The container retired the request itself — nothing left to seal.
+            }
+        }
     }
 }
