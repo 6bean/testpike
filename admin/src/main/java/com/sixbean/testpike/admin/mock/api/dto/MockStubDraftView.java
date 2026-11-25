@@ -15,6 +15,9 @@ package com.sixbean.testpike.admin.mock.api.dto;
  * @param responseJson response builder document (status/headers/bodyMode/body)
  * @param source provenance family (openapi for every contract-direct draft)
  * @param sourceRef provenance anchor (spec:{id}) for stale badges and retracing
+ * @param enrichedBy AI enrichment job anchor (job:{id}) when the draft was
+ *                  improved by a bulk enrichment task; null = contract-direct
+ *                  (mirrors the core MockStubDraft component order)
  */
 public record MockStubDraftView(
         String endpointKey,
@@ -25,5 +28,17 @@ public record MockStubDraftView(
         String matchersJson,
         String responseJson,
         String source,
-        String sourceRef) {
+        String sourceRef,
+        String enrichedBy) {
+
+    /**
+     * 9-arg compatibility constructor for pre-enrichment bridge fixtures and
+     * producers: the enrichment anchor simply rides on null (never improved).
+     */
+    public MockStubDraftView(String endpointKey, String name, String method, String pathMatchType,
+                             String pathPattern, String matchersJson, String responseJson,
+                             String source, String sourceRef) {
+        this(endpointKey, name, method, pathMatchType, pathPattern, matchersJson, responseJson,
+                source, sourceRef, null);
+    }
 }

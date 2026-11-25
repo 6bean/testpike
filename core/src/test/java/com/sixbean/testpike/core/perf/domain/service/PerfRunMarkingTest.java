@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * B-7 golden-run marking on tp_perf_run (first segment of the baseline-collaboration task).
@@ -59,16 +60,11 @@ class PerfRunMarkingTest {
     void seedFixtures() {
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "金跑打标测试项目_" + uniq, "PFMARK" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '开发-打标', 1, 'http://perf-target.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
-                        + "allowed_modes) VALUES (?, ?, ?, CAST(? AS jsonb))",
-                projectId, devEnvId, 100, "[\"SHADOW_TABLE\"]");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "金跑打标测试项目_", "PFMARK", "开发-打标", 1,
+                "http://perf-target.local/api", 100, "[\"SHADOW_TABLE\"]");
+        projectId = seeded[0];
+        devEnvId = seeded[1];
     }
 
     @AfterEach
@@ -88,10 +84,6 @@ class PerfRunMarkingTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFMARK%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFMARK%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private long newScenario(String name) {

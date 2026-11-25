@@ -123,9 +123,9 @@ class AiGenEntityGoneWriteBackTest {
                 () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
                         1, "用户可以使用正确的账号密码登录系统", null, null)));
 
-        assertEquals(List.of(), errorsContaining("AI 失败通知写入异常"),
+        assertEquals(List.of(), errorsContaining("AI failure notification write error"),
                 "已删除任务的回写拒止是竞态预期，禁记入写入异常 ERROR 族（R53 噪音闸）");
-        assertEquals(1, warnsContaining("任务已被删除").size(),
+        assertEquals(1, warnsContaining("task deleted").size(),
                 "必须有一条点名跳过原因的 WARN（失败通知无宿主如实入账）");
         verify(coreGateway, never()).createNotification(anyLong(), anyLong(),
                 any(), any(), any(), any());
@@ -150,9 +150,9 @@ class AiGenEntityGoneWriteBackTest {
                 () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
                         1, "用户可以使用正确的账号密码登录系统", null, null)));
 
-        assertEquals(List.of(), errorsContaining("AI 失败通知写入异常"),
+        assertEquals(List.of(), errorsContaining("AI failure notification write error"),
                 "终态回写竞态是预期结果，禁记入写入异常 ERROR 族（R53 噪音闸）");
-        assertEquals(1, warnsContaining("任务已是终态").size(),
+        assertEquals(1, warnsContaining("task already terminal").size(),
                 "必须有一条点名跳过原因的 WARN（失败通知无落点如实入账）");
         verify(coreGateway, never()).createNotification(anyLong(), anyLong(),
                 any(), any(), any(), any());
@@ -178,9 +178,9 @@ class AiGenEntityGoneWriteBackTest {
         verify(coreGateway, never()).markFailed(anyLong(), any(), any());
         verify(coreGateway, never()).createNotification(anyLong(), anyLong(),
                 any(), any(), any(), any());
-        assertEquals(List.of(), errorsContaining("AI 失败通知写入异常"),
+        assertEquals(List.of(), errorsContaining("AI failure notification write error"),
                 "预期竞态不落 ERROR 签名");
-        assertEquals(1, warnsContaining("任务已是终态").size(),
+        assertEquals(1, warnsContaining("task already terminal").size(),
                 "回写竞态必须有一条点名跳过原因的 WARN");
     }
 
@@ -221,7 +221,7 @@ class AiGenEntityGoneWriteBackTest {
                 () -> service.generate(new AiGenMessage(TASK_ID, PROJECT_ID, OPERATOR_ID,
                         1, "用户可以使用正确的账号密码登录系统", null, null)));
 
-        assertEquals(1, errorsContaining("AI 失败通知写入异常").size(),
+        assertEquals(1, errorsContaining("AI failure notification write error").size(),
                 "非实体删除族的回写故障必须保持 ERROR（禁把真实持久化失败折叠成竞态噪音）");
     }
 }

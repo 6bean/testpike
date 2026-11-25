@@ -50,7 +50,11 @@ class PerfArtifactDownloadGrantTest {
 
         ServiceException refused = assertThrows(ServiceException.class,
                 () -> controller.grantDownload(Map.of("objectKey", foreign)));
-        assertTrue(refused.getMessage().contains("拒发下载授权"), refused.getMessage());
+        // Wording migrated to business guidance in the refusal rewrite: the
+        // sentence names the storage-domain violation and points at the fix
+        // input (pass back the compile receipt's objectKey verbatim) instead
+        // of the old terse "grant refused" shorthand.
+        assertTrue(refused.getMessage().contains("不属于压测编译产物存储域"), refused.getMessage());
         Mockito.verifyNoInteractions(artifactStorage);
     }
 

@@ -125,7 +125,7 @@ public class GroundingService {
         try {
             index = coreGateway.listHelpDocs();
         } catch (RuntimeException e) {
-            log.warn("接地帮助索引不可达，本次零帮助候选 projectId 无关: {}", e.getMessage());
+            log.warn("Grounding help index unreachable, no help candidates this run: {}", e.getMessage());
             return List.of();
         }
         Set<String> questionTerms = GroundingKernel.termsOf(question);
@@ -147,7 +147,7 @@ public class GroundingService {
             try {
                 detail = coreGateway.getHelpDomainChapters(chapter.domainCode());
             } catch (RuntimeException e) {
-                log.warn("接地帮助域详情不可达 domain={} {}", chapter.domainCode(), e.getMessage());
+                log.warn("Grounding help domain detail unreachable domain={} {}", chapter.domainCode(), e.getMessage());
                 detail = List.of();
             }
             CoreGateway.HelpDocBrief full = detail.stream()
@@ -165,7 +165,7 @@ public class GroundingService {
             items = knowledgeSearchService.search(new KnowledgeSearchRequest(projectId,
                     question, KnowledgeSearchScene.BUSINESS.name(), KNOWLEDGE_CANDIDATES, null));
         } catch (RuntimeException e) {
-            log.warn("接地知识检索不可达，本次零知识候选 projectId={}: {}", projectId, e.getMessage());
+            log.warn("Grounding knowledge search unreachable, no knowledge candidates this run projectId={}: {}", projectId, e.getMessage());
             return List.of();
         }
         // Usage-switch routing: documents switched off for grounding never
@@ -234,7 +234,7 @@ public class GroundingService {
                             .addValue("depth", intConfig(KEY_DEFECT_CANDIDATES,
                                     DEFAULT_DEFECT_CANDIDATES)));
         } catch (RuntimeException e) {
-            log.warn("接地缺陷语料不可达，本次零缺陷候选 projectId={}: {}", projectId, e.getMessage());
+            log.warn("Grounding defect corpus unreachable, no defect candidates this run projectId={}: {}", projectId, e.getMessage());
             return List.of();
         }
         List<GroundingHit> hits = new ArrayList<>();
@@ -336,7 +336,7 @@ public class GroundingService {
                         new KnowledgeLedgerFacts(version, ledgerTimestamp(row.get("updated_at"))));
             }
         } catch (RuntimeException e) {
-            log.warn("接地台账读取不可达，本次候选不携带 revision 与更新时间: {}", e.getMessage());
+            log.warn("Grounding ledger read unreachable, candidates carry no revision or update time this run: {}", e.getMessage());
         }
         return out;
     }
@@ -391,7 +391,7 @@ public class GroundingService {
             return coreGateway.getSysConfig(key);
         } catch (RuntimeException e) {
             // Config door down → seeded defaults; grounding must never fail a turn over a knob.
-            log.warn("接地配置键读取失败 key={}: {}", key, e.getMessage());
+            log.warn("Grounding config key read failed key={}: {}", key, e.getMessage());
             return null;
         }
     }

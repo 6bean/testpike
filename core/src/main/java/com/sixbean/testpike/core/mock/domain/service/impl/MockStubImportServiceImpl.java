@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.mock.domain.service.impl;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInput;
 import com.sixbean.testpike.core.mock.api.dto.MockStubImportResult;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInfo;
+import com.sixbean.testpike.core.mock.domain.component.MockRuleKeys;
 import com.sixbean.testpike.core.mock.domain.component.MockStubDraft;
 import com.sixbean.testpike.core.mock.domain.component.StubDraftMapper;
 import com.sixbean.testpike.core.mock.domain.service.MockStubImportService;
@@ -17,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -36,13 +36,20 @@ import java.util.Set;
 @Service
 public class MockStubImportServiceImpl implements MockStubImportService {
 
+    /** Hot-update knob: how deep response schemas unfold into sample bodies. */
+    static final String KEY_EXPAND_MAX_DEPTH = "mock.spec-import.schema-expand-max-depth";
+
     private final ApiSpecService apiSpecService;
     private final MockStubService stubService;
+    private final com.sixbean.testpike.core.config.domain.service.ConfigService configService;
     private final StubDraftMapper mapper = new StubDraftMapper();
 
-    public MockStubImportServiceImpl(ApiSpecService apiSpecService, MockStubService stubService) {
+    public MockStubImportServiceImpl(ApiSpecService apiSpecService, MockStubService stubService,
+                                     com.sixbean.testpike.core.config.domain.service.ConfigService
+                                             configService) {
         this.apiSpecService = apiSpecService;
         this.stubService = stubService;
+        this.configService = configService;
     }
 
     @Override
@@ -51,7 +58,20 @@ public class MockStubImportServiceImpl implements MockStubImportService {
         List<ApiEndpoint> endpoints = spec.endpoints() == null ? List.of() : spec.endpoints();
         return mapper.fromParsedSpec(specId,
                 new ParsedApiSpec(spec.specFormat(), spec.specTitle(),
-                        String.valueOf(spec.specVersion()), endpoints));
+                        String.valueOf(spec.specVersion()), endpoints),
+                expandMaxDepth());
+    }
+
+    /** Configured expansion depth, shipped default on blank/garbage/foreign values. */
+    private int expandMaxDepth() {
+        String raw = configService.getValue(KEY_EXPAND_MAX_DEPTH,
+                String.valueOf(StubDraftMapper.DEFAULT_EXPAND_MAX_DEPTH));
+        try {
+            int parsed = Integer.parseInt(raw.trim());
+            return Math.min(64, Math.max(1, parsed));
+        } catch (Exception e) {
+            return StubDraftMapper.DEFAULT_EXPAND_MAX_DEPTH;
+        }
     }
 
     @Override
@@ -90,13 +110,12 @@ public class MockStubImportServiceImpl implements MockStubImportService {
     }
 
     private String ruleKey(String method, String pathPattern) {
-        return (method == null ? "" : method.trim().toUpperCase(Locale.ROOT))
-                + " " + (pathPattern == null ? "" : pathPattern.trim());
+        return MockRuleKeys.of(method, pathPattern);
     }
 
     private MockStubInput toInput(MockStubDraft draft) {
         return new MockStubInput(draft.name(), null, draft.method(), draft.pathMatchType(),
                 draft.pathPattern(), draft.matchersJson(), draft.responseJson(), null, null, null,
-                draft.source(), draft.sourceRef(), Boolean.TRUE);
+                draft.source(), draft.sourceRef(), Boolean.TRUE, null, draft.enrichedBy());
     }
 }

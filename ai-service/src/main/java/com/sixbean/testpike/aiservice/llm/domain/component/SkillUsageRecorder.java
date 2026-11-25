@@ -59,12 +59,12 @@ public class SkillUsageRecorder {
                 try {
                     memoryHitWriter.recordHits(snapshot);
                 } catch (Exception e) {
-                    log.warn("项目记忆命中自增失败（观测面不阻断）: {}", e.getMessage());
+                    log.warn("Project memory hit-counter increment failed (observability only, does not block): {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
             long total = dropped.incrementAndGet();
-            log.warn("项目记忆命中队列满/拒绝，丢弃 {} 条（累计丢弃 {}）: {}",
+            log.warn("Project memory hit queue full/rejected, dropped {} rows (total dropped {}): {}",
                     snapshot.size(), total, e.getMessage());
         }
     }
@@ -84,12 +84,12 @@ public class SkillUsageRecorder {
                 try {
                     coreGateway.recordSkillUsages(inputs);
                 } catch (Exception e) {
-                    log.warn("SKILL 消费留痕写失败（观测面不阻断）: {}", e.getMessage());
+                    log.warn("SKILL consumption trace write failed (observability only, does not block): {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
             long total = dropped.incrementAndGet();
-            log.warn("SKILL 留痕队列满/拒绝，丢弃 {} 条（累计丢弃 {}）: {}",
+            log.warn("SKILL trace queue full/rejected, dropped {} rows (total dropped {}): {}",
                     inputs.size(), total, e.getMessage());
         }
     }

@@ -70,12 +70,12 @@ def test_control_start_invokes_systemctl_start_with_named_receipt(tmp_path):
     res = sa.execute_command(_cmd(CONTROL, service="core", action="start"), env)
     assert res.success, res.detail
     assert ["systemctl", "start", "tp-core.service"] in env.spawn_calls
-    assert "启动" in res.detail and "tp-core.service" in res.detail
+    assert "Start" in res.detail and "tp-core.service" in res.detail
     assert not res.exit_after_ack, "a service start never retires the agent"
 
 
 def test_control_stop_and_restart_map_to_their_verbs(tmp_path):
-    for action, verb in (("stop", "停止"), ("restart", "重启")):
+    for action, verb in (("stop", "Stop"), ("restart", "Restart")):
         env = _Env(tmp_path)
         res = sa.execute_command(_cmd(CONTROL, service="admin", action=action), env)
         assert res.success, res.detail
@@ -125,9 +125,9 @@ def test_self_check_reports_every_service_honestly(tmp_path):
     assert res.success, "a check that found a red cell is itself a delivered command"
     for row in sa.MANAGED_SERVICES:
         assert row.family in res.detail
-    assert "运行中" in res.detail
-    assert "已停止" in res.detail, "the stopped unit must show up, never be folded into green"
-    assert "未知" in res.detail, "families without a local release report an honest unknown"
+    assert "running" in res.detail
+    assert "stopped" in res.detail, "the stopped unit must show up, never be folded into green"
+    assert "unknown" in res.detail, "families without a local release report an honest unknown"
 
 
 def test_self_check_single_service_filter(tmp_path):

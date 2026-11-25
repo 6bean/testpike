@@ -34,16 +34,16 @@ _ROWS = demo_seed._rows
 EXECUTOR_REQUIRED = "required"
 EXECUTOR_STANDBY_OK = "standby-ok"
 STATUS_STANDBY = "STANDBY"
-STANDBY_GUIDE = ("提示：派发链路已跑通（运行单已入队）。用例执行由执行器承接，"
-                 "执行器随「完整功能」档安装；本档补装后运行会自动出终态："
+STANDBY_GUIDE = ("note: dispatch chain verified (the run is queued). Case execution is owned by the executor,"
+                                  " which ships with the full-feature tier; once installed, the queued run reaches a terminal state on its own:"
                  "docker compose --profile executor up -d")
 
 
 def login(c, user):
     pw = os.environ.get("ADMIN_INIT_PASSWORD")
     if not pw:
-        raise SystemExit("缺少环境变量 ADMIN_INIT_PASSWORD（装机管理员初始口令，只从环境注入）")
-    data = _NEED(c.post("/auth/login", json={"username": user, "password": pw}), "登录")
+        raise SystemExit("missing env var ADMIN_INIT_PASSWORD (install-time admin initial password; injected from the environment only)")
+    data = _NEED(c.post("/auth/login", json={"username": user, "password": pw}), "login")
     return {"Authorization": "Bearer " + data["accessToken"]}
 
 
@@ -51,28 +51,28 @@ def resolve_targets(c, h, center_code="demo-order"):
     """Walk projects→envs→collections→requests by demo names; return (request_id, env_id)."""
     spec = next((s for s in demo_seed.DEMO_CENTER_PROJECTS if s["code"] == center_code), None)
     if spec is None:
-        raise SystemExit("未知的演示中心编码：%s（可选值见 installkit/demo_seed.py 中心项目表）" % center_code)
-    projects = _ROWS(_NEED(c.get("/projects", headers=h, params={"size": 100}), "项目列表"))
+        raise SystemExit("unknown demo center code: %s (see the center project table in installkit/demo_seed.py)" % center_code)
+    projects = _ROWS(_NEED(c.get("/projects", headers=h, params={"size": 100}), "project list"))
     proj = next((p for p in projects if p.get("code") == center_code), None)
     if proj is None:
-        raise SystemExit("项目 %s 不存在——先跑 seed-demo 播种（installkit/demo_seed.py）" % center_code)
-    envs = _ROWS(_NEED(c.get("/projects/%s/envs" % proj["id"], headers=h), "环境列表"))
+        raise SystemExit("project %s is missing — run seed-demo first (installkit/demo_seed.py)" % center_code)
+    envs = _ROWS(_NEED(c.get("/projects/%s/envs" % proj["id"], headers=h), "env list"))
     env = next((e for e in envs if e.get("name") == demo_seed.DEMO_ENV_NAME), None)
     if env is None:
-        raise SystemExit("项目 %s 下缺少演示环境 %s——播种不完整，重跑 seed-demo 后再证"
+        raise SystemExit("project %s has no demo env %s — seeding incomplete; re-run seed-demo before proving"
                          % (center_code, demo_seed.DEMO_ENV_NAME))
     colls = _ROWS(_NEED(c.get("/apitest/collections", headers=h,
-                              params={"projectId": proj["id"]}), "集合列表"))
+                              params={"projectId": proj["id"]}), "collection list"))
     coll = next((x for x in colls if x.get("name") == demo_seed.DEMO_CENTER_COLLECTION_NAME), None)
     if coll is None:
-        raise SystemExit("缺少集合 %s——播种不完整，重跑 seed-demo 后再证"
+        raise SystemExit("collection %s is missing — seeding incomplete; re-run seed-demo before proving"
                          % demo_seed.DEMO_CENTER_COLLECTION_NAME)
     reqs = _ROWS(_NEED(c.get("/apitest/requests", headers=h,
-                            params={"collectionId": coll["id"]}), "请求列表"))
+                            params={"collectionId": coll["id"]}), "request list"))
     want = demo_seed.center_request_plan(spec)["name"]
     req = next((r for r in reqs if r.get("name") == want), None)
     if req is None:
-        raise SystemExit("缺少演示请求 %s——播种不完整，重跑 seed-demo 后再证" % want)
+        raise SystemExit("demo request %s is missing — seeding incomplete; re-run seed-demo before proving" % want)
     return req["id"], env["id"]
 
 
@@ -85,15 +85,15 @@ def run_and_wait(c, h, request_id, env_id, max_wait_s=120,
     an executor, reported as STATUS_STANDBY with the install-guide line.
     """
     data = _NEED(c.post("/apitest/runs", headers=h,
-                        json={"requestId": request_id, "envId": env_id}), "发起运行")
+                        json={"requestId": request_id, "envId": env_id}), "start run")
     run_id = data.get("id") if isinstance(data, dict) else data
     # one authoritative status read before the wait budget, so a zero budget
-    v = _NEED(c.get("/apitest/runs/%s" % run_id, headers=h), "运行详情") or {}
+    v = _NEED(c.get("/apitest/runs/%s" % run_id, headers=h), "run detail") or {}
     st = v.get("status")
     deadline = time.time() + max_wait_s
     while st not in (1, 2, 3) and time.time() < deadline:
         time.sleep(3)
-        v = _NEED(c.get("/apitest/runs/%s" % run_id, headers=h), "运行详情") or {}
+        v = _NEED(c.get("/apitest/runs/%s" % run_id, headers=h), "run detail") or {}
         st = v.get("status")
         if st in (1, 2, 3):
             print("GREENLIGHT-PROOF run=%s status=%s duration_ms=%s"

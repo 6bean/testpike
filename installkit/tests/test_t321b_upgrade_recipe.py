@@ -76,7 +76,8 @@ def test_target_pin_invalid_without_recipe_pin_human():
     with pytest.raises(ValueError) as e:
         rp.commands_for({"hosts": {"linux": {"install": [{"cmd": "install.sh"}]}}},
                         "upgrade", host="linux", target_pin="1.0.0")
-    assert "版本钉" in str(e.value), "无钉配方反向钉必须人话拒（禁产出改写不出的假回滚）"
+    assert "version pin" in str(e.value), \
+        "reverse-pinning a pin-less recipe is refused in plain words (no fake rollback)"
 
 
 def test_cli_upgrade_action_and_target_pin(tmp_path, capsys):

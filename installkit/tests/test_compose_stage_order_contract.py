@@ -179,7 +179,7 @@ def test_blocked_registry_teaches_the_detour_on_the_middleware_stage(tmp_path, m
     monkeypatch.setattr(s1_bootstrap, "_run_stage", lambda cmd: (1, tail))
     assert s1_bootstrap.cmd_compose(_compose_args(tmp_path)) == 1
     err = capsys.readouterr().err
-    assert "三条出路" in err and "docker load -i testpike-images.tar" in err, \
+    assert "Three ways out" in err and "docker load -i testpike-images.tar" in err, \
         "an offline host gets the ferry recipe too, not only online workarounds"
 
 

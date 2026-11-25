@@ -36,7 +36,7 @@ public class ProjectLlmRouter {
             if (brief != null) {
                 String source = "project".equals(brief.source())
                         ? LlmEndpointConfig.SOURCE_PROJECT : LlmEndpointConfig.SOURCE_DEFAULT;
-                log.info("LLM 路由 projectId={} source={} model={} baseUrl={}",
+                log.info("LLM route projectId={} source={} model={} baseUrl={}",
                         projectId, source, brief.modelName(), brief.baseUrl());
                 return new LlmEndpointConfig(brief.provider(), brief.modelName(), brief.apiKey(),
                         brief.baseUrl(), source, brief.promptLimitTokens(), brief.id(),
@@ -46,12 +46,12 @@ public class ProjectLlmRouter {
             if (fromConfigDb != null) {
                 return fromConfigDb;
             }
-            log.info("LLM 路由 projectId={} 无清单且无 K8 配置，回退配置文件 source={}；"
-                            + "如需停止回退：在「系统管理-大模型配置」维护模型清单，"
-                            + "或在「系统管理-系统配置」配置默认端点（键 llm.provider/llm.base-url/llm.model）",
+            log.info("LLM route projectId={} has no catalog and no K8 config, falling back to config file source={}; "
+                            + "to stop the fallback: maintain the model catalog on the LLM configuration page, "
+                            + "or set the default endpoint on the system configuration page (keys llm.provider/llm.base-url/llm.model)",
                     projectId, LlmEndpointConfig.SOURCE_CONFIG);
         } catch (Exception e) {
-            log.warn("LLM 路由 core 查询失败 projectId={} err={}，回退配置文件", projectId, e.getMessage());
+            log.warn("LLM route core query failed projectId={} err={}, falling back to config file", projectId, e.getMessage());
         }
         return new LlmEndpointConfig(properties.getProvider(), properties.getModel(),
                 properties.getApiKey(), properties.getBaseUrl(), LlmEndpointConfig.SOURCE_CONFIG);
@@ -69,7 +69,7 @@ public class ProjectLlmRouter {
         if (isBlank(apiKey)) {
             apiKey = properties.getApiKey();
         }
-        log.info("LLM 路由 K8 系统配置表默认端点 source={} model={} baseUrl={}",
+        log.info("LLM route K8 system config table default endpoint source={} model={} baseUrl={}",
                 LlmEndpointConfig.SOURCE_CONFIG_DB, model, baseUrl);
         return new LlmEndpointConfig(provider, model, apiKey, baseUrl, LlmEndpointConfig.SOURCE_CONFIG_DB);
     }

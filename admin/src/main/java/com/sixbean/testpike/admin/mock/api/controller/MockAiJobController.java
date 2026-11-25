@@ -86,6 +86,23 @@ public class MockAiJobController {
     }
 
     /**
+     * Business-step tail of one bulk enrichment job (the drawer behind the
+     * "execution process" entry): cursor window over the shared process
+     * ledger, read-only, audience = perm:mock:read like its sibling doors.
+     * Core resolves the newest run anchor; an empty window while the run has
+     * not landed its first frame is a valid answer, never an error.
+     */
+    @GetMapping("/{id}/process-events")
+    @RequirePermission("perm:mock:read")
+    public Response<List<com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView>> processEvents(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "0") long cursor,
+            @RequestParam(required = false) Integer limit) {
+        return Response.builderSuccess(
+                coreMockRuleClient.aiJobProcessEvents(id, cursor, limit));
+    }
+
+    /**
      * Land the human-ticked drafts into the rule source (the only AI ingress;
      * empty selection refused by core, provenance forced source=nl-ai).
      */

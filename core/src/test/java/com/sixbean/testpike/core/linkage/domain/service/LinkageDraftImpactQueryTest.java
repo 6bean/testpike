@@ -2,6 +2,7 @@ package com.sixbean.testpike.core.linkage.domain.service;
 
 import com.sixbean.testpike.common.linkage.LinkageDraftImpact;
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ class LinkageDraftImpactQueryTest {
 
     private final List<Long> impactIds = new ArrayList<>();
     private final List<Long> draftIds = new ArrayList<>();
+    private final List<Long> ownedFixtureProjectIds = new ArrayList<>();
 
     @AfterEach
     void cleanUp() {
@@ -50,10 +52,32 @@ class LinkageDraftImpactQueryTest {
             jdbc.update("DELETE FROM tp_linkage_impact WHERE id IN (:ids)",
                     new MapSqlParameterSource("ids", impactIds));
         }
+        // The fixture projects themselves must go down too: a leaked synthetic
+        // high-id row out-ranks every SELECT max(id) anchor in later suites of
+        // the same run (fresh-install postmortem: 2 leaked ANC projects re-parented
+        // env inserts into uq_project_env_type collisions across the perf domain).
+        // The FK-tree sweep is the single source (R40), children first.
+        if (!ownedFixtureProjectIds.isEmpty()) {
+            SharedDbFixtureSweep.byProject(jdbc.getJdbcTemplate(),
+                    ownedFixtureProjectIds.stream().mapToLong(Long::longValue).toArray());
+            ownedFixtureProjectIds.clear();
+        }
     }
 
     private long seedProject(String tag) {
+        // Re-sweep crashed-run leftovers of this suite's synthetic range before
+        // inserting, so the next run never inherits stale ANC projects (R37
+        // fixture hygiene, no blanket table wipe).
+        List<Long> stale = jdbc.getJdbcTemplate().queryForList(
+                "SELECT id FROM tp_project WHERE code LIKE 'ANC976%' AND id >= 976000000"
+                        + " AND id < 976100000",
+                Long.class);
+        if (!stale.isEmpty()) {
+            SharedDbFixtureSweep.byProject(jdbc.getJdbcTemplate(),
+                    stale.stream().mapToLong(Long::longValue).toArray());
+        }
         long id = 976_000_000L + System.nanoTime() % 100_000L;
+        ownedFixtureProjectIds.add(id);
         jdbc.update("INSERT INTO tp_project (id, name, code) OVERRIDING SYSTEM VALUE "
                         + "VALUES (:id, :name, :code)",
                 new MapSqlParameterSource("id", id)

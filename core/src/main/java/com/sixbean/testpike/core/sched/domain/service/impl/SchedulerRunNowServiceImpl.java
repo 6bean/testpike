@@ -75,6 +75,7 @@ public class SchedulerRunNowServiceImpl implements SchedulerRunNowService {
                                       com.sixbean.testpike.core.ai.domain.component.AiTaskRunningStallSweeper aiTaskRunningStallSweeper,
                                       com.sixbean.testpike.core.webelement.domain.component.SiteSurveyAttributionSweepJob siteSurveyAttributionSweep,
                                       com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler credentialScreenshotSweep,
+                                      com.sixbean.testpike.core.mock.domain.component.SpecImportVerdictRetentionScheduler specImportVerdictTrim,
                                       AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
         this.registry = new LinkedHashMap<>();
@@ -124,6 +125,7 @@ public class SchedulerRunNowServiceImpl implements SchedulerRunNowService {
         registry.put("aiTaskRunningStallSweep", aiTaskRunningStallSweeper::sweep);
         registry.put("siteSurveyAttributionSweep", siteSurveyAttributionSweep::sweep);
         registry.put("credentialScreenshotSweep", credentialScreenshotSweep::sweep);
+        registry.put("mockSpecImportVerdictTrim", specImportVerdictTrim::sweep);
     }
 
     @Override

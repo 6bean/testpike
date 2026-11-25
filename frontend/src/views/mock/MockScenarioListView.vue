@@ -50,7 +50,7 @@
           :disabled="!spaces.length"
           @change="syncSpaceToUrl()"
         >
-          <el-option v-for="s in spaces" :key="s.id" :label="spaceLabel(s)" :value="s.id" />
+          <el-option v-for="s in spaces" :key="s.id" :label="mockSpaceLabel(s)" :value="s.id" />
         </el-select>
         <el-input
           v-model="keyword"
@@ -351,11 +351,6 @@ const visibleRows = computed(() => {
   return rows.value.filter((r) => r.row.name.toLowerCase().includes(k))
 })
 
-function spaceLabel(s: MockSpaceItem): string {
-  const alias = s.alias ? `（${s.alias}）` : ''
-  return `${s.name}${alias}`
-}
-
 /** Lane label in words; unknown spectrum values pass through raw (never blank). */
 function laneText(scope: string): string {
   const key = laneSpectrumLabel(scope)
@@ -516,6 +511,7 @@ async function submitScenario(): Promise<void> {
 // this page shows — the space picker loaded at mount — have to converge when
 // a Mock-space draft lands. Silent re-read of the option list, no prompts.
 import { useObjectSync } from '@/composables/useObjectSync'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
 
 useObjectSync({
   watch: ['MOCK_SPACE_WRITE'],

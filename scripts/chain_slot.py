@@ -78,17 +78,17 @@ def allocate_free_slot(registry: Path = REGISTRY) -> int | None:
                 import db_target
                 db_target.bootstrap_env(cwd=Path(__file__).resolve().parents[1])
             except Exception as exc:
-                print(f"slot-probe-note: 配置装载失败 {type(exc).__name__}: {exc}", file=sys.stderr)
+                print(f"slot-probe-note: config load failed {type(exc).__name__}: {exc}", file=sys.stderr)
         rows = slot_occupancy.probe()
         occupied = {r["slot"] for r in rows if r["occupied"]}
         blind = {r["slot"] for r in rows if r.get("blind")}
         if blind:
             note = next((r["db_note"] for r in rows if r.get("blind")), "")
-            print(f"slot-withhold: {sorted(blind)} 号槽数据库状态读不到，暂不发放 | {note}",
+            print(f"slot-withhold: {sorted(blind)}  slot(s) unreadable in the database ledger, withheld from handout | {note}",
                   file=sys.stderr)
     except Exception as exc:
         # conservative: registry filtering still applies, but never silently
-        print(f"slot-probe-unavailable: 活体探针失败 {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(f"slot-probe-unavailable: live probe failed {type(exc).__name__}: {exc}", file=sys.stderr)
     taken = set(registered_slots(registry)) | occupied | blind
     for n in free_slot_pool(exclude=taken):
         return n
@@ -269,9 +269,9 @@ def configure_chain_env(tree: Path, chain: str | None = None, slot: int | None =
                 cur = None
             slot = cur if cur and cur > 0 else allocate_free_slot()
     if slot is None:
-        raise RuntimeError("没有可用槽（活体占用已满或未装载数据库配置），拒绝配置")
+        raise RuntimeError("no free slot (live occupancy full or database config not loaded); refusing to configure")
     if tree != main_root and slot == 0:
-        raise RuntimeError(f"工作树 {tree.name} 不能落在 slot 0（那是主链的槽）")
+        raise RuntimeError(f"worktree {tree.name} must not land on slot 0 (reserved for the main chain)")
 
     base_file = _topology.installer_env_file()
     base_text = base_file.read_text(encoding="utf-8", errors="ignore") if base_file.is_file() else ""
@@ -282,8 +282,8 @@ def configure_chain_env(tree: Path, chain: str | None = None, slot: int | None =
         ms = re.search(r"^TP_CHAIN_SLOT=(\d+)", own, re.M)
         if m and ms and m.group(1) != chain:
             if not force:
-                raise RuntimeError(f"{env} 已登记为链 {m.group(1)}(slot {ms.group(1)})，"
-                                   f"要改成 {chain} 须 --force 并说明理由")
+                raise RuntimeError(f"{env} is already registered to chain {m.group(1)}(slot {ms.group(1)}); "
+                                   f"reassigning it to {chain} requires --force with a reason")
             # --force REASON is the attributed override channel (11-14 fix: the
             # parameter was accepted but never consumed, so the flag was dead code).
             forced_identity = f"{m.group(1)}(slot {ms.group(1)}) -> {chain}"
@@ -332,24 +332,24 @@ def check_env_distinctness(root: Path | None = None) -> list:
         f = t / ".env"
         if not f.is_file():
             if t.resolve() != main_root:
-                print(f"[distinct] skip {t.name}: 非链树（无 .env，不参与键集比对）", file=sys.stderr)
-            rows.append((t.name, "缺 .env" if t.resolve() == main_root else None))
+                print(f"[distinct] skip {t.name}: not a chain tree (no .env, excluded from key comparison)", file=sys.stderr)
+            rows.append((t.name, "missing .env" if t.resolve() == main_root else None))
             continue
         text = f.read_text(encoding="utf-8", errors="ignore")
         if f.is_symlink():
-            rows.append((t.name, "是软链（配置源必须是自己仓里的实体文件）"))
+            rows.append((t.name, "symlink (each chain must own a real .env file in its own tree)"))
         get = lambda k: (re.search(rf"^{k}=(.*)$", text, re.M) or [None, ""])[1]
         slot_val = get("TP_CHAIN_SLOT") or "0"
         if t.resolve() != main_root and int(slot_val or 0) < 1:
-            print(f"[distinct] skip {t.name}: 非链树（TP_CHAIN_SLOT={slot_val or '0'}，未领槽）",
+            print(f"[distinct] skip {t.name}: not a chain tree (TP_CHAIN_SLOT={slot_val or '0'}, no slot claimed)",
                   file=sys.stderr)
             continue
         if t.resolve() != main_root:
             holder = chain_token_for_tree(t) or get("TP_CHAIN_NAME") or t.name
             if not claim_file(holder, int(slot_val)).is_file():
-                print(f"[distinct] skip {t.name}: slot={slot_val} 无在位 claim（台账背离，"
-                      f"claim={claim_file(holder, int(slot_val)).name}），该树不占资源键；"
-                      f"链若复用必须先 configure 重领", file=sys.stderr)
+                print(f"[distinct] skip {t.name}: slot={slot_val} has no live claim (ledger divergence, "
+                      f"claim={claim_file(holder, int(slot_val)).name}); this tree holds no resource keys; "
+                      f"a chain reusing it must run configure to re-claim first", file=sys.stderr)
                 continue
         rows.append((t.name, {"slot": slot_val, "db": get("DB_URL"),
                               "admin": get("ADMIN_PORT"), "core": get("CORE_PORT"),
@@ -369,7 +369,7 @@ def check_env_distinctness(root: Path | None = None) -> list:
             if val.get(field) in ("", None):
                 continue
             if key[1] in [v for k, v in seen.items() if k[0] == field]:
-                bad.append(f"{name}: {field}={val[field]} 与另一棵树重复")
+                bad.append(f"{name}: {field}={val[field]} duplicates another tree")
             seen[key] = val[field]
     return bad
 
@@ -442,13 +442,13 @@ def verify_chain_env(tree: Path) -> list:
     env = Path(tree).resolve() / ".env"
     bad = []
     if env.is_symlink():
-        bad.append(f".env 是软链 → 各链会共用同一份配置（{os.path.realpath(env)}）")
+        bad.append(f".env is a symlink -> every chain would share one config ({os.path.realpath(env)})")
         return bad
     text = env.read_text(encoding="utf-8", errors="ignore")
     get = lambda k: (re.search(rf"^{k}=(.*)$", text, re.M) or [None, ""])[1]
     declared = get("TP_CHAIN_SLOT")
     if declared == "":
-        bad.append("缺 TP_CHAIN_SLOT（本链身份未登记）")
+        bad.append("TP_CHAIN_SLOT missing (this chain identity not registered)")
         return bad
     slot = int(declared)
     db = get("DB_URL")
@@ -456,13 +456,13 @@ def verify_chain_env(tree: Path) -> list:
     if m:
         got = _topology.slot_of_database(m.group(1))
         if got is not None and got != slot:
-            bad.append(f"库 {m.group(1)} 属 slot{got}，与声明 slot{slot} 不同槽")
+            bad.append(f"database {m.group(1)} belongs to slot{got}, not the declared slot{slot}")
     for key, base in _topology.SERVICE_PORTS:
         v = get(key)
         if v.isdigit():
             expect = _topology.slot_port(_topology.base_port(key, base), slot)
             if int(v) != expect:
-                bad.append(f"{key}={v} 与 slot{slot} 应有的 {expect} 不符（端口带重叠风险）")
+                bad.append(f"{key}={v} != {expect} expected for slot{slot} (port-band overlap risk)")
     # Tooling base family : a TP_*_BASE whose port leaves this slot's band sends
     # that chain's probes into another chain's data plane even while the raw port keys
     # stay correct — the checklist catches the divergence and names the key.
@@ -473,21 +473,21 @@ def verify_chain_env(tree: Path) -> list:
             continue
         m = re.search(r"://[^/]+:(\d+)", v)
         if m and pv and m.group(1) != pv:
-            bad.append(f"{key}={v} 端口与本槽 {port_key}={pv} 不一致（基址族漂移）")
+            bad.append(f"{key}={v} port disagrees with this slot {port_key}={pv} (base-url family drift)")
         elif not m:
-            bad.append(f"{key}={v} 不是带端口的 http(s) 基址")
+            bad.append(f"{key}={v} is not an http(s) base url with a port")
     rdb = get("REDIS_DATABASE")
     if rdb.isdigit() and int(rdb) != slot:
-        bad.append(f"REDIS_DATABASE={rdb} 应为槽号 {slot}")
+        bad.append(f"REDIS_DATABASE={rdb} should equal slot number {slot}")
     vh = get("MQ_VHOST")
     if vh and vh != _topology.vhost_for(slot):
-        bad.append(f"MQ_VHOST={vh} 应为 {_topology.vhost_for(slot)}")
+        bad.append(f"MQ_VHOST={vh} should be {_topology.vhost_for(slot)}")
     bk = get("S3_BUCKET")
     if bk and bk != _topology.bucket_for(slot):
-        bad.append(f"S3_BUCKET={bk} 应为 {_topology.bucket_for(slot)}")
+        bad.append(f"S3_BUCKET={bk} should be {_topology.bucket_for(slot)}")
     swf = get("SWF_META_DB_NAME")
     if swf and swf != _topology.swf_meta_database(slot):
-        bad.append(f"SWF_META_DB_NAME={swf} 应为 {_topology.swf_meta_database(slot)}")
+        bad.append(f"SWF_META_DB_NAME={swf} should be {_topology.swf_meta_database(slot)}")
     return bad
 
 
@@ -1569,8 +1569,8 @@ def current_slot(cwd=None, default_main: int = 0) -> int:
         if not _topology.is_worktree(cwd=base):
             return default_main
         raise RuntimeError(
-            f"本链槽 env 解析失败（{type(exc).__name__}: {str(exc)[:80]}）；"
-            f"先跑 python3 scripts/chain_slot.py env-path 领槽，禁按 slot0 猜测") from exc
+            f"failed to resolve this chain slot env ({type(exc).__name__}: {str(exc)[:80]}); "
+            f"run python3 scripts/chain_slot.py env-path to claim a slot first, never guess slot0") from exc
     if not path:
         return default_main
     m = re.search(r"\.slot(\d+)\.env", str(path))
@@ -1590,10 +1590,10 @@ def check_chain_name_style(token: str, cwd=None) -> str:
     looks_like_ticket = bool(_re.search(r"(?:^|[-_])t\d{2,4}", (token or "").lower()))
     if not looks_like_ticket:
         return ""
-    msg = (f"chain-name-style: 链身份「{token}」用任务号命名，属内部簿记码外漏；"
-           "新链请按用途取名（如 audit-rebuild / i18n-gate），存量目录待该链退役后归位")
+    msg = (f"chain-name-style: chain 「{token}」 is named after a ticket number, leaking bookkeeping into paths and unit names; "
+           "name new chains by purpose (e.g. audit-rebuild / i18n-gate); existing directories get renamed when their chain retires")
     if strict:
-        raise RuntimeError(msg + "（TP_STRICT_CHAIN_NAMES=1 拒建）")
+        raise RuntimeError(msg + " (creation refused: TP_STRICT_CHAIN_NAMES=1)")
     print(f"[WARN] {msg}", file=sys.stderr)
     return msg
 
@@ -1640,22 +1640,22 @@ def env_path_for(chain: str | None = None, create: bool = True,
         wanted = env_dir / f"{chain}.slot{declared}.env"
         stale = [f for f in live if f != wanted]
         if stale:
-            print("[WARN] chain " + repr(chain) + f" 声明 slot {declared}，但发现陈旧槽 env 残留: "
+            print("[WARN] chain " + repr(chain) + f" declares slot {declared} but stale slot env leftovers exist: "
                   + ", ".join(f.name for f in stale)
-                  + " —— 解析已按身份槽走，残留件应删除", file=sys.stderr)
+                  + " -- resolution follows the identity slot; delete the leftovers", file=sys.stderr)
         if wanted.is_file():
             return wanted
         if not create:
             raise RuntimeError(
-                f"chain {chain!r} 声明 slot {declared} 但槽 env 缺失（{wanted.name}）；"
-                "跑 chain_slot.py configure --tree <本链目录> 或 env-path 补登记，禁回落别槽")
+                f"chain {chain!r} declares slot {declared} but its slot env is missing ({wanted.name}); "
+                "run chain_slot.py configure --tree <this chain tree> or env-path to re-register, never fall back to another slot")
         wanted.write_text(env_template_text(declared), encoding="utf-8")
         return wanted
     if live:
         if len(live) > 1:
-            print("[WARN] chain " + repr(chain) + " 未声明身份槽且存在多份槽 env: "
+            print("[WARN] chain " + repr(chain) + " has no declared identity slot and multiple slot env files exist: "
                   + ", ".join(f.name for f in live)
-                  + " —— 本次按最新 mtime 取，请先在 .env 写 TP_CHAIN_SLOT 定身份", file=sys.stderr)
+                  + " -- using the newest mtime this run; write TP_CHAIN_SLOT into .env to pin the identity first", file=sys.stderr)
             return max(live, key=lambda f: f.stat().st_mtime)
         return live[0]
     if not create:
@@ -1729,26 +1729,17 @@ def main() -> int:
             for b in bad:
                 print(f"  ✗ {b}")
             return 1
-        print(f"[verify-env] {args.tree} 的 .env 自洽（身份槽=库槽=端口带）")
-        return 0
-    args = ap.parse_args()
-    if args.cmd == "verify-env":
-        bad = verify_chain_env(args.tree)
-        if bad:
-            for b in bad:
-                print(f"  ✗ {b}")
-            return 1
-        print(f"[verify-env] {args.tree} 的 .env 自洽（身份槽=库槽=端口带）")
+        print(f"[verify-env] {args.tree} .env is self-consistent (identity slot = database slot = port band)")
         return 0
     args = ap.parse_args()
     if args.cmd == "configure":
         rep = configure_chain_env(args.tree, args.chain, args.slot, args.dry_run,
                                   force=bool(args.force))
         if args.force:
-            print(f"[configure] --force 理由: {args.force}")
+            print(f"[configure] --force reason: {args.force}")
         print(json.dumps(rep, ensure_ascii=False, indent=1))
         if rep.get("conflicts"):
-            print("[configure] ✗ 资源仍与他链重复:", rep["conflicts"])
+            print("[configure] ✗ resources still overlap other chains:", rep["conflicts"])
             return 1
         print(f"CHAIN_ENV_OK tree={rep['tree']} slot={rep['slot']}")
         return 0
@@ -1762,11 +1753,11 @@ def main() -> int:
                   f"admin={get('ADMIN_PORT') or '-':<6} core={get('CORE_PORT') or '-':<6} "
                   f"redis={get('REDIS_DATABASE') or '-':<3} vhost={get('MQ_VHOST') or '-':<10} "
                   f"bucket={get('S3_BUCKET') or '-':<14} "
-                  f"swfdb={get('SWF_META_DB_NAME') or '-':<16} {'软链✗' if f.is_symlink() else ''}")
+                  f"swfdb={get('SWF_META_DB_NAME') or '-':<16} {'SYMLINK✗' if f.is_symlink() else ''}")
         if bad:
             print("[distinct] ✗", "; ".join(bad))
             return 1
-        print("[distinct] 各链 .env 均为实体文件且资源键互不相同")
+        print("[distinct] every chain .env is a real file and resource keys are pairwise distinct")
         return 0
     if args.cmd == "slot-value":
         print(slot_value(args.key, args.default, args.env))

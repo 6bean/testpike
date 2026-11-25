@@ -15,10 +15,14 @@ package com.sixbean.testpike.admin.mock.api.dto;
  * @param recordingId cassette box to summarize (record-summarize only — the
  * space/ghost/open/empty refusals are validated in core,
  * the bridge mirrors the field and adds no checks)
+ * @param specId parsed contract version row bound by the bulk data-enriching
+ * job (spec-enrich only — core requires exactly this field for that point and
+ * refuses it on every other point; the bridge mirrors the field, no checks)
  */
 public record MockAiJobCreateRequest(
         long spaceId,
         String jobType,
         String prompt,
-        Long recordingId) {
+        Long recordingId,
+        Long specId) {
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-pass
+# -*- coding: utf-8 -*-
+"""S5 health check: recipe probe lists x local probing -> structured report."""
 import argparse
 import json
 import os
@@ -23,7 +24,6 @@ _SECRET_PATTERNS = (
 
 
 def mask(text):
-    pass
     if not text:
         return text
     masked = _SECRET_PATTERNS[0].sub(lambda m: f"{m.group(1)}={MASKED}", text)
@@ -33,31 +33,28 @@ def mask(text):
 
 
 def default_host():
-    pass
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pkg_probe
     return pkg_probe.host_os()
 
 
 def collect_recipes(state_dir):
-    pass
     rows = []
     for path in sorted(Path(state_dir).glob("recipe-*.json")):
         code = path.name[len("recipe-"):-len(".json")]
         try:
             recipe = json.loads(path.read_text(encoding="utf-8") or "{}")
         except (ValueError, OSError) as exc:
-            rows.append((code, None, f"配方文件解析失败：{exc}"))
+            rows.append((code, None, f"recipe file failed to parse: {exc}"))
             continue
         if not isinstance(recipe, dict):
-            rows.append((code, None, "配方根节点不是对象"))
+            rows.append((code, None, "recipe root is not an object"))
         else:
             rows.append((code, recipe, None))
     return rows
 
 
 def run_probe(cmd):
-    pass
     try:
         proc = subprocess.run(cmd, shell=True, capture_output=True, text=True,
                               timeout=30, check=False)
@@ -67,20 +64,19 @@ def run_probe(cmd):
 
 
 def examine(recipe, host):
-    pass
     if not recipe or not (recipe.get("hosts") or recipe.get("version_pin")):
-        return "recipe-invalid", [], "配方为空或结构非法（缺 hosts/version_pin 段）"
+        return "recipe-invalid", [], "recipe empty or malformed (missing hosts/version_pin)"
     hosts = recipe.get("hosts")
     if not isinstance(hosts, dict):
-        return "recipe-invalid", [], "配方 hosts 段结构非法（应为宿主画像字典）"
+        return "recipe-invalid", [], "recipe hosts section is malformed (expected a host-profile dictionary)"
     if host not in hosts:
-        covered = "、".join(sorted(h for h in hosts if isinstance(hosts.get(h), dict)))
-        return "host-uncovered", [], f"配方未提供当前宿主画像（当前宿主：{host}；已覆盖：{covered or '无'}）"
+        covered = ", ".join(sorted(h for h in hosts if isinstance(hosts.get(h), dict)))
+        return "host-uncovered", [], f"recipe covers no profile for this host (current: {host}; covered: {covered or 'none'})"
     spec = hosts[host] if isinstance(hosts[host], dict) else {}
     probes = [{"cmd": mask(c), "ok": run_probe(c)} for c in (spec.get("probe") or [])]
     missing = [p["cmd"] for p in probes if not p["ok"]]
     status = "missing" if missing else "ok"
-    reason = f"缺件探测不过：{'、'.join(missing)}" if missing else None
+    reason = f"probe failed: {', '.join(missing)}" if missing else None
     return status, probes, reason
 
 
@@ -162,7 +158,6 @@ def mcp_handshake(base, token=None, timeout=5):
 
 
 def runtime_gap(state_dir):
-    pass
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import runtime_bootstrap as rb
     minimum = rb.requirement_from_recipes(state_dir)
@@ -177,7 +172,6 @@ def runtime_gap(state_dir):
 
 
 def build_report(state_dir, host, mcp_probe=None):
-    pass
     engines, missing = [], []
     for code, recipe, parse_error in collect_recipes(state_dir):
         if parse_error is not None:
@@ -195,28 +189,27 @@ def build_report(state_dir, host, mcp_probe=None):
 
 
 def print_summary(report, empty_state_hint):
-    pass
     gap = report.get("missing_runtime")
     if gap:
         if gap["status"] == "missing":
             print(messages.t("doctor.runtime_missing",
-                             required=gap["required"] or "在位即可"))
+                             required=gap["required"] or "any present runtime"))
         else:
             print(messages.t("doctor.runtime_below",
                              current=gap["current"] or "?",
-                             required=gap["required"] or "在位即可"))
+                             required=gap["required"] or "any present runtime"))
     probe = report.get("mcp_handshake")
     if probe:
         print(messages.t(MCP_SUMMARY_KEYS.get(probe.get("status"), "doctor.mcp_unreachable"),
                          base=probe.get("base") or "?",
-                         detail=probe.get("detail") or "—"))
+                         detail=probe.get("detail") or "-"))
     if not report["engines"]:
         print(empty_state_hint)
         return
     for e in report["engines"]:
-        line = f"引擎 {e['engine']}：{e['status']}"
+        line = f"engine {e['engine']}: {e['status']}"
         if e.get("reason"):
-            line += f"（{e['reason']}）"
+            line += f" ({e['reason']})"
         print(line)
     if report["missing"]:
         print(messages.t("doctor.missing_line", count=len(report["missing"])))
@@ -227,14 +220,15 @@ def print_summary(report, empty_state_hint):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="doctor.py",
-                                     description="S5 体检：配方 probe 清单×本机探测→结构化报告")
+                                     description="S5 health check: recipe probe lists x local "
+                                                 "probing -> structured report")
     parser.add_argument("--state-dir", required=True,
-                        help="状态目录（recipe-*.json 所在，报告同目录覆盖写）")
-    parser.add_argument("--host", default=None, help="宿主画像键 linux/macos/windows（缺省自动判定）")
+                        help="state directory (holds recipe-*.json; the report is written here)")
+    parser.add_argument("--host", default=None, help="host profile key linux/macos/windows (auto-detected by default)")
     parser.add_argument("--mcp-probe", action="store_true",
-                        help="附带 MCP 传输握手探测（只读，不落凭据）")
+                        help="also probe the MCP transport handshake (read-only, no credential written)")
     parser.add_argument("--mcp-base", default=None,
-                        help="MCP 端点址（缺省 TP_MCP_BASE > API_PORT > 出厂 8082）")
+                        help="MCP endpoint (default TP_MCP_BASE > API_PORT > shipped 8082)")
     args = parser.parse_args(argv)
     host = args.host or default_host()
     if host not in HOSTS:
@@ -252,10 +246,11 @@ def main(argv=None):
     report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=1)
-    hint = ("本机状态目录尚无引擎配方文件——请先用 engines 场景加装引擎"
-            "（配方经 api 只读口拉回落盘）后再体检，本次无可探测项")
+    hint = ("no engine recipe files in the state directory yet — first add engines "
+            "with the engines scenario (recipes land via the read-only api door), "
+            "then re-run; nothing to probe this time")
     print_summary(report, hint)
-    print(f"结构化报告已落盘：{report_path}")
+    print(f"structured report written: {report_path}")
     return 0
 
 

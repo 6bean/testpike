@@ -21,6 +21,10 @@ public record ApiEndpoint(
         String requestContentType,
         String requestSchema,
         Map<String, String> responseSchemas,
+        /** code -> $ref-inlined schema tree JSON, self-contained for offline
+         * sample expansion (snapshot rows written before this field simply
+         * carry null and keep the echo-only draft behaviour). */
+        Map<String, String> responseSchemaTrees,
         List<String> securityRefs,
         boolean deprecated,
         String structureHash) {

@@ -141,9 +141,9 @@ def main():
                     choices=["normal", "slow", "garbage", "error"])
     ap.add_argument("--auth-log", default=None)
     ap.add_argument("--results", default="plain", choices=["plain", "knowledge"],
-                    help="tools/call 返回体口径（T163 L4 知识注入+E4 断言面）")
+                    help="tools/call result payload mode: plain vs knowledge-injected (L4 assertion face)")
     ap.add_argument("--call-log", default=None,
-                    help="tools/call 到达记录文件（T163 L4 断言面）")
+                    help="file recording incoming tools/call calls (L4 assertion face)")
     ap.add_argument("--args-log", default=None,
                     help="tools/call received arguments file (T455 L3 outbound gate face)")
     args = ap.parse_args()

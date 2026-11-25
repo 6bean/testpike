@@ -10,6 +10,7 @@ import com.sixbean.testpike.admin.mock.api.dto.MockPlaybackResultView;
 import com.sixbean.testpike.admin.mock.api.dto.MockRecordingPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockRecordingView;
 import com.sixbean.testpike.admin.mock.api.dto.MockServingEndpointPageView;
+import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioInput;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioView;
@@ -291,6 +292,18 @@ public class RestCoreMockRuleClient implements CoreMockRuleClient {
     }
 
     @Override
+    public List<MockStubDraftAdviceView> previewStubDraftsAdvice(long specId, Long spaceId) {
+        // spaceId=null must stay out of the query string entirely (core default:
+        // no target space, advice-free rows) — same shape rule as listHits matched.
+        String tail = "specId=" + specId
+                + (spaceId == null ? "" : "&spaceId=" + spaceId);
+        return RestClientInvoker.call(rest, HttpMethod.GET,
+                BASE + "/stub/drafts-advised?" + tail, null,
+                new ParameterizedTypeReference<Response<List<MockStubDraftAdviceView>>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
     public MockStubImportResultView importStubs(long spaceId, List<MockStubDraftView> drafts) {
         return RestClientInvoker.call(rest, HttpMethod.POST,
                 BASE + "/stub/import?spaceId=" + spaceId, drafts,
@@ -383,6 +396,16 @@ public class RestCoreMockRuleClient implements CoreMockRuleClient {
         return RestClientInvoker.call(rest, HttpMethod.GET,
                 BASE + "/jobs/" + jobId + "/draft-items", null,
                 new ParameterizedTypeReference<Response<List<MockAiJobDraftItemView>>>() {
+                }, UserContext.currentUserId());
+    }
+
+    @Override
+    public List<com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView> aiJobProcessEvents(
+            long jobId, long cursor, Integer limit) {
+        String path = BASE + "/jobs/" + jobId + "/process-events?cursor=" + cursor
+                + (limit == null ? "" : "&limit=" + limit);
+        return RestClientInvoker.call(rest, HttpMethod.GET, path, null,
+                new ParameterizedTypeReference<Response<List<com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView>>>() {
                 }, UserContext.currentUserId());
     }
 }

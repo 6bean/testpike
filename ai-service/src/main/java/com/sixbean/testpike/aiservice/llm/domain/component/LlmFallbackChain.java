@@ -143,7 +143,7 @@ public class LlmFallbackChain {
                     result == null ? 0 : result.completionTokens(),
                     latencyMs, currentLedgerToken(), errorCode);
         } catch (Exception e) {
-            log.warn("AI 调用留痕写入失败 projectId={} provider={} err={}（观测面不阻断）",
+            log.warn("AI call trace write failed projectId={} provider={} err={} (observability only, does not block)",
                     projectId, endpoint.provider(), e.getMessage());
         }
     }
@@ -330,7 +330,7 @@ public class LlmFallbackChain {
                 } catch (ServiceException limitEx) {
                     last = limitEx;
                     failedEndpoints.add(endpointSnapshot(endpoint, limitEx));
-                    log.warn("PromptSizeGuard 拦截 projectId={} provider={} limit={} err={}",
+                    log.warn("PromptSizeGuard blocked projectId={} provider={} limit={} err={}",
                             projectId, endpoint.provider(), endpoint.promptLimitTokens(),
                             limitEx.getMessage());
                     continue;
@@ -490,7 +490,7 @@ public class LlmFallbackChain {
         try {
             calibrationRecorder.record(request, result, endpoint, projectId);
         } catch (Exception e) {
-            log.warn("usage 校准采样异常（不阻断主链）: {}", e.getMessage());
+            log.warn("usage calibration sampling error (does not block the main call): {}", e.getMessage());
         }
     }
 
@@ -519,7 +519,7 @@ public class LlmFallbackChain {
                             + "；系统已自动切换到 " + target.provider() + " 继续完成，无需处理。",
                     "llm-fallback:" + projectId + ":" + target.provider());
         }
-        log.info("LLM 降级 projectId={} from={} to={}", projectId,
+        log.info("LLM fallback projectId={} from={} to={}", projectId,
                 failedEndpoints.stream().map(l -> String.valueOf(l.get("provider"))).toList(),
                 target.provider());
     }

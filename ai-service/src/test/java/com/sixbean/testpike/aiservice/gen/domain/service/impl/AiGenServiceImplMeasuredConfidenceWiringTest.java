@@ -49,7 +49,7 @@ class AiGenServiceImplMeasuredConfidenceWiringTest {
 
     private static final String SIGNALS_KEY = "ai.gen.confidence-signals.enabled";
     /** Anchor marker of the auto depth-limit notice. */
-    private static final String DEPTH_LIMIT_MARK = "低置信自动限深";
+    private static final String DEPTH_LIMIT_MARK = "Low-confidence auto depth-limit";
 
     private final CoreGateway coreGateway = GenWiringHarness.mockCoreGateway();
     private final LlmFallbackChain llmChain = GenWiringHarness.mockLlmChain();

@@ -98,7 +98,7 @@ _AGENT_TYPES = ("agent-upgrade", "agent-rollback")
 # upgrade gate that demands target_version/artifact_url/sha256.
 CONTROL_TYPE = "platform-service-control"
 SELFCHECK_TYPE = "node-self-check"
-_CONTROL_ACTIONS = {"start": "启动", "stop": "停止", "restart": "重启"}
+_CONTROL_ACTIONS = {"start": "Start", "stop": "Stop", "restart": "Restart"}
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _DEFAULT_TIMEOUT = 30
 
@@ -271,15 +271,17 @@ def _require(payload: dict, env: AgentEnv) -> tuple[dict, str, str, CommandResul
     artifact_url = _text(payload, "artifact_url")
     sha = _text(payload, "sha256")
     missing = [name for name, val in (
-        ("target_version（钉版版本）", target_version),
-        ("artifact_url（工件地址）", artifact_url),
-        ("sha256（64 位摘要）", sha)) if not val]
+        ("target_version (pinned version)", target_version),
+        ("artifact_url (artifact download URL)", artifact_url),
+        ("sha256 (64-hex digest)", sha)) if not val]
     if missing:
         return payload, "", "", CommandResult(
-            False, "命令载荷缺字段：" + "、".join(missing) + "——缺位即拒，执行侧禁猜（fail-closed）")
+            False, "command payload is missing fields: " + ", ".join(missing)
+            + " — refused fail-closed, the executor never guesses the payload")
     if not _SHA256_RE.match(sha):
         return payload, "", "", CommandResult(
-            False, "sha256 摘要必须是 64 位十六进制（当前值形态非法）——拒绝执行坏包嫌疑载荷")
+            False, "sha256 must be exactly 64 hex characters (the current value has an "
+            "invalid shape) — refusing a suspect artifact payload")
     return payload, target_version, artifact_url, None
 
 
@@ -287,7 +289,8 @@ def _verify_digest(data: bytes, sha: str) -> CommandResult | None:
     actual = hashlib.sha256(data).hexdigest()
     if actual != sha.lower():
         return CommandResult(
-            False, "工件 sha256 校验不一致（期望 %s…，实得 %s…）——坏包绝不上机，保持旧版运行"
+            False, "artifact sha256 mismatch (expected %s..., got %s...) — the bad "
+                   "package never lands on the host; the old version keeps running"
                    % (sha[:8], actual[:8]))
     return None
 
@@ -419,24 +422,30 @@ def _rollback_after_failed_gate(env: AgentEnv, row: ManagedService,
     control plane may itself be the thing that died, so recovery is fully
     local. No previous release (first install) = nothing to roll back to —
     say so plainly instead of pretending recovery."""
-    cause = ("启动预算内始终未就绪（预算超时）" if gate.get("reason") == "budget_exhausted"
-             else "服务起来后又转为不健康（连续通过中断）")
+    cause = ("never became ready within the startup budget (budget exhausted)"
+             if gate.get("reason") == "budget_exhausted"
+             else "the service turned unhealthy again after starting "
+                  "(consecutive-UP streak broken)")
     if previous is None:
-        return ("%s到 %s 但健康闸未通过（%s），且本机无旧版可回切——"
-                "请人工处置单元 %s" % (verb, target_version, cause, row.unit))
+        return ("%s to %s did not pass the health gate (%s) and there is no "
+                "previous release on this host to roll back to — handle unit %s "
+                "manually" % (verb, target_version, cause, row.unit))
     _relink_current(fam_root, previous)
     try:
         rc = env.spawn(["systemctl", "restart", row.unit])
     except Exception as e:  # noqa: BLE001 - receipt must land even if systemctl hangs
-        return ("%s到 %s 健康闸未通过（%s），已回切旧版 %s 但重启命令未能确认结果（%s）——"
-                "请人工核对单元 %s" % (verb, target_version, cause, previous.name,
-                                      type(e).__name__, row.unit))
+        return ("%s to %s failed the health gate (%s); rolled back to %s but the "
+                "restart result could not be confirmed (%s) — check unit %s "
+                "manually" % (verb, target_version, cause, previous.name,
+                              type(e).__name__, row.unit))
     if rc != 0:
-        return ("%s到 %s 健康闸未通过（%s），已回切旧版 %s 但旧版重启失败（systemctl 退出码 %s）——"
-                "请人工处置单元 %s" % (verb, target_version, cause, previous.name,
-                                      rc, row.unit))
-    return ("%s到 %s 失败：健康闸未通过（%s），已自动回切旧版 %s 并重启恢复——"
-            "坏包已隔离在 releases/%s，台账未动"
+        return ("%s to %s failed the health gate (%s); rolled back to %s but the "
+                "rollback restart failed (systemctl exit code %s) — handle unit %s "
+                "manually" % (verb, target_version, cause, previous.name, rc,
+                              row.unit))
+    return ("%s to %s failed: the health gate was not passed (%s); automatically "
+            "rolled back to %s and restarted — the bad package is quarantined under "
+            "releases/%s, the inventory was not touched"
             % (verb, target_version, cause, previous.name, target_version))
 
 
@@ -446,12 +455,13 @@ def _run_platform_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult
     if not service:
         valid = "/".join(row.family for row in MANAGED_SERVICES)
         return CommandResult(False,
-                             "命令载荷缺 service（平台族码）——有效值：%s" % valid)
+                             "command payload is missing service (platform family code) — valid values: %s" % valid)
     row = next((r for r in MANAGED_SERVICES if r.family == service), None)
     if row is None:
         valid = "/".join(r.family for r in MANAGED_SERVICES)
         return CommandResult(False,
-                             "未知平台服务「%s」——本机可管服务清单（数据化枚举）为：%s"
+                             "unknown platform service \"%s\" — the manageable service list on this host "
+                                 "(data-driven enum) is: %s"
                              % (service, valid))
     payload, target_version, artifact_url, refusal = _require(payload, env)
     if refusal:
@@ -459,11 +469,12 @@ def _run_platform_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult
     sha = _text(payload, "sha256")
     progress = getattr(env, "progress", None)
     if progress:
-        progress(cmd, "fetch", "拉取工件 %s" % artifact_url)
+        progress(cmd, "fetch", "fetching artifact %s" % artifact_url)
     try:
         data = env.fetch(artifact_url)
     except Exception as e:  # noqa: BLE001 - transport failure must land as honest receipt
-        return CommandResult(False, "工件下载失败：%s——保持旧版运行" % e)
+        return CommandResult(False, "artifact download failed: %s — the old version "
+                             "keeps running" % e)
     bad = _verify_digest(data, sha)
     if bad:
         return bad
@@ -473,7 +484,7 @@ def _run_platform_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult
     previous = current_release(Path(env.root), row.family)
     _swap_release(env, row, target_version, data, artifact_name)
     if progress:
-        progress(cmd, "restart", "重启服务单元 %s" % row.unit)
+        progress(cmd, "restart", "restarting service unit %s" % row.unit)
     # A spawn failure (hanging systemctl = TimeoutExpired seen in the L4 smoke)
     # must still land an honest receipt — an uncaught raise here would leave the
     # command claimed forever with no trace for the operator.
@@ -481,14 +492,16 @@ def _run_platform_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult
         rc = env.spawn(["systemctl", "restart", row.unit])
     except Exception as e:  # noqa: BLE001 - transport failure = honest receipt, never crash
         return CommandResult(False,
-                             "已切到版本 %s 但重启命令未能确认结果（%s）——"
-                             "请人工核对单元 %s 状态，必要时重新下发反向回滚命令"
+                             "switched to version %s but the restart result could not be confirmed (%s) — "
+                             "check unit %s manually and re-issue a reverse rollback command "
+                             "if needed"
                              % (target_version, type(e).__name__, row.unit))
-    verb = "升级" if ctype.endswith("upgrade") else "回滚"
+    verb = "Upgrade" if ctype.endswith("upgrade") else "Rollback"
     if rc != 0:
         return CommandResult(False,
-                             "已切到版本 %s 但服务重启失败（systemctl 退出码 %s）——"
-                             "请人工确认单元 %s，必要时再下发反向回滚命令"
+                             "switched to version %s but the service restart failed (systemctl exit code %s) — "
+                             "confirm unit %s manually and re-issue a reverse rollback "
+                             "command if needed"
                              % (target_version, rc, row.unit))
     # ── agent-local health gate : the platform control plane may
     # be the very thing that died, so pass/fail is judged locally and a failed
@@ -496,17 +509,17 @@ def _run_platform_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult
     health_url = _text(payload, "health_url") or row.health_url
     if not health_url:
         return CommandResult(True,
-                             "%s完成：%s → %s，单元 %s 已重启"
-                             "（无健康探测地址，健康闸跳过——回执如实标注）"
+                             "%s complete: %s -> %s, unit %s restarted (no health probe URL configured, "
+                             "health gate skipped — stated honestly in this receipt)"
                              % (verb, row.family, target_version, row.unit))
     probe_count, interval, budget = resolve_gate_params(payload)
     if progress:
-        progress(cmd, "health-gate", "健康闸探测 %s" % health_url)
+        progress(cmd, "health-gate", "probing the health gate at %s" % health_url)
     gate = run_health_gate(env, health_url, probe_count, interval, budget)
     if gate["ok"]:
         return CommandResult(True,
-                             "%s完成：%s → %s，单元 %s 已重启；健康闸通过（连续 %d 次 UP，"
-                             "共探测 %d 次，首次 UP 耗时 %.1fs）"
+                             "%s complete: %s -> %s, unit %s restarted; health gate passed "
+                             "(%d consecutive UP probes out of %d, first UP after %.1fs)"
                              % (verb, row.family, target_version, row.unit,
                                 gate["consecutive_ups"], gate["probes"],
                                 gate["first_up_seconds"]))
@@ -528,13 +541,15 @@ def _run_agent_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult:
     sha = _text(payload, "sha256")
     state = getattr(env, "state_dir", None)
     if state is None:
-        return CommandResult(False, "agent 状态目录未配置（SERVICE_AGENT_STATE_DIR）——"
-                                    "落盘无处可去，拒绝执行")
+        return CommandResult(False, "agent state directory is not configured "
+                                "(SERVICE_AGENT_STATE_DIR) — there is nowhere to stage "
+                                "the package; refusing to execute")
     state = Path(state)
     try:
         data = env.fetch(artifact_url)
     except Exception as e:  # noqa: BLE001
-        return CommandResult(False, "agent 包下载失败：%s——维持当前版本" % e)
+        return CommandResult(False, "agent package download failed: %s — the current "
+                             "version is kept" % e)
     bad = _verify_digest(data, sha)
     if bad:
         return bad
@@ -542,10 +557,11 @@ def _run_agent_command(ctype: str, cmd: dict, env: AgentEnv) -> CommandResult:
     tmp = state / (AGENT_STAGING_FILE + ".tmp")
     tmp.write_bytes(data)
     os.replace(tmp, state / AGENT_STAGING_FILE)
-    verb = "升级" if ctype.endswith("upgrade") else "回滚"
+    verb = "Upgrade" if ctype.endswith("upgrade") else "Rollback"
     return CommandResult(True,
-                         "agent %s包已落盘（目标版本 %s）——回执送达后本进程退出，"
-                         "由 systemd 拉起新版本" % (verb, target_version),
+                         "agent %s package landed in the staging slot (target version %s) — this "
+                         "process exits once the receipt is delivered and systemd "
+                         "relaunches the new version" % (verb.lower(), target_version),
                          exit_after_ack=True)
 
 
@@ -560,33 +576,38 @@ def _run_service_control(cmd: dict, env: AgentEnv) -> CommandResult:
     valid = "/".join(r.family for r in MANAGED_SERVICES)
     service = _text(payload, "service")
     if not service:
-        return CommandResult(False, "启停命令载荷缺 service（平台族码）——有效服务码：%s" % valid)
+        return CommandResult(False, "service-control payload is missing service "
+                             "(platform family code) — valid service codes: %s" % valid)
     row = next((r for r in MANAGED_SERVICES if r.family == service), None)
     if row is None:
-        return CommandResult(False, "未知平台服务「%s」——本机可管服务清单（数据化枚举）为：%s"
+        return CommandResult(False, "unknown platform service \"%s\" — the manageable service list on this host "
+                                 "(data-driven enum) is: %s"
                              % (service, valid))
     action = _text(payload, "action")
     if not action:
-        return CommandResult(False, "启停命令载荷缺 action——有效值：start / stop / restart（目标单元 %s）"
+        return CommandResult(False, "service-control payload is missing action — "
+                             "valid values: start / stop / restart (target unit %s)"
                              % row.unit)
     verb = _CONTROL_ACTIONS.get(action)
     if verb is None:
-        return CommandResult(False, "未知操作「%s」——启停命令 action 有效值：start / stop / restart"
-                             % action)
+        return CommandResult(False, "unknown action \"%s\" — valid service-control "
+                             "actions: start / stop / restart" % action)
     progress = getattr(env, "progress", None)
     if progress:
-        progress(cmd, "service-control", "%s单元 %s" % (verb, row.unit))
+        progress(cmd, "service-control", "%s unit %s" % (verb, row.unit))
     try:
         rc = env.spawn(["systemctl", action, row.unit])
     except Exception as e:  # noqa: BLE001 - unconfirmed result = honest receipt, never crash
         return CommandResult(False,
-                             "%s结果无法确认（%s）——请人工核对单元 %s 状态（journalctl -u %s）"
+                             "%s result could not be confirmed (%s) — check unit %s manually "
+                             "(journalctl -u %s)"
                              % (verb, type(e).__name__, row.unit, row.unit))
     if rc != 0:
         return CommandResult(False,
-                             "%s失败：systemctl 退出码 %s（单元 %s）——请人工核对 journalctl -u %s；"
-                             "服务可能处于中间态，确认后可重新下发" % (verb, rc, row.unit, row.unit))
-    return CommandResult(True, "%s完成：%s 单元 %s（systemctl %s，退出码 0）"
+                             "%s failed: systemctl exit code %s (unit %s) — inspect journalctl -u %s; "
+                             "the service may be in an intermediate state, re-issue the "
+                             "command after confirming" % (verb, rc, row.unit, row.unit))
+    return CommandResult(True, "%s complete: %s unit %s (systemctl %s, exit code 0)"
                          % (verb, row.family, row.unit, action))
 
 
@@ -598,7 +619,8 @@ def _run_self_check(cmd: dict, env: AgentEnv) -> CommandResult:
     if service:
         row = next((r for r in MANAGED_SERVICES if r.family == service), None)
         if row is None:
-            return CommandResult(False, "未知平台服务「%s」——本机可管服务清单（数据化枚举）为：%s"
+            return CommandResult(False, "unknown platform service \"%s\" — the manageable service list on this host "
+                                 "(data-driven enum) is: %s"
                                  % (service, valid))
         rows = [row]
     else:
@@ -608,21 +630,21 @@ def _run_self_check(cmd: dict, env: AgentEnv) -> CommandResult:
     for row in rows:
         try:
             rc = env.spawn(["systemctl", "is-active", row.unit])
-            state = "运行中" if rc == 0 else "已停止（systemctl is-active 退出码 %s）" % rc
+            state = "running" if rc == 0 else "stopped (systemctl is-active exit code %s)" % rc
         except Exception as e:  # noqa: BLE001
-            state = "状态无法确认（%s）" % type(e).__name__
-        version = read_family_version(Path(env.root), row) or "未知"
+            state = "state could not be confirmed (%s)" % type(e).__name__
+        version = read_family_version(Path(env.root), row) or "unknown"
         health_url = _text(payload, "health_url") or row.health_url
         if not health_url:
-            health = "未配置探测地址"
+            health = "no probe URL configured"
         else:
             try:
-                health = "可达" if probe(health_url) else "不可达"
+                health = "reachable" if probe(health_url) else "unreachable"
             except Exception:  # noqa: BLE001
-                health = "不可达（探测异常）"
-        lines.append("%s：%s｜版本 %s｜健康 %s" % (row.family, state, version, health))
+                health = "unreachable (probe error)"
+        lines.append("%s: %s | version %s | health %s" % (row.family, state, version, health))
     return CommandResult(True,
-                         "自检报告（%d 族）：%s" % (len(rows), "；".join(lines)))
+                         "self-check report (%d families): %s" % (len(rows), "; ".join(lines)))
 
 
 def execute_command(cmd: dict, env: AgentEnv) -> CommandResult:
@@ -638,9 +660,9 @@ def execute_command(cmd: dict, env: AgentEnv) -> CommandResult:
         return _run_self_check(cmd, env)
     valid = "/".join(_PLATFORM_TYPES + _AGENT_TYPES + (CONTROL_TYPE, SELFCHECK_TYPE))
     return CommandResult(False,
-                         "本 agent 不消费命令型「%s」——service-agent 只执行：%s；"
-                         "其余型别属执行器 runner 消费面，此处 fail-closed 拒执行"
-                         % (ctype or "未知", valid))
+                         "this agent does not consume command type \"%s\" — service-agent executes "
+                         "only: %s; other types belong to the executor runner and are "
+                         "refused fail-closed here" % (ctype or "unknown", valid))
 
 
 # ── transport (reuses installkit/enroll_client.py single source) ─────────────
@@ -662,7 +684,7 @@ def poll_commands(base_url: str, token: str, fingerprint: str, limit: int):
     if payload is None:
         return None
     if str(payload.get("code")) != "0":
-        print(payload.get("msg") or "命令领取失败", file=sys.stderr)
+        print(payload.get("msg") or "command claim failed", file=sys.stderr)
         return None
     return payload.get("data") or []
 
@@ -705,7 +727,8 @@ def run_once(base_url: str, token: str, env: AgentEnv,
                     result.success, result.detail, token, fingerprint)
         exit_after = exit_after or result.exit_after_ack
         if exit_after:
-            log.info("agent 新包已落盘并回执，退出等待 systemd 拉起")
+            log.info("agent new package landed and receipt delivered; exiting so "
+             "systemd can relaunch the new version")
             return 0
     return 0
 
@@ -713,7 +736,8 @@ def run_once(base_url: str, token: str, env: AgentEnv,
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="service_agent.py",
-        description="主机 service-agent：平台服务一键升级/回滚消费面 + 部件版本心跳上报")
+        description="host service-agent: one-click platform service upgrade/rollback "
+                    "consumer + component version heartbeat reporting")
     parser.add_argument("--base-url", default=os.environ.get("SERVICE_AGENT_BASE_URL", ""))
     parser.add_argument("--token", default=os.environ.get("SERVICE_AGENT_TOKEN", ""))
     parser.add_argument("--root", default=os.environ.get("SERVICE_AGENT_INSTALL_ROOT",
@@ -723,16 +747,20 @@ def main(argv=None) -> int:
     parser.add_argument("--interval", type=int,
                         default=int(os.environ.get("SERVICE_AGENT_HEARTBEAT_INTERVAL", "30")))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("report", help="打印本机部件版本清单 JSON（排障/体检用）")
-    sub.add_parser("once", help="单轮：领命令→执行→回执（cron/调试用）")
-    sub.add_parser("run", help="常驻：心跳扩报 + 命令轮询（systemd 托管形态）")
+    sub.add_parser("report", help="print the local component version manifest as "
+                       "JSON (for troubleshooting / health checks)")
+    sub.add_parser("once", help="single round: claim command -> execute -> deliver "
+                     "receipt (for cron / debugging)")
+    sub.add_parser("run", help="daemon loop: heartbeat reporting + command "
+                     "polling (systemd-managed form)")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, stream=sys.stderr,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     if not args.base_url or not args.token:
-        print("缺少 --base-url / --token（或对应环境变量）——agent 无法接平台", file=sys.stderr)
+        print("missing --base-url / --token (or the matching environment variables) — "
+          "the agent cannot reach the platform", file=sys.stderr)
         return 2
 
     state = Path(args.state_dir)
@@ -754,7 +782,7 @@ def main(argv=None) -> int:
                            build_report(Path(args.root)))
             run_once(args.base_url, args.token, env)
         except Exception as e:  # noqa: BLE001 - daemon loop survives transient failures
-            log.warning("心跳/命令轮询异常（下轮重试）: %s", e)
+            log.warning("heartbeat/command polling error (retrying next round): %s", e)
         time.sleep(max(args.interval, 5))
     return 0
 

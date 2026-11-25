@@ -86,6 +86,9 @@ class ReportServiceTest {
         // in-flight rows on the shared dev database (r13 postmortem).
         SharedDbFixtureSweep.byProjectList(jdbcTemplate, fixtureProjectIds);
         fixtureProjectIds.clear();
+        // The per-run executors registered through executorService live on the
+        // shared fleet registry, which the project sweep cannot reach.
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "ex-rpt-");
         // Resolve the shipped demo accounts by name instead of seeding users
         // on fixed ids: on a fresh-install database the low ids already belong
         // to factory demo rows, so an id-keyed INSERT ... DO NOTHING silently

@@ -85,10 +85,10 @@ class BatchMonitorEvidenceReportTest {
 
     @Test
     void 批执行窗内红灯episode_报告附归因证据() {
-        batchWithReport(envId, "3 hours", "2 hours");
+        long batchId = batchWithReport(envId, "3 hours", "2 hours");
         insertEpisode(targetId, "2 hours 30 minutes", "1 hour 30 minutes", "登录链路 502");
 
-        var report = batchService.report(lastBatchId());
+        var report = batchService.report(batchId);
         assertEquals(1, report.monitorEvidence().size(), "episode [2h30m前~1h30m前] 与批窗 [3h前~2h前] 相交应命中");
         var evidence = report.monitorEvidence().get(0);
         assertEquals("t274p4a目标", evidence.targetName());
@@ -99,8 +99,8 @@ class BatchMonitorEvidenceReportTest {
 
     @Test
     void 窗口无红灯_证据空列表非null() {
-        batchWithReport(envId, "3 hours", "2 hours");
-        var report = batchService.report(lastBatchId());
+        long batchId = batchWithReport(envId, "3 hours", "2 hours");
+        var report = batchService.report(batchId);
         assertNotNull(report.monitorEvidence(), "无证据必须空列表非 null（消费侧免判空）");
         assertTrue(report.monitorEvidence().isEmpty());
     }
@@ -108,9 +108,9 @@ class BatchMonitorEvidenceReportTest {
 
     @Test
     void 批次无环境_零证据不炸() {
-        batchWithReport(null, "3 hours", null);
+        long batchId = batchWithReport(null, "3 hours", null);
         insertEpisode(targetId, "2 hours", null, "有红但批无环境不认");
-        var report = batchService.report(lastBatchId());
+        var report = batchService.report(batchId);
         assertTrue(report.monitorEvidence().isEmpty(), "env_id NULL=无环境归属，禁跨环境误挂（fail-closed）");
     }
 
@@ -123,9 +123,9 @@ class BatchMonitorEvidenceReportTest {
         Long otherTarget = jdbcTemplate.queryForObject(
                 "INSERT INTO tp_monitor_target (project_id, env_id, name, target_type) "
                         + "VALUES (?, ?, 't274p4a他目标', 'HTTP') RETURNING id", Long.class, projectId, otherEnv);
-        batchWithReport(envId, "3 hours", null);
+        long batchId = batchWithReport(envId, "3 hours", null);
         insertEpisode(otherTarget, "2 hours", null, "别的环境的红");
-        var report = batchService.report(lastBatchId());
+        var report = batchService.report(batchId);
         assertTrue(report.monitorEvidence().isEmpty(), "环境圈定禁跨环境误挂证据");
     }
 
@@ -142,11 +142,5 @@ class BatchMonitorEvidenceReportTest {
                 "SELECT md5(batch_id::text || total::text || pass_rate::text || coalesce(attr_json::text,'-')) "
                         + "FROM tp_batch_report WHERE batch_id = ?", String.class, batchId);
         assertEquals(before, after, "归因证据=读时派生，快照行字段禁被读路径改写");
-    }
-
-    
-    private long lastBatchId() {
-        return jdbcTemplate.queryForObject(
-                "SELECT max(id) FROM tp_exec_batch WHERE name = 't274p4a批'", Long.class);
     }
 }

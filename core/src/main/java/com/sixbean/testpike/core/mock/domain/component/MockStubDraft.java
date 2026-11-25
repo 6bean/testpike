@@ -16,6 +16,8 @@ package com.sixbean.testpike.core.mock.domain.component;
  * @param responseJson  response builder document (status/headers/bodyMode/body)
  * @param source        provenance family (openapi for every draft of this mapper)
  * @param sourceRef     provenance anchor (spec:{id}) for stale badges and retracing
+ * @param enrichedBy    AI enrichment job anchor (job:{id}) when an enrichment
+ *                      run improved this draft; null for contract-direct rows
  */
 public record MockStubDraft(
         String endpointKey,
@@ -26,7 +28,20 @@ public record MockStubDraft(
         String matchersJson,
         String responseJson,
         String source,
-        String sourceRef) {
+        String sourceRef,
+        String enrichedBy) {
+
+    /**
+     * Compatibility constructor for contract-direct drafts (V669): rows the
+     * deterministic mapper produced never saw an AI enrichment job, so the
+     * enrichment slot rides on null and the column stays NULL on save.
+     */
+    public MockStubDraft(String endpointKey, String name, String method, String pathMatchType,
+                         String pathPattern, String matchersJson, String responseJson,
+                         String source, String sourceRef) {
+        this(endpointKey, name, method, pathMatchType, pathPattern, matchersJson, responseJson,
+                source, sourceRef, null);
+    }
 
     /** Provenance family stamped by contract-direct mapping (tp_mock_stub.source CHECK). */
     public static final String SOURCE_OPENAPI = "openapi";

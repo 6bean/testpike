@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * Partial-frame heartbeat ingestion tests .
@@ -56,15 +57,15 @@ class PerfPartialFrameIngestorTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "部分帧测试项目_" + uniq, "PERFPART" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-部分帧', 1, 'http://perf-target.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-part-ex-",
+                "GATLING", "K6");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "部分帧测试项目_", "PERFPART", "性能-部分帧", 1,
+                "http://perf-target.local/api", 1000, null);
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach
@@ -73,6 +74,7 @@ class PerfPartialFrameIngestorTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-part-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFPART%')");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
@@ -88,10 +90,6 @@ class PerfPartialFrameIngestorTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFPART%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFPART%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     /** Launch a real run (status=1) through the scenario+launch services — the same

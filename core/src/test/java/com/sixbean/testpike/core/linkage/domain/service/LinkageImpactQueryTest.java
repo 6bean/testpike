@@ -5,6 +5,7 @@ import com.sixbean.testpike.common.linkage.LinkageImpactInfo;
 import com.sixbean.testpike.common.linkage.LinkagePendingImpacts;
 import com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventMessage;
 import com.sixbean.testpike.core.linkage.api.dto.ObjectChangedEventType;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import com.sixbean.testpike.common.exception.ServiceException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -70,8 +71,13 @@ class LinkageImpactQueryTest {
                     new MapSqlParameterSource("ids", ownedFixtureRequirementIds));
         }
         if (!ownedFixtureProjectIds.isEmpty()) {
-            jdbc.update("DELETE FROM tp_project WHERE id IN (:ids)",
-                    new MapSqlParameterSource("ids", ownedFixtureProjectIds));
+            // FK-tree sweep (single source, R40): env rows and any other
+            // children the perf-domain max(id) mis-anchoring may have hung
+            // under these synthetic projects go down child-first, so the
+            // project delete never trips a foreign-key violation.
+            SharedDbFixtureSweep.byProject(jdbc.getJdbcTemplate(),
+                    ownedFixtureProjectIds.stream().mapToLong(Long::longValue).toArray());
+            ownedFixtureProjectIds.clear();
         }
     }
 

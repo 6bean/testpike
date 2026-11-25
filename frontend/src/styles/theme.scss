@@ -732,6 +732,23 @@ html.dark .el-select__suffix .el-icon {
   color: #aeb9cc;
 }
 
+/* Progress-rail current step (vision rubric): Element Plus paints the
+   is-process step in the plain text tone, which on the dark card surface is
+   indistinguishable from the upcoming steps. The step the user is actually on
+   gets the brand accent in both palettes (finished steps keep the success
+   tone from the component). Declared once here — scoped step-rail copies in
+   pages are banned by the same single-source rule as the focus ring. */
+.el-step__head.is-process,
+.el-step__title.is-process {
+  color: var(--tp-primary, var(--el-color-primary));
+}
+.el-step__head.is-process {
+  border-color: var(--tp-primary, var(--el-color-primary));
+}
+.el-step__title.is-process {
+  font-weight: 600;
+}
+
 
 html:not(.dark) {
   .el-input__inner::placeholder,

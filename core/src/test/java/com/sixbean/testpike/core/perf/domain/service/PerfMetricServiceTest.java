@@ -259,10 +259,10 @@ class PerfMetricServiceTest {
 
     @Test
     void crossProjectRunOwnershipRejectedWithoutLeak() {
-        // Ownership rejection fires before any row lookup, so a synthetic id far
-        // above the sequence is a valid foreign-project probe without seeding.
-        long other = jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project", Long.class)
-                + 9_999_999L;
+        // Ownership rejection fires before any row lookup, so an id from the
+        // ghost band (verified empty on the live dev db) is a valid
+        // foreign-project probe without seeding or a global max read.
+        long other = 999_999_999L;
         assertThatThrownBy(() -> perfMetricService.recordFrames(other, runId,
                 List.of(frame(0, 1.0, 1.0, 0.0))))
                 .isInstanceOf(ServiceException.class)

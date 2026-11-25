@@ -46,13 +46,38 @@ public class MockAiJobInternalController {
     private final MockAiJobService aiJobService;
     private final MockSpaceService spaceService;
     private final AiGenPublisher aiGenPublisher;
+    private final com.sixbean.testpike.core.events.domain.component.TaskEventWindowReader taskEvents;
 
     public MockAiJobInternalController(MockAiJobService aiJobService,
                                        MockSpaceService spaceService,
-                                       AiGenPublisher aiGenPublisher) {
+                                       AiGenPublisher aiGenPublisher,
+                                       com.sixbean.testpike.core.events.domain.component.TaskEventWindowReader taskEvents) {
         this.aiJobService = aiJobService;
         this.spaceService = spaceService;
         this.aiGenPublisher = aiGenPublisher;
+        this.taskEvents = taskEvents;
+    }
+
+    /**
+     * R62 cursor window over the business-step ledger of one bulk enrichment
+     * run (job kind mock-spec-enrich, job_ref = job id). Frames are landed by
+     * the ai-service executor through the shared process ledger door; this read
+     * resolves the newest run anchor from the ledger itself, so a re-run of the
+     * same job tails its latest attempt without any client-side token. The job
+     * row is read first: an unknown id refuses with the honest not-found
+     * wording before the ledger is touched (same posture as the batch tail
+     * door; membership guarding lives on the admin bridge).
+     */
+    @GetMapping("/{id}/process-events")
+    public Response<List<com.sixbean.testpike.core.events.api.dto.TaskEventRow>> processEvents(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "0") long cursor,
+            @RequestParam(required = false) Integer limit) {
+        aiJobService.get(id);
+        return Response.builderSuccess(taskEvents.sinceLatestRun(
+                com.sixbean.testpike.core.events.domain.component
+                        .AiTaskEventTrimSweeper.KIND_MOCK_SPEC_ENRICH,
+                String.valueOf(id), cursor, limit));
     }
 
     /**

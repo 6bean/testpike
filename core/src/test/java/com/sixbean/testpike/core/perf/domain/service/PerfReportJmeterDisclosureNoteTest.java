@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * D3 report-face approximation disclosure (W-d disclosure face, core half).
@@ -65,17 +66,11 @@ class PerfReportJmeterDisclosureNoteTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "JMeter口径披露测试项目_" + uniq, "PFJMTR" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '测试-口径披露', 2, 'https://perf-jmeter-disclosure.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
-                        + "allowed_modes) VALUES (?, ?, 100, CAST(? AS jsonb))",
-                projectId, envId, "[\"SHADOW_TABLE\"]");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "JMeter口径披露测试项目_", "PFJMTR", "测试-口径披露", 2,
+                "https://perf-jmeter-disclosure.local/api", 100, "[\"SHADOW_TABLE\"]");
+        projectId = seeded[0];
+        envId = seeded[1];
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -107,10 +102,6 @@ class PerfReportJmeterDisclosureNoteTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFJMTR%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFJMTR%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

@@ -62,12 +62,15 @@ class GoldenDriftGateRoutePageTest {
 
     @Test
     void routeVerdictsPageReadsNewestFirstWithFullTotal() {
+        // shared slot database: the ledger can carry rows outside this fixture,
+        // so the whole-count claim is pinned as a delta over the pre-seed baseline
+        long baseline = gate.routeVerdictsPage(null, null, null, 1, 1).total();
         recordRoute(DOMAIN_A, "fam-1", "route-old", "route-new");
         recordRoute(DOMAIN_A, "fam-1", "route-old", "route-newer");
         recordRoute(DOMAIN_A, "fam-2", "ctl-x", "cnd-x");
         GoldenDriftPageView page = gate.routeVerdictsPage(null, null, null, 1, 50);
-        assertEquals(3, page.total(), "the whole filtered count travels with the window");
-        assertEquals(3, page.rows().size());
+        assertEquals(baseline + 3, page.total(), "the whole filtered count travels with the window");
+        assertEquals((int) Math.min(50, baseline + 3), page.rows().size());
         assertEquals(1, page.page());
         assertEquals(50, page.pageSize());
         assertTrue(page.rows().get(0).id() > page.rows().get(2).id(),

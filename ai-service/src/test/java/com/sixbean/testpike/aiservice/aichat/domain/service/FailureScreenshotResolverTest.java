@@ -199,7 +199,7 @@ class FailureScreenshotResolverTest {
         when(coreGateway.taskScreenshots(55L)).thenReturn(List.of(new TaskScreenshotView(
                 55L, "proj/7/screenshot/fail-3.png", "http://s3.local/presigned")));
         when(bytesFetcher.fetch(anyString(), anyInt()))
-                .thenThrow(new IllegalStateException("存储服务返回状态码 403（预签名地址可能已过期，有效期 15 分钟）"));
+                .thenThrow(new IllegalStateException("storage service returned status code 403 (presigned URL may have expired, validity window 15 minutes)"));
 
         FailureScreenshotEvidence evidence = resolver.resolve(PROJECT, resolvedDiagnosis());
 

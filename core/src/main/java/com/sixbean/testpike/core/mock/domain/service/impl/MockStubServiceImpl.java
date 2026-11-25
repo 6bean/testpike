@@ -38,7 +38,7 @@ public class MockStubServiceImpl implements MockStubService {
             id, space_id, name, priority, method, path_match_type, path_pattern,
             matchers_json::text AS matchers_json, response_json::text AS response_json,
             scenario_name, required_state, new_state, source, source_ref, enabled,
-            version, created_at, updated_at
+            version, created_at, updated_at, enriched_by
             """;
 
     private static final BeanPropertyRowMapper<MockStubDO> MAPPER =
@@ -105,16 +105,17 @@ public class MockStubServiceImpl implements MockStubService {
                 .addValue("newState", newState)
                 .addValue("source", input.source() == null ? "manual" : input.source())
                 .addValue("sourceRef", blankToNull(input.sourceRef()))
+                .addValue("enrichedBy", blankToNull(input.enrichedBy()))
                 .addValue("enabled", input.enabled() == null || input.enabled());
         long id = jdbc.queryForObject("""
                 INSERT INTO tp_mock_stub
                     (space_id, name, priority, method, path_match_type, path_pattern,
                      matchers_json, response_json, scenario_name, required_state, new_state,
-                     source, source_ref, enabled)
+                     source, source_ref, enabled, enriched_by)
                 VALUES
                     (:spaceId, :name, :priority, :method, :pathMatchType, :pathPattern,
                      CAST(:matchers AS jsonb), CAST(:response AS jsonb), :scenarioName,
-                     :requiredState, :newState, :source, :sourceRef, :enabled)
+                     :requiredState, :newState, :source, :sourceRef, :enabled, :enrichedBy)
                 RETURNING id
                 """, params, Long.class);
         // A brand-new rule joins a scenario flow the same way an edit changes
@@ -174,6 +175,7 @@ public class MockStubServiceImpl implements MockStubService {
                 .addValue("scenarioName", scenarioName)
                 .addValue("requiredState", requiredState)
                 .addValue("newState", newState)
+                .addValue("enrichedBy", blankToNull(input.enrichedBy()))
                 .addValue("enabled", input.enabled() == null || input.enabled());
         int moved = jdbc.update("""
                 UPDATE tp_mock_stub
@@ -183,6 +185,7 @@ public class MockStubServiceImpl implements MockStubService {
                        response_json = CAST(:response AS jsonb),
                        scenario_name = :scenarioName, required_state = :requiredState,
                        new_state = :newState, enabled = :enabled,
+                       enriched_by = COALESCE(:enrichedBy, enriched_by),
                        version = version + 1, updated_at = now()
                  WHERE id = :id AND version = :expected
                 """, params);
@@ -356,7 +359,7 @@ public class MockStubServiceImpl implements MockStubService {
                 row.getMethod(), row.getPathMatchType(), row.getPathPattern(), row.getMatchersJson(),
                 row.getResponseJson(), row.getScenarioName(), row.getRequiredState(), row.getNewState(),
                 row.getSource(), row.getSourceRef(), row.getEnabled(), row.getVersion(),
-                row.getCreatedAt(), row.getUpdatedAt());
+                row.getCreatedAt(), row.getUpdatedAt(), row.getEnrichedBy());
     }
 
     private String blankToNull(String value) {

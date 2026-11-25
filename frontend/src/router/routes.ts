@@ -611,7 +611,9 @@ export const routes: RouteRecordRaw[] = [
         path: 'mock/spaces/:id',
         name: 'MockSpaceWorkbench',
         component: () => import('@/views/mock/MockSpaceWorkbenchView.vue'),
-        meta: { titleKey: 'layout.mockSpaces', hidden: true, parent: '/mock/spaces', perm: 'perm:mock:read' },
+        // Its own title key: sharing the parent leaf key made the breadcrumb
+        // render the same words on two adjacent rungs.
+        meta: { titleKey: 'layout.mockSpaceWorkbench', hidden: true, parent: '/mock/spaces', perm: 'perm:mock:read' },
       },
       {
         // AN-4: the Mock-as-documentation page merged into the space

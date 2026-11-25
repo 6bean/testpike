@@ -101,11 +101,12 @@ class JobRunnerTest {
                     .filter(JobRunnerTest::hasScheduledAnnotation)
                     .toList();
         }
-        // 38 core scheduler classes since the keep-alive/keepalive-era schedulers,
-        // the watermark sampler, the stall sweeper and the survey attribution job
-        // joined (each wires jobRunner; the correction-distillation scheduler
+        // 39 core scheduler classes since the import-suggestion retention trim
+        // (mockSpecImportVerdictTrim) joined the keep-alive-era schedulers,
+        // the watermark sampler, the stall sweeper and the survey attribution
+        // job (each wires jobRunner; the correction-distillation scheduler
         // lives in ai-service and is out of this core-tree count by design).
-        assertEquals(38, schedulers.size(),
+        assertEquals(39, schedulers.size(),
                 "core 含 @Scheduled 的调度类文件数变化=调度器扩缩，同步核对告警接线后更新期望值");
         List<Path> unwired = new ArrayList<>();
         for (Path p : schedulers) {

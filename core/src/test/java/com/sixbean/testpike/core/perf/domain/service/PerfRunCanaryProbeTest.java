@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.FixtureInserts;
 
 /**
  * CF-6 canary pre-flight at the perf launch point .
@@ -99,13 +100,11 @@ class PerfRunCanaryProbeTest {
         targetPort = target.getAddress().getPort();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "金丝雀预检测试项目_" + uniq, "PFCAN" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '开发-预检目标', 1, ?)",
                 projectId, "http://127.0.0.1:" + targetPort + "/orders");
-        envId = lastId("tp_project_env");
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
                         + "allowed_modes) VALUES (?, ?, 100, CAST(? AS jsonb))",
                 projectId, envId, "[\"SHADOW_TABLE\"]");
@@ -143,10 +142,6 @@ class PerfRunCanaryProbeTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFCAN%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFCAN%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

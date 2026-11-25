@@ -16,6 +16,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 
 @SpringBootTest(classes = CoreApplication.class)
@@ -45,15 +47,17 @@ class PerfReportNotifyTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-card-ex-",
+                "GATLING", "K6");
         long uniq = System.nanoTime() % 1_000_000_000L;
         operatorId = seedUser("perfnop_" + uniq);
         ownerId = seedUser("perfnpo_" + uniq);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status, test_owner_id, created_by) "
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status, test_owner_id, created_by) "
                 + "VALUES (?, ?, 1, ?, ?)", "发卡片测试项目_" + uniq, "PERFCARD" + uniq, ownerId, operatorId);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                 + "VALUES (?, '性能-发卡片测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
 
@@ -63,20 +67,14 @@ class PerfReportNotifyTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-card-ex-");
         jdbcTemplate.update("DELETE FROM tp_notification WHERE dedup_key LIKE 'PERF_REPORT_CARD:%'");
-        jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_whitelist WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFCARD%'");
+        // Fixture-scoped teardown through the shared sweep (R40): the FK tree
+        // reaches tp_perf_* / tp_project_env AND tp_exec_task — the hand-written
+        // DELETE list used to omit tp_exec_task, leaking pending task rows that
+        // later suites' claim walks picked up (seen in fresh-install CI triage).
+        SharedDbFixtureSweep.byProjectList(jdbcTemplate, jdbcTemplate.queryForList(
+                "SELECT id FROM tp_project WHERE code LIKE 'PERFCARD%'", Long.class));
         jdbcTemplate.update("DELETE FROM tp_user WHERE username LIKE 'perfnop_%' OR username LIKE 'perfnpo_%'");
     }
 
@@ -155,9 +153,8 @@ class PerfReportNotifyTest {
     void crossProjectOrMissingRunRejectedWithoutLeakage() {
         long runId = launchRunWithFrames(null);
         long otherCode = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES ('他项目', ?, 1)",
+        long otherProject = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES ('他项目', ?, 1)",
                 "PERFCARDX" + otherCode);
-        long otherProject = lastId("tp_project");
         assertThatThrownBy(() -> perfReportNotifyService.sendCard(otherProject, runId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("不存在");
         assertThatThrownBy(() -> perfReportNotifyService.sendCard(projectId, runId + 999_999L))

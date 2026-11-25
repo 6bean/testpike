@@ -165,11 +165,14 @@ class ProjectLlmRouterTest {
 
         try (LogbackSink sink = LogbackSink.attach(ProjectLlmRouter.class)) {
             router.route(10L);
-            String line = sink.infosContaining("回退配置文件").stream()
+            // Runtime log text is English (open-source runtime copy rule); the
+            // honest-pointer contract stays: page names + config key literals.
+            String line = sink.infosContaining("falling back to config file").stream()
                     .findFirst().orElse("<missing>");
-            assertTrue(line.contains("系统管理") && line.contains("大模型配置")
-                            && line.contains("系统配置") && line.contains("llm.provider"),
-                    "回退文案必须点名菜单路径与参数名称（R32）: " + line);
+            assertTrue(line.contains("LLM configuration page")
+                            && line.contains("system configuration page")
+                            && line.contains("llm.provider"),
+                    "fallback text must name the settings pages and the config keys (R32): " + line);
         }
     }
 }

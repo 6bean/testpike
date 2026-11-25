@@ -97,7 +97,7 @@ class DocExtractEntityGoneWriteBackTest {
         assertEquals(0, errorLines,
                 "entity-gone write-back rejection must not log ERROR, got: " + logAppender.list);
         boolean honestWarn = logAppender.list.stream().anyMatch(e ->
-                e.getLevel().equals(Level.WARN) && e.getFormattedMessage().contains("回写跳过"));
+                e.getLevel().equals(Level.WARN) && e.getFormattedMessage().contains("write-back skipped"));
         assertTrue(honestWarn, "a WARN naming the skipped write-back must remain (no silent drop)");
     }
 
@@ -114,7 +114,7 @@ class DocExtractEntityGoneWriteBackTest {
 
         long errorLines = logAppender.list.stream()
                 .filter(e -> e.getLevel().equals(Level.ERROR)
-                        && e.getFormattedMessage().contains("提取失败回写异常")).count();
+                        && e.getFormattedMessage().contains("failure write-back error")).count();
         assertEquals(1, errorLines, "a real write-back outage keeps its ERROR signature");
     }
 

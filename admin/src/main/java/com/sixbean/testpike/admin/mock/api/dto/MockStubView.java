@@ -25,6 +25,8 @@ import java.time.LocalDateTime;
  * @param version       optimistic lock (V240) — the edit door echoes it back
  * @param createdAt     row creation time
  * @param updatedAt     last mutation time
+ * @param enrichedBy    AI enrichment job anchor (job:{id}); null = never
+ *                      improved by an enrichment job (mirrors core MockStubInfo)
  */
 public record MockStubView(
         Long id,
@@ -44,5 +46,20 @@ public record MockStubView(
         Boolean enabled,
         Integer version,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        String enrichedBy) {
+
+    /**
+     * 18-arg compatibility constructor for pre-enrichment bridge fixtures and
+     * producers: an absent anchor reads as never improved (null).
+     */
+    public MockStubView(Long id, Long spaceId, String name, Integer priority, String method,
+                        String pathMatchType, String pathPattern, String matchersJson,
+                        String responseJson, String scenarioName, String requiredState,
+                        String newState, String source, String sourceRef, Boolean enabled,
+                        Integer version, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, spaceId, name, priority, method, pathMatchType, pathPattern, matchersJson,
+                responseJson, scenarioName, requiredState, newState, source, sourceRef, enabled,
+                version, createdAt, updatedAt, null);
+    }
 }

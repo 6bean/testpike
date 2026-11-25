@@ -56,6 +56,15 @@ export const SPEC_EXTRACT_TERMINAL_PREFIXES = ['接口文档抽取完成|', '接
 export const SURVEY_TERMINAL_PREFIXES = ['测绘完成', '预算耗尽自动暂停', '同页连续无进展提前结束', '测绘会话已停止'] as const
 
 /**
+ * Terminal-frame prefixes of the bulk spec-enrichment tail — emitter is
+ * MockDraftGenServiceImpl, which seals the drafts-ready frame and the
+ * failure frame on the shared process-event ledger. The mock-enrich tail
+ * wiring contract greps that Java source so a writer-side wording drift
+ * fails the test instead of keeping the tail window open.
+ */
+export const MOCK_ENRICH_TERMINAL_PREFIXES = ['草稿就绪：', '执行失败：'] as const
+
+/**
  * Mask fingerprint inside a trail header line (masked value followed by the
  * total-length bracket, also used in the per-pair cookie form). Emitters
  * are core ProbeExchangeRunner (ExchangeSecretLedger.mask /

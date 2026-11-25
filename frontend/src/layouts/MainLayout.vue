@@ -446,6 +446,8 @@ async function loadNotifications(): Promise<void> {
     notifications.value = all.list || []
     unreadCount.value = unread.total || 0
   } catch {
+    // A closed feed leaves the panel empty; the badge refreshes on the next
+    // open, so no toast here by design (the panel is not an action surface).
   }
 }
 
@@ -571,10 +573,22 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   const parent = route.meta.parent as string | undefined
   if (!parent) return []
   const parentItem = allMenuLeaves.find((m) => m.path === parent)
-  const parentTitle = parentItem ? t(parentItem.titleKey) : String(route.name ?? '')
+  // A hidden parent may itself be a hidden detail route (scenario detail
+  // hangs under the space workbench). Resolve those through the router's
+  // route table to the registered meta.titleKey; a bare route identifier
+  // must never reach the screen.
+  const parentRoute = parentItem ? undefined : router.getRoutes().find((r) => r.path === parent)
+  const parentTitle = parentItem
+    ? t(parentItem.titleKey)
+    : parentRoute?.meta?.titleKey
+      ? t(String(parentRoute.meta.titleKey))
+      : t('common.appName')
+  // A parent path carrying a ':' placeholder is not navigable as-is: render
+  // it as plain text (the page itself owns the back action).
+  const parentPath = parent.includes(':') ? null : parent
   const dynamic = route.name ? breadcrumbTitles.value[String(route.name)] : undefined
   return [
-    { key: parent.replace(/^\//, ''), title: parentTitle, path: parent },
+    { key: parent.replace(/^\//, ''), title: parentTitle, path: parentPath },
     {
       key: 'current',
       title: dynamic ?? (route.meta.titleKey ? t(String(route.meta.titleKey)) : t('common.appName')),

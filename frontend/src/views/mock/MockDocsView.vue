@@ -42,6 +42,13 @@
         <el-button v-if="spaceId" data-test="mock-docs-ai-jobs" @click="openAiJobs">
           {{ t('mockAi.jobsEntry') }}
         </el-button>
+        <!-- Bulk data-enrichment door: rides the same leading-slot family as
+             the drafting entries — one action button plus one dialog, no new
+             page. The job type names itself on screen as the plain words for
+             "AI data enrichment". -->
+        <el-button v-if="canWrite && spaceId" data-test="mock-docs-ai-bulk" @click="openBulkDialog">
+          {{ t('mockAi.bulkEntry') }}
+        </el-button>
         <el-select
           v-if="!embedded"
                     v-model="pickedSpace"
@@ -52,13 +59,14 @@
           :disabled="!spaces.length"
           @change="syncSpaceToUrl()"
         >
-          <el-option v-for="s in spaces" :key="s.id" :label="spaceLabel(s)" :value="s.id" />
+          <el-option v-for="s in spaces" :key="s.id" :label="mockSpaceLabel(s)" :value="s.id" />
         </el-select>
         <div class="filter-bar-actions" data-test="mock-docs-filter-actions">
+          <!-- One filled primary per band: the structured-create door owns the
+               primary slot, so the import door reads as a secondary outline
+               button (the two used to compete for the same visual weight). -->
           <el-button
             v-if="canWrite && spaceId !== null"
-            type="primary"
-            plain
             data-test="mock-docs-import-contract"
             @click="stubDirectOpen = true"
           >
@@ -138,7 +146,7 @@
             :placeholder="t('mockDocs.stubSearchPh')"
             :prefix-icon="Search"
             clearable
-            style="width: 260px; margin-bottom: 10px"
+            style="width: 260px; margin-bottom: 12px"
             data-test="mock-docs-stub-search"
           />
           <div v-if="!stubGroups.length" class="empty-block" data-test="mock-docs-stub-no-match">
@@ -174,6 +182,13 @@
                   >
                     {{ sourceLabel(row.source) }}
                   </el-tag>
+                  <!-- AI-enriched badge: enrichment is an attribute, not a
+                       birth fact — the origin badge above keeps its own value. -->
+                  <el-tooltip v-if="row.enrichedBy" :content="t('mockDocs.enrichedTip')" placement="top">
+                    <el-tag size="small" type="success" class="enriched-tag" data-test="mock-docs-enriched-tag">
+                      {{ t('mockDocs.enrichedTag') }}
+                    </el-tag>
+                  </el-tooltip>
                   <el-button
                     v-if="jumpTargetForSource({ source: row.source, sourceRef: row.sourceRef, projectId, spaceId })"
                     link
@@ -279,6 +294,45 @@
  card afterwards (nothing burns before submit). AI drafts never enter
  the rule source directly: the tick-to-confirm drawer below is the
  only ingress, provenance forced nl-ai by the service. -->
+        <!-- Bulk data-enrichment dialog: pick one parsed contract version of
+             this project, the job is filed with a fixed plain-words prompt —
+             the endpoint list itself is the requirement. Submission opens the
+             process tail window before the ack returns (dispatch-first form),
+             so the first server frame never lands on an empty screen. -->
+        <el-dialog
+          v-model="bulkDialogVisible"
+          :title="t('mockAi.bulkDialogTitle')"
+          width="520px"
+          data-test="mock-ai-bulk-dialog"
+        >
+          <ProjectOwnerEcho />
+          <el-form label-position="top">
+            <el-form-item :label="t('mockAi.bulkFSpec')" data-test="mock-ai-bulk-spec-wrap">
+              <el-select
+                v-model="bulkSpecId"
+                filterable
+                :loading="bulkSpecLoading"
+                :placeholder="t('mockAi.bulkSpecPh')"
+                style="width: 100%"
+                data-test="mock-ai-bulk-spec"
+              >
+                <el-option
+                  v-for="s in bulkSpecRows"
+                  :key="s.id"
+                  :label="`${s.name} · v${s.specVersion}`"
+                  :value="s.id"
+                />
+              </el-select>
+            </el-form-item>
+            <div class="ai-hint" data-test="mock-ai-bulk-hint">{{ t('mockAi.bulkHint') }}</div>
+          </el-form>
+          <template #footer>
+            <el-button type="primary" :loading="bulkFiling" data-test="mock-ai-bulk-file" @click="fileBulkEnrich">
+              {{ t('mockAi.bulkSubmit') }}
+            </el-button>
+          </template>
+        </el-dialog>
+
         <el-dialog
           v-model="aiDialogVisible"
           :title="t('mockAi.dialogTitle')"
@@ -356,9 +410,33 @@
               >
                 {{ t('mockAi.actIgnore') }}
               </el-button>
+              <!-- R62/R67 revisit door: opens this job's process tail — live
+                   runs keep following, settled runs replay the cursor window
+                   from zero (no dropped frames, no bulk refresh). -->
+              <el-button link type="primary" data-test="mock-ai-job-tail" @click="openJobTail(job)">
+                {{ t('mockAi.actProcessDetail') }}
+              </el-button>
             </div>
           </div>
         </el-drawer>
+
+        <!-- Job process tail drawer: shared windowed component (constant
+             height, up-scroll pauses the follow, terminal frame collapses
+             it). R67 expiry door: when history proves frames existed while
+             the cursor window came back empty, the component itself shows
+             the retention pointer naming the hot-reload parameter key. -->
+        <TaskTailDrawer
+          v-if="jobTailOpen"
+          :events="jobTailEvents"
+          :live="jobTailRunning"
+          :stalled="jobTailStalled"
+          :interrupted="jobTailInterrupted"
+          :expired="jobTailExpired"
+          retention-param="mock.spec-import.history-frame-cap"
+          :heartbeat-seconds="tailHeartbeatSeconds"
+          :first-frame-ms="tailFirstFrameMs"
+          data-test="mock-ai-job-tail-drawer"
+        />
 
         <!-- Confirmation drawer: keyword search + tick cards paged at 20, the
              tick keeps the ORIGINAL row index so confirm lands exactly what was
@@ -378,7 +456,7 @@
             clearable
             :placeholder="t('mockAi.draftSearchPh')"
             data-test="mock-ai-draft-search"
-            style="margin-bottom: 10px"
+            style="margin-bottom: 12px"
           />
           <div v-if="!filteredDrafts.length" class="empty-block" data-test="mock-ai-draft-empty">
             <EmptyState :title="aiDrafts.length ? t('mockAi.draftNoMatch') : t('mockAi.drawerEmpty')" />
@@ -430,7 +508,7 @@
       v-model="stubDirectOpen"
       :project-id="projectId"
       :preset-space-id="spaceId"
-      :preset-space-name="activeSpace?.name ?? ''"
+      :preset-space-name="activeSpace ? mockSpaceLabel(activeSpace) : ''"
     />
   </div>
 </template>
@@ -449,6 +527,11 @@
  */
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import TaskTailDrawer from '@/components/TaskTailDrawer.vue'
+import { useTestRunTail } from '@/composables/useTestRunTail'
+import { tailFirstFrameMs, tailHeartbeatSeconds, tailTerminalDwellMs } from '@/composables/tailWindowConfig'
+import { listApiSpecs, type ApiSpecView } from '@/api/apiSpec'
+import { listAiJobProcessEvents, isMockEnrichTerminalRow } from '@/api/mock'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CaretBottom, CaretRight, Refresh, Search } from '@element-plus/icons-vue'
@@ -548,11 +631,6 @@ const matcherCount = computed(() => {
   }
 })
 
-function spaceLabel(s: MockSpaceItem): string {
-  const alias = s.alias ? `（${s.alias}）` : ''
-  return `${s.name}${alias}`
-}
-
 function statusLabel(status: number | null): string {
   if (status === 1) return t('mockDocs.statusPublished')
   if (status === 2) return t('mockDocs.statusRetired')
@@ -627,6 +705,34 @@ async function loadSpaces(): Promise<void> {
   }
 }
 
+// Receipt deep-link consumer: the wizard's "try the first one" action lands
+// here carrying ?tryStub=<id>. It runs right after the rule list arrives,
+// strips the query key first (a later refresh must not auto-open a browser
+// tab again) and names every unmet guard out loud — a dead-end link is a
+// defect, so all three refusals carry a reason plus the way forward.
+async function consumeTryStub(): Promise<void> {
+  const v = route.query.tryStub
+  const raw = Array.isArray(v) ? v[0] : v
+  if (!raw) return
+  const { tryStub: _consumed, ...rest } = route.query
+  void router.replace({ query: rest })
+  const row = stubs.value.find((s) => String(s.id) === raw)
+  if (!row) {
+    ElMessage.info(t('mockDocs.tryRowMissing'))
+    return
+  }
+  if (row.method.toUpperCase() !== 'GET') {
+    ElMessage.info(t('mockDocs.tryNotGet', { method: row.method }))
+    return
+  }
+  const host = spaces.value.find((s) => s.id === spaceId.value)
+  if (host && host.status !== 1) {
+    ElMessage.info(t('mockDocs.tryNeedPublish'))
+    return
+  }
+  tryIt(row)
+}
+
 async function loadStubs(): Promise<void> {
   if (!spaceId.value) {
     stubs.value = []
@@ -635,6 +741,7 @@ async function loadStubs(): Promise<void> {
   loading.value = true
   try {
     stubs.value = await listStubs(spaceId.value)
+    void consumeTryStub()
   } catch (e) {
     ElMessage.error(bizErrorMsg(e, t('mockDocs.loadStubsFailed')))
     stubs.value = []
@@ -1028,6 +1135,126 @@ function openAiJobs(): void {
   void loadAiJobs().then(() => aiJobsFollow.start())
 }
 
+// ---- bulk data-enrichment filing + one shared job-process tail ------------
+// The tail rides the platform cursor-window runner over the admin read door
+// GET /mock/jobs/{id}/process-events — same decoder, same windowing rules as
+// every other process tail, no second window implementation here.
+const bulkDialogVisible = ref(false)
+const bulkSpecId = ref<number | null>(null)
+const bulkSpecRows = ref<ApiSpecView[]>([])
+const bulkSpecLoading = ref(false)
+const bulkFiling = ref(false)
+/** One-shot guard so the revisit deep link fires once per job id. */
+let revisitedJobId = -1
+
+async function openBulkDialog(): Promise<void> {
+  if (!spaceId.value || !projectId.value) return
+  bulkSpecId.value = null
+  bulkDialogVisible.value = true
+  bulkSpecLoading.value = true
+  try {
+    const page = await listApiSpecs({ projectId: projectId.value, page: 1, size: 50 })
+    bulkSpecRows.value = page.list
+  } catch (e) {
+    // The cap/size story is server-side; a read failure only names itself.
+    ElMessage.error(bizErrorMsg(e, t('mockAi.jobsLoadFailed')))
+  } finally {
+    bulkSpecLoading.value = false
+  }
+}
+
+/** File the bulk enrichment job. The tail window opens BEFORE the ack
+ *  (dispatch-first form) so the first server frame never lands on an empty
+ *  screen; a refusal closes it again. The fixed plain-words prompt states
+ *  what the job does — the endpoint list itself is the requirement. */
+async function fileBulkEnrich(): Promise<void> {
+  if (!spaceId.value) return
+  if (bulkSpecId.value === null) {
+    ElMessage.warning(t('mockAi.bulkNeedsSpec'))
+    return
+  }
+  bulkFiling.value = true
+  beginPending()
+  try {
+    const job = await createAiJob({
+      spaceId: spaceId.value,
+      jobType: 'spec-enrich',
+      prompt: t('mockAi.bulkPrompt', { id: bulkSpecId.value }),
+      specId: bulkSpecId.value,
+    })
+    bulkDialogVisible.value = false
+    aiJobs.value = [job, ...aiJobs.value]
+    // The tail window is the only surface a filed process shows itself on
+    // (R62 process-visibility door): auto-opening the jobs drawer here would
+    // modal-occlude the tail the run just opened. The card list re-reads
+    // silently every time the panel is opened, so no refresh step is lost.
+    aiJobsFollow.start()
+    ElMessage.success(t('mockAi.bulkFiled'))
+    void openTailRun({ runToken: String(job.id) })
+  } catch (e) {
+    // switch-gate and cap refusals come back from core with the exact key /
+    // real numbers in plain words — shown untouched (R63 three-part door).
+    cancelPending()
+    ElMessage.error(bizErrorMsg(e, t('mockAi.fileFailed')))
+  } finally {
+    bulkFiling.value = false
+  }
+}
+
+/** Terminal frames ride the single-source judgement exported with the read
+ *  door (view and wiring contract share it — no second copy). */
+const enrichTail = useTestRunTail(
+  (runToken, cursor) => listAiJobProcessEvents(Number(runToken), cursor),
+  {
+    terminal: isMockEnrichTerminalRow,
+    emptyGracePolls: 600,
+    maxPolls: 2400,
+    closeOnTerminal: true,
+    terminalDwellMs: () => tailTerminalDwellMs.value,
+    heartbeatMs: () => tailHeartbeatSeconds.value * 1000,
+  },
+)
+const {
+  events: jobTailEvents, running: jobTailRunning, drawerOpen: jobTailOpen,
+  stalled: jobTailStalled, interrupted: jobTailInterrupted, expired: jobTailExpired,
+  openRun: openTailRun, beginPending, cancelPending,
+} = enrichTail
+
+/** Open one job's process tail: live runs keep following where they are,
+ *  settled runs replay the whole cursor window from zero — never a dead
+ *  button, never a manual refresh instruction. */
+function openJobTail(job: MockAiJobItem): void {
+  aiJobsVisible.value = false
+  void openTailRun({ runToken: String(job.id) }).then(() => {
+    // R67 expiry verdict (single-source formula, no per-page re-derivation):
+    // a sealed enrichment run always lands at least its terminal frame, so
+    // history proves frames existed. When the cursor window then comes back
+    // empty, the sweeper retired them — the drawer swaps to the retention
+    // pointer instead of a dead empty box.
+    if (job.status !== 'queued' && job.status !== 'running') {
+      enrichTail.noteReplayExpiry(1)
+    }
+  })
+}
+
+// R67 revisit deep link (?job=<id>): shared links and history entries land
+// on the run's process tail itself, not on an unfiltered list. Once the
+// space snapshot is ready, the target job card's door opens automatically.
+watch(
+  () => [route.query.job, spaceId.value] as const,
+  ([jid, sid]) => {
+    if (!jid || !sid) return
+    const target = Number(jid)
+    if (Number.isNaN(target) || revisitedJobId === target) return
+    revisitedJobId = target
+    void loadAiJobs({ silent: true }).then(() => {
+      const job = aiJobs.value.find((j) => j.id === target)
+      if (job) openJobTail(job)
+    })
+  },
+  { immediate: true },
+)
+
 /** Silent beats (auto-follow re-reads) keep the previous snapshot on screen:
  *  no skeleton flicker, no error toast storm when one poll fails. Explicit
  *  opens still show the loading state and surface failures. */
@@ -1112,12 +1339,12 @@ function estimateOf(job: MockAiJobItem): string | null {
 
 /** El-tag hue per status (unknown tokens from a newer server stay info —
  *  the page never blanks a state it does not know). */
-function aiJobStatusTag(status: string): 'success' | 'warning' | 'danger' | 'info' | '' {
+function aiJobStatusTag(status: string): 'success' | 'warning' | 'danger' | 'info' | 'primary' {
   switch (status) {
     case 'consumed': return 'success'
     case 'preview': return 'warning'
     case 'failed': return 'danger'
-    case 'running': return ''
+    case 'running': return 'primary'
     default: return 'info'
   }
 }
@@ -1254,6 +1481,7 @@ async function confirmAiDrafts(): Promise<void> {
 // rule re-reads the stub list in place; a landed space only needs the space
 // picker refreshed. Both stay silent — no toast/confirm/jump (iron rules 2-3).
 import { useObjectSync } from '@/composables/useObjectSync'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
 
 useObjectSync({
   watch: ['MOCK_STUB_WRITE', 'MOCK_SPACE_WRITE'],
@@ -1275,13 +1503,19 @@ void loadScenarios()
 .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mono { font-family: var(--el-font-family-mono, monospace); font-size: 12px; }
 .muted { color: var(--el-text-color-secondary); }
-.ai-jobs-following { display: block; margin-bottom: 10px; font-size: 12px; }
-.empty-block { padding: 24px 0; }
-.origin-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; background: var(--el-color-primary-light-9); }
+.ai-jobs-following { display: block; margin-bottom: 12px; font-size: 12px; }
+/* The stub-area empty state sits between two content bands inside the
+   workbench docs tab, so its full-page frame became a dead whitespace wall
+   (267px band for 123px of content, 2026-11-25 forensics). Tighten the
+   vertical part to the registered 8px step within this page scope only —
+   the shared component keeps its roomy default for standalone use. */
+.empty-block { padding: 0; }
+.empty-block :deep(.empty-state) { padding-block: var(--ds-space-2, 8px); }
+.origin-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; background: var(--el-color-primary-light-9); }
 .source-tag { font-size: 11px; }
 .source-jump { font-size: 12px; margin-left: 2px; }
 .state-note { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; background: var(--el-color-warning-light-9); color: var(--el-text-color-primary); }
-.curl-box { padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; }
+.curl-box { padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
 .curl-title { font-weight: 600; font-size: 13px; }
 .curl-hint { font-size: 12px; color: var(--el-text-color-secondary); }
 .curl-error { color: var(--el-color-danger); font-size: 12px; }
@@ -1311,14 +1545,14 @@ void loadScenarios()
 .method-tag.m-post { background: var(--el-color-warning-light-8); color: var(--el-color-warning); }
 .method-tag.m-put { background: var(--el-color-primary-light-8); color: var(--el-color-primary); }
 .method-tag.m-delete { background: var(--el-color-danger-light-8); color: var(--el-color-danger); }
-.scenario-box { margin-top: 18px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; }
+.scenario-box { margin-top: 16px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; }
 .scenario-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 .scenario-counts { display: inline-flex; gap: 10px; font-size: 12px; }
 
 .scenario-counts span + span::before { content: '·'; margin-right: 10px; color: var(--el-border-color); }
 .scenario-counts .ok-part { color: var(--el-color-success); }
 .scenario-counts .warn-part { color: var(--el-color-warning); }
-.stub-group { margin-bottom: 10px; }
+.stub-group { margin-bottom: 12px; }
 .stub-group-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); cursor: pointer; text-align: left; }
 .group-path { font-weight: 600; }
 .doc-cards { margin-top: 8px; padding-left: 12px; }
@@ -1333,7 +1567,7 @@ void loadScenarios()
 .live-impact { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; background: var(--el-color-warning-light-9); color: var(--el-text-color-primary); }
 /* AI drafting surface — job cards, estimate line, tick cards. */
 .ai-hint { font-size: 12px; color: var(--el-text-color-secondary); }
-.ai-job-card { border: 1px solid var(--el-border-color-lighter); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.ai-job-card { border: 1px solid var(--el-border-color-lighter); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
 .ai-job-prompt { margin: 8px 0 4px; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 .ai-job-actions { display: flex; gap: 10px; margin-top: 6px; }
 .ai-estimate { font-size: 12px; color: var(--el-text-color-secondary); background: var(--el-fill-color-lighter); border-radius: 6px; padding: 6px 10px; margin-top: 6px; }

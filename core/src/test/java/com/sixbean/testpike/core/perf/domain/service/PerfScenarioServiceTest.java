@@ -152,13 +152,19 @@ class PerfScenarioServiceTest {
 
     @Test
     void fixedVuWithoutTerminationRejectedNamingBothKeys() {
-        // A closed user pool must declare when to stop: loops or durationSeconds, at least one.
+        // A closed user pool must declare when to stop. Wording migrated to
+        // business guidance in the refusal rewrite: the sentence names the
+        // form fields the user actually sees (the loop-count and duration-
+        // seconds inputs of the pressure-shape step), which are the display
+        // names of the loops / durationSeconds payload keys. Assert both
+        // named fields so the "names both knobs" intent stays machine-
+        // checked under the current contract.
         assertThatThrownBy(() -> perfScenarioService.create(projectId,
                 new PerfScenarioInput("无终止条件", envId, "FIXED_VU",
                         Map.of("vu", 50), null, null, requestSteps(), null)))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("loops")
-                .hasMessageContaining("durationSeconds");
+                .hasMessageContaining("循环次数")
+                .hasMessageContaining("持续秒数");
     }
 
     @Test

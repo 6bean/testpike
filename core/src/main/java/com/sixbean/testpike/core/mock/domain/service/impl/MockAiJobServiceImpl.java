@@ -18,6 +18,7 @@ import com.sixbean.testpike.core.mock.api.dto.MockSpaceInfo;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInput;
 import com.sixbean.testpike.core.mock.api.dto.MockStubInfo;
 import com.sixbean.testpike.core.mock.domain.service.MockAiJobService;
+import com.sixbean.testpike.core.spec.domain.service.ApiSpecService;
 import com.sixbean.testpike.core.mock.domain.service.MockSpaceService;
 import com.sixbean.testpike.core.mock.domain.service.MockStubService;
 import com.sixbean.testpike.core.mock.infrastructure.dataobject.MockAiJobDO;
@@ -65,17 +66,19 @@ public class MockAiJobServiceImpl implements MockAiJobService {
     static final String TYPE_SPEC_SYNC = "spec-sync";
     static final String TYPE_LLM_FALLBACK = "llm-fallback";
     static final String TYPE_RECORD_SUMMARIZE = "record-summarize";
+    static final String TYPE_SPEC_ENRICH = "spec-enrich";
 
     private static final Set<String> SUPPORTED_TYPES =
             Set.of(TYPE_NL_STUB, TYPE_EDGE_SCENARIOS, TYPE_SPEC_SYNC,
-                    TYPE_LLM_FALLBACK, TYPE_RECORD_SUMMARIZE);
+                    TYPE_LLM_FALLBACK, TYPE_RECORD_SUMMARIZE, TYPE_SPEC_ENRICH);
 
     private static final Map<String, String> SUB_SWITCH_KEYS = Map.of(
             TYPE_NL_STUB, "ai.mock.nl-stub",
             TYPE_EDGE_SCENARIOS, "ai.mock.edge-scenarios",
             TYPE_SPEC_SYNC, "ai.mock.spec-sync",
             TYPE_LLM_FALLBACK, "ai.mock.llm-fallback",
-            TYPE_RECORD_SUMMARIZE, "ai.mock.record-summarize");
+            TYPE_RECORD_SUMMARIZE, "ai.mock.record-summarize",
+            TYPE_SPEC_ENRICH, "ai.mock.spec-enrich");
 
     /**
      * Per-point output ceilings (constants by design: they describe what the
@@ -87,7 +90,8 @@ public class MockAiJobServiceImpl implements MockAiJobService {
             TYPE_EDGE_SCENARIOS, 6_000,
             TYPE_SPEC_SYNC, 3_000,
             TYPE_LLM_FALLBACK, 2_000,
-            TYPE_RECORD_SUMMARIZE, 4_000);
+            TYPE_RECORD_SUMMARIZE, 4_000,
+            TYPE_SPEC_ENRICH, 6_000);
 
     private static final String STATUS_QUEUED = "queued";
     private static final String STATUS_RUNNING = "running";
@@ -121,11 +125,12 @@ public class MockAiJobServiceImpl implements MockAiJobService {
     private final AuditLogService auditLogService;
     private final ArtifactStorage artifactStorage;
     private final ObjectMapper objectMapper;
+    private final ApiSpecService apiSpecService;
 
     public MockAiJobServiceImpl(NamedParameterJdbcTemplate jdbc, MockSpaceService spaceService,
                                 MockStubService stubService, SystemConfigReader configReader,
                                 AuditLogService auditLogService, ArtifactStorage artifactStorage,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper, ApiSpecService apiSpecService) {
         this.jdbc = jdbc;
         this.spaceService = spaceService;
         this.stubService = stubService;
@@ -133,6 +138,7 @@ public class MockAiJobServiceImpl implements MockAiJobService {
         this.auditLogService = auditLogService;
         this.artifactStorage = artifactStorage;
         this.objectMapper = objectMapper;
+        this.apiSpecService = apiSpecService;
     }
 
     @Override
@@ -172,6 +178,7 @@ public class MockAiJobServiceImpl implements MockAiJobService {
             refuseAtGate(space, jobType, prompt, closedKey, closedLabel);
         }
         requireCassetteBinding(jobType, input.spaceId(), input.recordingId());
+        requireSpecEnrichTarget(jobType, input.specId());
 
         int inputTokens = estimateInputTokens(prompt);
         int quota = OUTPUT_QUOTA_TOKENS.get(jobType);
@@ -185,7 +192,7 @@ public class MockAiJobServiceImpl implements MockAiJobService {
                 """, new MapSqlParameterSource()
                 .addValue("spaceId", input.spaceId())
                 .addValue("jobType", jobType)
-                .addValue("input", writeJson(inputBody(prompt, jobType, input.recordingId())))
+                .addValue("input", writeJson(inputBody(prompt, jobType, input.recordingId(), input.specId())))
                 .addValue("snapshot", writeJson(budgetBody(jobType, prompt, inputTokens, quota)))
                 .addValue("now", LocalDateTime.now()), Long.class);
         return get(id);
@@ -239,13 +246,59 @@ public class MockAiJobServiceImpl implements MockAiJobService {
         }
     }
 
-    /** Stored input body: prompt + type always, recordingId only for induction. */
-    private Map<String, Object> inputBody(String prompt, String jobType, Long recordingId) {
+    /** K8 hot key: how many endpoints ONE bulk enrichment task may cover. */
+    static final String BULK_ENDPOINT_LIMIT_KEY = "mock.spec-import.bulk-endpoint-limit";
+    static final int BULK_ENDPOINT_LIMIT_DEFAULT = 200;
+
+    /** spec-enrich input contract: exactly one parsed contract version row is
+     *  required and its endpoint count must fit the per-task cap; every other
+     *  drafting point must not smuggle one in. Refusals name the real numbers
+     *  and the batching path so the operator can act in one step (an over-cap
+     *  contract is never silently truncated, never queued to fail later). */
+    private void requireSpecEnrichTarget(String jobType, Long specId) {
+        if (!TYPE_SPEC_ENRICH.equals(jobType)) {
+            if (specId != null) {
+                throw new ServiceException("契约版本行只允许由「AI 数据完善」任务绑定，"
+                        + "应用点 " + jobType + " 从提示词直接起草——请在「发起 AI 草稿任务」弹窗不选契约版本后重新提交",
+                        BizErrorCode.VALIDATION_ERROR);
+            }
+            return;
+        }
+        if (specId == null) {
+            throw new ServiceException("批量完善任务必须指定一个已解析的契约版本行（specId）："
+                    + "请在「导入契约·批量生成」向导先选择或上传契约版本，再发起完善任务",
+                    BizErrorCode.VALIDATION_ERROR);
+        }
+        int endpoints;
+        try {
+            endpoints = apiSpecService.get(specId).endpoints().size();
+        } catch (ServiceException e) {
+            throw new ServiceException("契约版本不存在或已被清理（ID " + specId
+                    + "）——请在「导入契约·批量生成」向导改选列表中仍在的契约版本后重试",
+                    e.getCode());
+        }
+        int cap = configReader.getInt(BULK_ENDPOINT_LIMIT_KEY, BULK_ENDPOINT_LIMIT_DEFAULT);
+        if (endpoints > cap) {
+            throw new ServiceException("该契约版本共 " + endpoints + " 个接口，超过单次批量任务上限 "
+                    + cap + "：请在「发起 AI 草稿任务」弹窗按资源路径筛选后分批发起（如先做「/orders」开头的接口），"
+                    + "或在「系统配置」页搜索 mock.spec-import.bulk-endpoint-limit 调高上限后重试",
+                    BizErrorCode.VALIDATION_ERROR);
+        }
+    }
+
+    /** Stored input body: prompt + type always, recordingId only for induction,
+     *  specId only for the bulk enrichment point (the run re-reads endpoints
+     *  from the pinned contract row, never from a re-parsed attachment). */
+    private Map<String, Object> inputBody(String prompt, String jobType,
+                                          Long recordingId, Long specId) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("prompt", prompt);
         body.put("jobType", jobType);
         if (recordingId != null) {
             body.put("recordingId", recordingId);
+        }
+        if (specId != null) {
+            body.put("specId", specId);
         }
         return body;
     }
@@ -307,11 +360,18 @@ public class MockAiJobServiceImpl implements MockAiJobService {
         for (MockStubInput draft : selectedStubs) {
             // Provenance is service-enforced, not caller-supplied: every rule
             // born from a job row is traceable back to it (badges + stale flags).
+            // A bulk spec-enrich job improves rules that already exist as
+            // contract-direct drafts, so its confirm also stamps the
+            // enrichment anchor (same server-side job id, never client-fed).
+            // Ordinary AI-born jobs (nl-stub and friends) keep the slot null:
+            // birth facts and the two-click door are otherwise byte-for-byte
+            // unchanged.
             MockStubInput traced = new MockStubInput(draft.name(), draft.priority(),
                     draft.method(), draft.pathMatchType(), draft.pathPattern(),
                     draft.matchersJson(), draft.responseJson(), draft.scenarioName(),
                     draft.requiredState(), draft.newState(),
-                    "nl-ai", "job:" + jobId, draft.enabled());
+                    "nl-ai", "job:" + jobId, draft.enabled(), null,
+                    TYPE_SPEC_ENRICH.equals(job.getJobType()) ? "job:" + jobId : null);
             long stubId = stubService.create(job.getSpaceId(), traced);
             landed.add(stubService.get(stubId));
         }

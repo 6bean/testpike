@@ -2,6 +2,7 @@ package com.sixbean.testpike.admin.mock.api.controller;
 
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
+import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubImportResultView;
 import com.sixbean.testpike.admin.mock.infrastructure.remote.client.CoreMockRuleClient;
@@ -63,6 +64,23 @@ public class MockStubImportController {
         CurrentUser user = UserContext.current();
         guard.assertCanWriteRequirement(user, coreApiSpecClient.get(specId).projectId());
         return Response.builderSuccess(coreMockRuleClient.previewStubDrafts(specId));
+    }
+
+    /**
+     * Preview with advice joined (wizard step one, MJ P3): the deterministic
+     * floor answers at once — the bridge never waits for an LLM and never
+     * re-decides anything. spaceId is optional: without a target space the
+     * rows honestly carry no advice (core shape), and the plain old
+     * stub-drafts door stays untouched for existing callers.
+     */
+    @GetMapping("/specs/{specId}/stub-drafts-advised")
+    @RequirePermission("perm:mock:write")
+    public Response<List<MockStubDraftAdviceView>> previewDraftsAdvice(
+            @PathVariable long specId,
+            @RequestParam(required = false) Long spaceId) {
+        CurrentUser user = UserContext.current();
+        guard.assertCanWriteRequirement(user, coreApiSpecClient.get(specId).projectId());
+        return Response.builderSuccess(coreMockRuleClient.previewStubDraftsAdvice(specId, spaceId));
     }
 
     /**

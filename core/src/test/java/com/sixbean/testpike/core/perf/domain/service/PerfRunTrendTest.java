@@ -253,8 +253,9 @@ class PerfRunTrendTest {
     @Test
     void foreignProject_rejectedWithHumanNotFound() {
         long scenarioId = newScenario("隔离趋势场景");
-        long otherProject = jdbcTemplate.queryForObject(
-                "SELECT coalesce(max(id), 0) + 999999 FROM tp_project", Long.class);
+        // Ghost band verified empty on the live dev db; literal avoids the
+        // global project max read that leaked high-id fixtures used to skew.
+        long otherProject = 999_999_999L;
 
         assertThatThrownBy(() -> perfReportService.trend(otherProject, scenarioId))
                 .isInstanceOf(ServiceException.class)

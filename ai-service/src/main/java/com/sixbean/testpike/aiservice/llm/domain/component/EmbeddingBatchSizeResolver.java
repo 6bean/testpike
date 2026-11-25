@@ -40,10 +40,10 @@ public class EmbeddingBatchSizeResolver {
                 if (size >= MIN_BATCH && size <= MAX_BATCH) {
                     return size;
                 }
-                log.warn("K8 {}={} 越界（允许 {}~{}），回退配置文件 {}",
+                log.warn("K8 {}={} out of range (allowed {}-{}), falling back to config file value {}",
                         KEY_BATCH_SIZE, raw, MIN_BATCH, MAX_BATCH, properties.getBatchSize());
             } catch (NumberFormatException e) {
-                log.warn("K8 {}={} 非法整数，回退配置文件 {}",
+                log.warn("K8 {}={} is not a valid integer, falling back to config file value {}",
                         KEY_BATCH_SIZE, raw, properties.getBatchSize());
             }
         }
@@ -64,11 +64,11 @@ public class EmbeddingBatchSizeResolver {
                 if (cap >= MIN_BATCH && cap <= MAX_BATCH) {
                     return cap;
                 }
-                log.warn("K8 {}={} 越界（允许 {}~{}），回退配置文件 {}",
+                log.warn("K8 {}={} out of range (allowed {}-{}), falling back to config file value {}",
                         KEY_PROVIDER_BATCH_CAP, raw, MIN_BATCH, MAX_BATCH,
                         properties.getProviderBatchCap());
             } catch (NumberFormatException e) {
-                log.warn("K8 {}={} 非法整数，回退配置文件 {}",
+                log.warn("K8 {}={} is not a valid integer, falling back to config file value {}",
                         KEY_PROVIDER_BATCH_CAP, raw, properties.getProviderBatchCap());
             }
         }

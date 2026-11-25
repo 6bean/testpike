@@ -20,10 +20,20 @@ public record MockAiJobCreateInput(
         long spaceId,
         String jobType,
         String prompt,
-        Long recordingId) {
+        Long recordingId,
+        /** Contract version row the bulk enrichment task reads its endpoints
+         *  from — required exactly when jobType is spec-enrich (the service
+         *  refuses a missing or over-cap row in plain words) and refused as
+         *  stray input for every other drafting point. */
+        Long specId) {
 
     /** Drafting points never bind a cassette — kept so pre-A-4 callers stay source-compatible. */
     public MockAiJobCreateInput(long spaceId, String jobType, String prompt) {
-        this(spaceId, jobType, prompt, null);
+        this(spaceId, jobType, prompt, null, null);
+    }
+
+    /** Pre spec-enrich shape kept source-compatible for points without a contract row. */
+    public MockAiJobCreateInput(long spaceId, String jobType, String prompt, Long recordingId) {
+        this(spaceId, jobType, prompt, recordingId, null);
     }
 }

@@ -120,6 +120,9 @@ class SchedulerRunNowServiceTest {
     private final com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler
             credentialScreenshotSweep =
             mock(com.sixbean.testpike.core.aichat.domain.component.CredentialScreenshotSweepScheduler.class);
+    private final com.sixbean.testpike.core.mock.domain.component.SpecImportVerdictRetentionScheduler
+            specImportVerdictRetention =
+            mock(com.sixbean.testpike.core.mock.domain.component.SpecImportVerdictRetentionScheduler.class);
 
     private final SchedulerRunNowServiceImpl service = new SchedulerRunNowServiceImpl(
             dailyDigest, flakyDetection, flakyProbe, reviewRemind, costOverrideExpire, executorOffline,
@@ -131,7 +134,8 @@ class SchedulerRunNowServiceTest {
             changeLinkageReconcileJob, linkageUrge, webElementRetention,
             executorDrainSweep, aiTaskEventTrim, loginStateRetention,
             executorPoolWatermarkSampler, loginStateKeepAlive, aiTaskRunningStallSweeper,
-            siteSurveyAttributionSweep, credentialScreenshotSweep, auditLogService);
+            siteSurveyAttributionSweep, credentialScreenshotSweep, specImportVerdictRetention,
+            auditLogService);
 
     @Test
     void webElementLedgerRetentionJobRoutesToItsSweep() {

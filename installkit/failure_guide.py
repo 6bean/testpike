@@ -12,7 +12,8 @@ import re
 
 import image_relay  # accelerator candidates + reference shape live there (no second list)
 
-RESUME_HINT = "修复后原样重跑同一条命令即断点续跑：bash installkit/install.sh --scenario=<本次场景>"
+RESUME_HINT = ("After the fix, re-run the exact same command to resume where it "
+               "stopped: bash installkit/install.sh --scenario=<this scenario>")
 
 # Tagged image references as docker prints them, with or without quotes:
 # "docker.io/library/nginx:1.27-alpine" -> nginx:1.27-alpine.
@@ -136,63 +137,80 @@ def teach(kind, **facts):
         port = facts.get("port", "?")
         key = facts.get("key", "SERVER_PORT_OFFSET")
         return (
-            "端口 %s 已被本机其他进程占用。\n"
-            "查看占用者：ss -ltnp | grep %s\n"
-            "两条出路：停掉旧服务，或在 .env 把 %s 改为空闲端口（整机端口带也可用 "
-            "SERVER_PORT_OFFSET 偏移）。\n%s" % (port, port, key, RESUME_HINT)
+            "Port %s is already in use by another process on this machine.\n"
+            "See who holds it: ss -ltnp | grep %s\n"
+            "Two ways out: stop the old service, or set %s in .env to a free "
+            "port (the whole host port band can also shift via "
+            "SERVER_PORT_OFFSET).\n%s" % (port, port, key, RESUME_HINT)
         )
     if kind == "disk_short":
         need = facts.get("required_mb", "?")
         avail = facts.get("available_mb", "?")
         return (
-            "磁盘空间不足：本档装机需要约 %s MB，当前分区仅余 %s MB。\n"
-            "先确认各分区余量：df -h\n"
-            "可行清理（任选，均有删除影响，执行前看清楚对象）：docker system prune "
-            "回收无引用镜像与构建缓存；或把 Docker 数据目录迁到更大的分区。\n%s"
+            "Not enough disk space: this install profile needs about %s MB, "
+            "the current partition has only %s MB left.\n"
+            "Check the partitions first: df -h\n"
+            "Possible cleanups (pick any; each has deletion impact, confirm the "
+            "targets before running): docker system prune reclaims dangling "
+            "images and build cache; or move the Docker data directory to a "
+            "larger partition.\n%s"
             % (need, avail, RESUME_HINT)
         )
     if kind == "pg_existing":
         db = facts.get("db", "?")
         return (
-            "数据库 %s 已存在。若这是本机上一次装机保留的数据，直接继续即可"
-            "（安装步骤幂等，不会清库）。\n"
-            "若要换一个全新环境：在 .env 给库改名——应用库改 DB_URL 里的库名段，"
-            "对象存储元数据库改 SWF_META_DB_NAME——再重跑。\n"
-            "只有确认该库内数据不再需要时才手动删除，删除前请先备份。\n%s"
+            "Database %s already exists. If it is data kept from a previous "
+            "install on this machine, just continue — the install steps are "
+            "idempotent and never drop databases.\n"
+            "To start a fresh environment instead, rename in .env: the "
+            "application database inside DB_URL, the object-store meta "
+            "database via SWF_META_DB_NAME — then re-run.\n"
+            "Drop it by hand only when you are sure the data is unneeded, and "
+            "back it up before deleting.\n%s"
             % (db, RESUME_HINT)
         )
     if kind == "registry_blocked":
         images = facts.get("images") or images_in_output(facts.get("output") or "")
         tried = facts.get("mirrors_tried") or list(image_relay.SHIPPED_MIRRORS)
-        shown = "、".join(images) if images else "见上方 docker 输出的镜像名"
+        shown = ", ".join(images) if images else "see the image names in the docker output above"
         sample = images[0] if images else "nginx:1.27-alpine"
         relay = relay_example(sample)
         mirror_urls = ", ".join('"https://%s"' % m for m in image_relay.SHIPPED_MIRRORS)
         return (
-            "以下镜像取不到，本机到 Docker Hub（%s）的直连不通或被限流：%s。\n"
+            "Cannot pull these images: the direct route to Docker Hub (%s) is "
+            "blocked or rate-limited from this machine: %s.\n"
             % (image_relay.HUB_HOST, shown)
-            + ("已自动尝试的加速器：%s（均未取全）。\n" % "、".join(tried) if tried else "")
-            + "三条出路，按代价从低到高：\n"
-              "  A 免管理员，改道取回后改成本机认得的名字（加速器地址可换任一可用项）：\n"
+            + ("Accelerators tried automatically: %s (none delivered everything).\n"
+               % ", ".join(tried) if tried else "")
+            + "Three ways out, cheapest first:\n"
+              "  A no admin rights — pull through a mirror, then re-tag to the "
+              "name this machine expects (swap in any reachable accelerator):\n"
               "     docker pull %s\n"
               "     docker tag  %s %s\n" % (relay, relay, sample)
-            + '  B 管理员一次性配好引擎（保留 /etc/docker/daemon.json 原有键，只新增这一段）：\n'
+            + '  B one-time engine config by an admin (keep the existing keys '
+              'in /etc/docker/daemon.json, only add this section):\n'
               '     "registry-mirrors": [%s]\n' % mirror_urls
-            + "     再执行 sudo systemctl restart docker —— 会重启容器引擎，"
-              "本机其它在跑的容器会被中断，确认后再做\n"
-            + "  C 本机彻底无外网：在任意能拉到镜像的机器上执行 docker save -o testpike-images.tar %s，"
-              "把该文件拷到本机后 docker load -i testpike-images.tar\n"
-              % (" ".join(images) if images else "<镜像名:标签>")
-            + "想让脚本以后自动走内网仓库：export %s=<内网仓库地址>（可写进 .env，多个用逗号分隔），"
-              "重跑同一命令即生效。\n" % image_relay.MIRRORS_KEY
+            + "     then run sudo systemctl restart docker — this restarts the "
+              "container engine and interrupts other running containers on "
+              "this host; do it only after confirming\n"
+            + "  C fully offline host: on any machine that can pull the images "
+              "run docker save -o testpike-images.tar %s, copy that file here, "
+              "then docker load -i testpike-images.tar\n"
+              % (" ".join(images) if images else "<image:tag>")
+            + "To make the script use an intranet registry automatically from "
+              "now on: export %s=<registry address> (may live in .env; "
+              "comma-separated candidates), then re-run the same command.\n"
+              % image_relay.MIRRORS_KEY
             + "%s" % RESUME_HINT
         )
     if kind == "egress_dead":
-        target = facts.get("target", "外部镜像源")
+        target = facts.get("target", "the external image registry")
         return (
-            "无法连接 %s：本机出网不通或该站点暂时不可达。\n"
-            "检查网络与代理后直接重跑即可续传；若平台配置了镜像源，"
-            "用 --mirror-base-url=<镜像地址> 指定备用源再跑。\n%s"
+            "Cannot reach %s: this host has no egress or the site is "
+            "temporarily down.\n"
+            "Check the network/proxy and simply re-run to resume; if the "
+            "platform mirrors images, pass --mirror-base-url=<registry "
+            "address> to use the backup source.\n%s"
             % (target, RESUME_HINT)
         )
     return None

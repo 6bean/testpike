@@ -24970,6 +24970,160 @@ VALUES
      '变更类操作暂未开放到对话，请在对应功能页面执行')
 ON CONFLICT (endpoint_key) DO NOTHING;
 
+-- ################ V661__mock_spec_import_schema_expand_depth_key.sql ################
+-- Contract-direct stub drafting reads the stored endpoint snapshot and never
+-- re-runs the parser, so response schema expansion needs one tunable limit:
+-- how deep a declared schema unfolds into the sample body before an honest
+-- truncation note is left instead of guessing. Cycles in referenced models
+-- always stop with a $cycle marker regardless of this value. The row is read
+-- per preview request (hot update, no restart).
+--
+-- Flyway is not wired in this project: apply manually to the target database
+-- (DBA path in production), then regenerate db/schema-init.sql with
+-- tools/ops/gen_schema_init.sh.
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
+    ('mock.spec-import.schema-expand-max-depth', '6', '接口仿真', 'int', 0,
+     '契约批量生成 Mock 时响应结构展开的最大层级（默认 6；层级或大小超上限的部分会以 truncation 标记如实呈现，不会凭空造数据；修改即时生效）')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V662__mock_spec_import_verdict.sql ################
+-- AI pre-adjudication layer for the contract-bulk import wizard (MJ P3):
+-- one stored verdict row per (spec, space, endpoint) carrying the recommendation
+-- (recommend / avoid), the one-sentence business reason, the conflict handling
+-- action, an impact reading (hit count of the conflicting rule etc.), the data
+-- realism score and the confidence of the suggestion. Rows are proposals shown
+-- on screen before any write happens — filing rules still goes through the
+-- single confirm gate (the human one-click never disappears here).
+--
+-- Flyway is not wired in this project: apply manually to the target database
+-- (DBA path in production), then regenerate db/schema-init.sql with
+-- tools/ops/gen_schema_init.sh.
+
+CREATE TABLE IF NOT EXISTS tp_mock_spec_import_verdict (
+    id              BIGSERIAL    PRIMARY KEY,
+    spec_id         BIGINT       NOT NULL,
+    space_id        BIGINT       NOT NULL,
+    endpoint_key    VARCHAR(300) NOT NULL,
+    verdict         VARCHAR(16)  NOT NULL,
+    reason          VARCHAR(500) NOT NULL,
+    conflict_action VARCHAR(16),
+    impact_json     JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    realism         SMALLINT     NOT NULL,
+    confidence      SMALLINT     NOT NULL,
+    origin          VARCHAR(8)   NOT NULL DEFAULT 'rule',
+    created_at      TIMESTAMP    NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMP    NOT NULL DEFAULT now(),
+    CONSTRAINT ck_msv_verdict CHECK (verdict IN ('recommend', 'avoid')),
+    CONSTRAINT ck_msv_action CHECK (conflict_action IS NULL
+        OR conflict_action IN ('skip', 'override', 'rename')),
+    CONSTRAINT ck_msv_origin CHECK (origin IN ('rule', 'ai')),
+    CONSTRAINT uk_msv_key UNIQUE (spec_id, space_id, endpoint_key)
+);
+CREATE INDEX IF NOT EXISTS idx_msv_created ON tp_mock_spec_import_verdict (created_at);
+
+COMMENT ON TABLE tp_mock_spec_import_verdict IS 'Per-endpoint import suggestions shown on the contract-bulk preview (recommend/avoid + reason + impact reading); advisory rows only, never a write authorization';
+COMMENT ON COLUMN tp_mock_spec_import_verdict.impact_json IS 'Impact reading: conflicting rule id/name, its 7-day hit count (hits7d); honest zeros for fresh endpoints';
+COMMENT ON COLUMN tp_mock_spec_import_verdict.origin IS 'rule = deterministic single-point verdict, ai = refined by an AI backfill round';
+
+-- ################ V663__mock_spec_import_verdict_keys.sql ################
+-- Retention knob for the import-suggestion table: rows are advisory previews,
+-- they age out on their own. The cleaner (SpecImportVerdictRetentionCleaner)
+-- reads this key fresh on every round, so the limit changes take effect without
+-- a restart. The companion deadline knob lands together with its own consumer
+-- (the asynchronous AI backfill round), not before it.
+--
+-- Flyway is not wired in this project: apply manually to the target database,
+-- then regenerate db/schema-init.sql with tools/ops/gen_schema_init.sh.
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
+    ('mock.spec-import.verdict-retention-days', '90', '接口仿真', 'int', 0,
+     '仿真契约批量导入的智能建议保留天数（默认 90；到期行自动清理，不影响已入库规则；修改即时生效）')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V664__mock_verdict_deadline_key.sql ################
+-- Deadline knob for the AI backfill round of the import-suggestion preview:
+-- rows wait for refinement only this long, past it the deterministic advice
+-- is served under its honest rule-default label. The consumer
+-- (SpecImportVerdictServiceImpl advice-state band) reads this key fresh on
+-- every preview, so changes take effect without a restart.
+--
+-- Flyway is not wired in this project: apply manually to the target database,
+-- then regenerate db/schema-init.sql with tools/ops/gen_schema_init.sh.
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
+    ('mock.spec-import.verdict-deadline-seconds', '20', '接口仿真', 'int', 0,
+     '批量导入预览等待智能建议返回的时限秒数（默认 20；超过时限未返回时按内置规则给出建议并标注为规则默认；修改即时生效）')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V665__mock_spec_enrich_switch_and_bulk_endpoint_limit.sql ################
+-- Factory defaults for the contract-bulk enrichment drafting point:
+--   * ai.mock.spec-enrich — per-application-point sub switch, shipped ON so a
+--     fresh install can start bulk enriching drafted stubs with no setup; the
+--     master gate ai.mock.enabled is ANDed with it at submit time.
+--   * mock.spec-import.bulk-endpoint-limit — how many endpoints ONE bulk
+--     enrichment task may cover (default 200). A contract version row with
+--     more endpoints is refused at submission, naming the real count and the
+--     cap, so the operator splits by resource path instead of burning a
+--     partially-failed run. Hot key: the service reads it on every submit.
+--
+-- Flyway is not wired in this project: apply manually to the target database,
+-- then regenerate db/schema-init.sql with tools/ops/gen_schema_init.sh.
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
+    ('ai.mock.spec-enrich', '1', 'AI 配置', 'bool', 0,
+     '「AI 数据完善」应用点开关（默认开；关闭后发起该类任务会被拒绝并提示打开入口）'),
+    ('mock.spec-import.bulk-endpoint-limit', '200', '接口仿真', 'int', 0,
+     '一次批量完善任务最多覆盖的接口数（默认 200；超过时发起会被拒绝并提示分批处理；修改即时生效）')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- The job-type column carries a DB-level CHECK enum (V229). A new drafting
+-- point is only truly accepted once the constraint knows it: widen the enum
+-- here, idempotently, so re-running this migration never fails.
+ALTER TABLE tp_mock_ai_job DROP CONSTRAINT IF EXISTS ck_mock_ai_job_type;
+ALTER TABLE tp_mock_ai_job ADD CONSTRAINT ck_mock_ai_job_type CHECK (
+    job_type IN ('nl-stub', 'edge-scenarios', 'llm-fallback',
+                 'record-summarize', 'spec-sync', 'spec-enrich')
+);
+
+-- ################ V666__mock_spec_enrich_frame_and_batch_keys.sql ################
+-- Factory hot keys for the bulk contract-enrichment execution leg (MJ P4):
+--   * mock.spec-import.history-frame-cap -- how many process frames ONE
+--     enrichment run keeps in the ledger before the sweeper evicts the oldest
+--     (factory 2000, allowed 200~20000; read fresh every sweep round).
+--   * mock.spec-import.enrich-batch-size -- endpoints per AI chat inside one
+--     enrichment run (factory 20, allowed 1~100; bigger batch = fewer rounds).
+--
+-- Flyway is not wired in this project: apply manually to the target database,
+-- then regenerate db/schema-init.sql with tools/ops/gen_schema_init.sh.
+
+INSERT INTO tp_sys_config (config_key, config_value, group_name, value_type, encrypt_flag, description) VALUES
+    ('mock.spec-import.history-frame-cap', '2000', '接口仿真', 'int', 0,
+     '一次批量完善任务保留的执行过程记录条数（默认 2000，超出上限的旧记录自动清除；修改即时生效）'),
+    ('mock.spec-import.enrich-batch-size', '20', '接口仿真', 'int', 0,
+     'AI 数据完善每次调用覆盖的接口数（默认 20；调大则分批更少、单次内容更多；修改即时生效）')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ################ V667__mock_spec_import_advice_governance_rows.sql ################
+-- Migration: register governance verdicts for the two mock spec-import
+-- advice endpoints that landed with the contract-batch mock suite. A fresh
+-- install replays only schema-init/migrations, so a catalog entry without a
+-- seed row answers with the generic "not registered" refusal and the
+-- coverage contract goes red there even though live audits pass on a
+-- database where the rows were registered out-of-band. No reachability
+-- change: the read is preview plumbing for the space-workbench import
+-- wizard and the POST is the AI job's internal backfill intake - both stay
+-- closed on the dialogue door, and the human confirm gate is untouched.
+
+INSERT INTO tp_ai_api_access_governance
+    (endpoint_key, scope_verified, reachable, ai_desc, exclude_reason)
+VALUES
+    ('GET /internal/mock/stub/drafts-advised', 0, 0, NULL,
+     '该接口服务于空间工作台导入向导的数据装配，不是业务查询面，无需在对话使用'),
+    ('POST /internal/mock/spec-import/verdict-refine', 0, 0, NULL,
+     '变更类操作暂未开放到对话，请在对应功能页面执行')
+ON CONFLICT (endpoint_key) DO NOTHING;
+
 -- ################ patch section: objects first executed by hand (DDL verified against the dev database, never captured as migrations) ################
 CREATE SEQUENCE IF NOT EXISTS tp_plan_deviation_id_seq;
 CREATE TABLE IF NOT EXISTS tp_plan_deviation (

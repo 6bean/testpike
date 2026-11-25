@@ -117,20 +117,20 @@ public class LlmOutputCapabilityLedger {
         String key = cacheKey(model, form);
         boolean firstSighting = !Boolean.TRUE.equals(cache.get(key));
         if (firstSighting && cache.size() >= MAX_TRACKED_FORMS) {
-            log.warn("能力台账缓存已达上限 {}，模型 {} 的 {} 形态观察仅走库面不驻留缓存",
+            log.warn("Capability ledger cache reached its limit {}, observation for model {} form {} is persisted to the database only, not kept in cache",
                     MAX_TRACKED_FORMS, model, form);
         } else {
             cache.put(key, true);
         }
         if (firstSighting) {
-            log.warn("端点接受结构化输出但未强制（模型 {} 形态 {}），后续该形态的 schema 调用改走可强制形态",
+            log.warn("Endpoint accepts structured output but does not enforce it (model {} form {}); later schema calls of this form are rerouted to the enforceable form",
                     model, form);
         }
         try {
             jdbc.update(UPSERT_SQL, new MapSqlParameterSource()
                     .addValue("model", model).addValue("form", form));
         } catch (RuntimeException doorDown) {
-            log.warn("能力台账落库失败（进程内缓存已生效）model={} form={} reason={}",
+            log.warn("Capability ledger persist failed (in-process cache already applied) model={} form={} reason={}",
                     model, form, doorDown.getMessage());
         }
     }
@@ -152,7 +152,7 @@ public class LlmOutputCapabilityLedger {
             jdbc.update(PROMOTE_SQL, new MapSqlParameterSource()
                     .addValue("model", model).addValue("form", form));
         } catch (RuntimeException doorDown) {
-            log.warn("能力台账转正落库失败（缓存已失权，按库面真值待下次读取）model={} form={} reason={}",
+            log.warn("Capability ledger promotion persist failed (cache grant revoked; database truth will be read on next access) model={} form={} reason={}",
                     model, form, doorDown.getMessage());
         }
     }
@@ -169,7 +169,7 @@ public class LlmOutputCapabilityLedger {
             jdbc.update(MARK_PROBED_SQL, new MapSqlParameterSource()
                     .addValue("model", model).addValue("form", form));
         } catch (RuntimeException doorDown) {
-            log.warn("能力台账探测时刻刷新失败 model={} form={} reason={}",
+            log.warn("Capability ledger probe timestamp refresh failed model={} form={} reason={}",
                     model, form, doorDown.getMessage());
         }
     }
@@ -190,7 +190,7 @@ public class LlmOutputCapabilityLedger {
                     (rs, rowNum) -> new String[]{rs.getString("model_name"),
                             rs.getString("call_form")});
         } catch (RuntimeException doorDown) {
-            log.warn("能力台账到期行读取失败（本轮不复探，下轮自动重试）intervalHours={} reason={}",
+            log.warn("Capability ledger due-row read failed (no reprobe this round, auto retry next round) intervalHours={} reason={}",
                     intervalHours, doorDown.getMessage());
             return List.of();
         }
@@ -205,7 +205,7 @@ public class LlmOutputCapabilityLedger {
         } catch (RuntimeException doorDown) {
             // Fail-soft read: an unreachable ledger answers "no observation",
             // i.e. the legacy form stays chosen — never a generation blocker.
-            log.warn("能力台账读取门不可达，按无观察继续 model={} form={} reason={}",
+            log.warn("Capability ledger read gate unreachable, continuing with no observation model={} form={} reason={}",
                     model, form, doorDown.getMessage());
             return false;
         }

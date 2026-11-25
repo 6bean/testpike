@@ -241,7 +241,7 @@ def test_pg_existing_failure_routes_through_failure_guide_single_source():
     # is a second route that future families would silently miss.
     assert "classify_failure" not in src, "consumers call the guide, not its internals"
     # the create-database failure branch must classify its stderr (raw tail alone = defect)
-    branch = re.search(r"元数据库.*创建失败[\s\S]{0,400}?", src)
+    branch = re.search(r"metadata database .* creation failed[\s\S]{0,400}?", src)
     assert branch and "note_for_failure" in src[branch.start():branch.start() + 600]
 
 

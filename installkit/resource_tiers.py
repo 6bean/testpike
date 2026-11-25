@@ -86,21 +86,25 @@ COMPONENTS = {
 
 TIERS = {
     "lightweight": {
-        "label": "轻量体验",
-        "blurb": "中间件+四后端服务，开箱即用 AI 生成与评审；用例执行由完整功能档的执行器承接（默认档）",
+        "label": "Lightweight",
+        "blurb": "middleware + four backend services; AI case generation and review "
+                 "out of the box; case execution is carried by the executor of the "
+                 "Full tier (default tier)",
         "components": [c for c, m in COMPONENTS.items() if "lightweight" in m["tiers"]],
         "compose_profiles": [],
     },
     "standard": {
-        "label": "标准上手",
-        "blurb": "轻量档+应用镜像与前端站点，开箱即用完整界面",
+        "label": "Standard",
+        "blurb": "lightweight tier + application images and the frontend site; "
+                 "the full web UI works out of the box",
         "components": [c for c, m in COMPONENTS.items() if c in [
             k for k, v in COMPONENTS.items() if "standard" in v["tiers"]]],
         "compose_profiles": ["app"],
     },
     "full": {
-        "label": "完整功能",
-        "blurb": "标准档+Prometheus/Grafana 观测栈+执行器与夹具靶，装完用例即可真跑红绿灯",
+        "label": "Full",
+        "blurb": "standard tier + Prometheus/Grafana observability stack + executor "
+                 "and fixture targets; run real traffic-light executions right after install",
         "components": list(COMPONENTS),
         "compose_profiles": ["app", "observability", "executor"],
     },
@@ -144,14 +148,14 @@ def machine_capacity(path=None):
 def render_tiers_text():
     pass
     cap = machine_capacity()
-    lines = ["资源三档（磁盘/内存需求由组件矩阵程序化生成，供选择参照）："]
+    lines = ["Resource tiers (disk/memory needs are generated from the component matrix, for reference):"]
     for i, key in enumerate(("lightweight", "standard", "full"), start=1):
         req = tier_requirements(key)
-        mark = "（默认）" if key == DEFAULT_TIER else ""
-        lines.append("  %d. %s%s —— %s；需磁盘 %s / 内存 %s（含基础占用）" % (
+        mark = " (default)" if key == DEFAULT_TIER else ""
+        lines.append("  %d. %s%s -- %s; needs disk %s / memory %s (incl. base footprint)" % (
             i, TIERS[key]["label"], mark, TIERS[key]["blurb"],
             _gb(req["disk_mb"]), _gb(req["mem_mb"])))
-    lines.append("  本机当前可用：磁盘约 %s / 内存约 %s" % (
+    lines.append("  Available on this machine now: disk ~%s / memory ~%s" % (
         _gb(int(cap["disk_gb"] * 1024)), _gb(int(cap["mem_gb"] * 1024))))
     return "\n".join(lines)
 
@@ -180,15 +184,16 @@ def ask(input_text=None, answers_path=None, tier=None, unattended=False):
     if tier:
         chosen = _TIER_ALIASES.get(str(tier).strip().lower()) or _TIER_ALIASES.get(str(tier).strip())
         if not chosen:
-            raise ValueError("档位「%s」不在值域——必须 lightweight / standard / full 之一"
-                             "（问答界面输入 1/2/3 亦可）" % tier)
+            raise ValueError('tier "%s" is out of range -- it must be one of '
+                             "lightweight / standard / full "
+                             "(entering 1/2/3 in the wizard also works)" % tier)
     elif line is None or line == "":
         chosen = DEFAULT_TIER
     else:
         chosen = _TIER_ALIASES.get(line.lower()) or _TIER_ALIASES.get(line)
         if not chosen:
-            print("  ↳「%s」不是可选项，已按默认「%s」继续（不影响后续步骤）"
-                  % (line, TIERS[DEFAULT_TIER]["label"]))
+            print('  ↳ "%s" is not an option; continuing with the default "%s" '
+                  "(later steps unaffected)" % (line, TIERS[DEFAULT_TIER]["label"]))
             chosen = DEFAULT_TIER
     answers = {}
     if answers_path and os.path.exists(answers_path):
@@ -203,14 +208,14 @@ def ask(input_text=None, answers_path=None, tier=None, unattended=False):
     if answers_path:
         with open(answers_path, "w", encoding="utf-8") as fh:
             json.dump(answers, fh, ensure_ascii=False, indent=2)
-    print("  ↳ 资源档位=%s（%s）" % (chosen, TIERS[chosen]["label"]))
+    print("  ↳ resource tier = %s (%s)" % (chosen, TIERS[chosen]["label"]))
     return answers
 
 
 def install_matrix(tier):
     pass
     if tier not in TIERS:
-        raise ValueError("档位「%s」不在值域——可选 lightweight / standard / full" % tier)
+        raise ValueError('tier "%s" is out of range -- choose lightweight / standard / full' % tier)
     steps = []
     for name in TIERS[tier]["components"]:
         comp = COMPONENTS[name]
@@ -244,25 +249,26 @@ def verify_sha256(path, expected):
     actual = digest.hexdigest()
     if actual.lower() != str(expected).strip().lower():
         raise ValueError(
-            "工件校验和不一致：%s 实际=%s 期望=%s。请重新下载该组件"
-            "（或改用内网镜像源后重跑同一命令；镜像源在系统设置→装机配置，"
-            "参数键 installkit.mirror-base-url）"
+            "artifact checksum mismatch: %s actual=%s expected=%s. Re-download the "
+            "component (or switch to an internal mirror and re-run the same command; "
+            "mirror base URL lives in System settings -> Installer configuration, "
+            "key installkit.mirror-base-url)"
             % (os.path.basename(path), actual, expected))
     return True
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="resource_tiers.py",
-                                     description="资源三档问答 + 组件装机矩阵（档位与组件对照表在本件登记）")
+                                     description="resource tier wizard + component install matrix (tier/component mapping registered in this file)")
     sub = parser.add_subparsers(dest="command", required=True)
-    p_ask = sub.add_parser("ask", help="一行档位问答（EOF=默认档），结果 merge 落 answers")
+    p_ask = sub.add_parser("ask", help="one-line tier prompt (EOF = default tier), result merged into answers")
     p_ask.add_argument("--answers-file", required=True)
-    p_ask.add_argument("--tier", default="", help="CLI 显式档位（优先于问答输入流）")
-    p_ask.add_argument("--unattended", action="store_true", help="零追问=空输入流走默认")
-    sub.add_parser("render", help="打印三档面板（程序化数字）")
-    p_matrix = sub.add_parser("matrix", help="打印该档计划（run/skip/rollback_stack）")
+    p_ask.add_argument("--tier", default="", help="explicit tier from CLI (takes priority over the prompt stream)")
+    p_ask.add_argument("--unattended", action="store_true", help="zero prompts: empty input stream falls back to the default")
+    sub.add_parser("render", help="print the three-tier panel (programmatic numbers)")
+    p_matrix = sub.add_parser("matrix", help="print the plan for a tier (run/skip/rollback_stack)")
     p_matrix.add_argument("--tier", default=DEFAULT_TIER)
-    p_verify = sub.add_parser("verify", help="校验文件 sha256（不通过=给出原因并终止）")
+    p_verify = sub.add_parser("verify", help="verify a file's sha256 (failure prints the reason and exits)")
     p_verify.add_argument("--file", required=True)
     p_verify.add_argument("--sha256", required=True)
     args = parser.parse_args(argv)
@@ -275,13 +281,13 @@ def main(argv=None):
         return 0
     if args.command == "matrix":
         plan = plan_execution(args.tier)
-        print("将装：%s" % "、".join(s["id"] for s in plan["run"]))
-        print("已装跳过：%s" % ("、".join(s["id"] for s in plan["skip"]) or "无"))
-        print("失败回滚序：%s" % " ← ".join(plan["rollback_stack"]))
+        print("Will install: %s" % ", ".join(s["id"] for s in plan["run"]))
+        print("Already installed, skipped: %s" % (", ".join(s["id"] for s in plan["skip"]) or "none"))
+        print("Rollback order on failure: %s" % " <- ".join(plan["rollback_stack"]))
         return 0
     if args.command == "verify":
         verify_sha256(args.file, args.sha256)
-        print("校验通过：%s" % os.path.basename(args.file))
+        print("Checksum OK: %s" % os.path.basename(args.file))
         return 0
     return 0
 

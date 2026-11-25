@@ -11,6 +11,7 @@ import com.sixbean.testpike.core.explore.api.dto.ExploreCreateInput;
 import com.sixbean.testpike.core.session.api.dto.LoginStateInput;
 import com.sixbean.testpike.core.session.api.dto.SessionStateClaimBinding;
 import com.sixbean.testpike.core.session.domain.service.LoginStateService;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -87,6 +88,7 @@ class ExploreLoginStateChannelTest {
     }
 
     private void cleanup(long projectId) {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbc, "ex-wecl-");
         jdbc.update("DELETE FROM tp_exec_task WHERE project_id = ?", projectId);
         jdbc.update("DELETE FROM tp_explore_session WHERE project_id = ?", projectId);
         jdbc.update("DELETE FROM tp_login_state WHERE project_id = ?", projectId);

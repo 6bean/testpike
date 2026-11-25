@@ -187,12 +187,12 @@ public class FailureScreenshotResolver {
                 return FailureScreenshotEvidence.absent("视觉模型对截图未给出可读描述，"
                         + "本次回答仅基于失败详情文本。");
             }
-            log.info("对话截图读图完成 projectId={} executionId={} model={}",
+            log.info("Failure screenshot reading done projectId={} executionId={} model={}",
                     projectId, diagnosis.executionId(), handle.result().model());
             return FailureScreenshotEvidence.attached(bound(scene), shot.objectKey());
         } catch (RuntimeException failure) {
             // Enhancement leg only: the text-only answer proceeds with one honest line.
-            log.warn("对话截图读图降级 executionId={} err={}",
+            log.warn("Failure screenshot reading degraded executionId={} err={}",
                     diagnosis.executionId(), failure.getMessage());
             return FailureScreenshotEvidence.absent("失败现场截图读取未完成（"
                     + failure.getMessage() + "），本次回答仅基于失败详情文本。");
@@ -222,7 +222,7 @@ public class FailureScreenshotResolver {
             byte[] image = bytesFetcher.fetch(shot.url(), maxBytes);
             OcrFallbackOutcome outcome = fallbackReader.read(image, minLines);
             if (outcome == null) {
-                throw new IllegalStateException("OCR 降级读取无返回");
+                throw new IllegalStateException("OCR fallback reading returned nothing");
             }
             if (!outcome.textDense()) {
                 String why = outcome.failureReason() != null
@@ -234,11 +234,11 @@ public class FailureScreenshotResolver {
             }
             String scene = OcrTextFallbackReader.degradedNotice(KEY_MODEL) + "\n"
                     + OcrTextFallbackReader.boundTranscription(outcome.derivedText());
-            log.info("对话截图 OCR 降级读取完成 projectId={} executionId={} lines={}",
+            log.info("Failure screenshot OCR fallback reading done projectId={} executionId={} lines={}",
                     projectId, diagnosis.executionId(), outcome.lineCount());
             return FailureScreenshotEvidence.attached(scene, shot.objectKey());
         } catch (RuntimeException failure) {
-            log.warn("对话截图 OCR 降级读取异常 executionId={} err={}",
+            log.warn("Failure screenshot OCR fallback reading error executionId={} err={}",
                     diagnosis.executionId(), failure.getMessage());
             return FailureScreenshotEvidence.absent("失败现场截图 OCR 降级读取未完成（"
                     + failure.getMessage() + "）；视觉模型未配置（系统设置-" + KEY_MODEL
@@ -257,7 +257,7 @@ public class FailureScreenshotResolver {
         try {
             shots = coreGateway.taskScreenshots(executionId);
         } catch (RuntimeException doorFailure) {
-            log.warn("对话截图列表读取失败 executionId={} err={}",
+            log.warn("Failure screenshot list reading failed executionId={} err={}",
                     executionId, doorFailure.getMessage());
             return null;
         }

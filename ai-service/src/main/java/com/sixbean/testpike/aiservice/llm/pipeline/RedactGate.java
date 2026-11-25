@@ -100,7 +100,7 @@ public final class RedactGate {
         }
         List<String> hits = detect(rawCustomForms, payload);
         if (!hits.isEmpty()) {
-            LOG.warn("推理输入脱敏已关闭但检出敏感形态 {}，本轮拒发（零模型调用）", hits);
+            LOG.warn("Inference input redaction disabled but sensitive patterns detected {}, send refused this round (zero model calls)", hits);
             throw new ServiceException(
                     DenialGuidanceFrame.switchClosed(FEATURE_NAME, KEY_ENABLED),
                     BizErrorCode.FORBIDDEN);
@@ -129,7 +129,7 @@ public final class RedactGate {
         if (hits > 0) {
             // Counts only — the payload (and anything it carried) never
             // enters the log line.
-            LOG.info("推理输入发送前脱敏：遮蔽 {} 处敏感形态", hits);
+            LOG.info("Inference input redacted before sending: {} sensitive patterns masked", hits);
         }
         return masked;
     }
@@ -163,14 +163,14 @@ public final class RedactGate {
             }
             int split = entry.indexOf('=');
             if (split < 1 || split == entry.length() - 1) {
-                LOG.warn("脱敏词形治理键行格式无法解析（需 形态名=正则），本行忽略: {}", entry);
+                LOG.warn("Redaction pattern governance key line not parseable (expected name=regex), line ignored: {}", entry);
                 continue;
             }
             try {
                 merged.add(new RedactRule(entry.substring(0, split).strip(),
                         Pattern.compile(entry.substring(split + 1).strip())));
             } catch (RuntimeException badRegex) {
-                LOG.warn("脱敏词形治理键正则不可编译，本行忽略: {} ({})", entry,
+                LOG.warn("Redaction pattern governance key regex does not compile, line ignored: {} ({})", entry,
                         badRegex.getMessage());
             }
         }

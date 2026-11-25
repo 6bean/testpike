@@ -48,6 +48,10 @@ class PerfRunStopServiceTest {
     @BeforeEach
     void seedStopFixture() {
         cleanupStopRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-stop-ex-",
+                "GATLING", "K6");
         long[] ids = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "停压通道测试项目_", "PERFCHAIN",
                 "性能-停压测", "http://perf-target.local/api");
@@ -61,6 +65,7 @@ class PerfRunStopServiceTest {
     }
 
     private void cleanupStopRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-stop-ex-");
         // Fixture-scoped teardown :
         // the PERFCHAIN project family with its FK tree (reaches tp_exec_task and the
         // tp_perf_* tables; covers the PERFCHAINX foreign rows too). The old blanket

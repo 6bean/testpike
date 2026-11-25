@@ -16,10 +16,18 @@ Checks (each prints one named line; FAIL blocks, WARN does not):
   ai-queue-backlog    generations waiting ahead of AI-terminal specs
   stray-drivers       playwright driver processes from dead sessions
   window-budget       declared node list vs declared cap (worst-case math)
+  backend-l2-runner   opt-in (TP_PREFLIGHT_BACKEND_L2_WINDOW=1): a full backend
+                      L2 window must run with this chain's executor unit quiet,
+                      otherwise the resident executor claims the window's own
+                      task rows through the live service and claim/watermark
+                      assertions inherit nondeterministic pollution
+                      (measured 2026-11-25 r32: nine classes red this way)
 
 Usage:
   e2e_window_preflight.py [--repo-root .] [--node-list F] [--workers N]
       [--eta-cap-s N] [--out JSON] [--selftest]
+  e2e_window_preflight.py --quiesce-runner   # quiet this chain's executor unit
+  e2e_window_preflight.py --restore-runner   # hand it back at the window tail
 Exit: 0 = GO, 1 = NOGO (a named reason is always printed).
 Credentials are never printed or inlined: DB access reads env only.
 """
@@ -660,7 +668,6 @@ def queue_need_verdict(specs_root, nodes):
 
 
 def grade_runner_waiver(waiver_declared, queue_hits):
-    pass
     if not waiver_declared:
         return True, ""
     if queue_hits:
@@ -800,6 +807,91 @@ def _declared_nodes_from_env():
     with open(path, errors="replace") as handle:
         return [line.strip() for line in handle if line.strip()]
 
+
+def backend_l2_window_declared() -> bool:
+    """True when the caller declares a full backend L2 snapshot window.
+
+    The declaration is the window recipe's, not a guess: only that caller knows
+    the suite will exercise claim/watermark behaviour against the live services.
+    """
+    return os.environ.get("TP_PREFLIGHT_BACKEND_L2_WINDOW", "").strip() == "1"
+
+
+def grade_backend_l2_quiescence(active_state, owned_orphans=(), unit=""):
+    """Pure judgement: a full backend L2 window needs a quiet chain executor.
+
+    Measured 2026-11-25 (r32): a resident executor heartbeat unit, restarted by
+    its Restart= policy after a manual hand-kill, kept claiming the window's own
+    tp_exec_task rows through the live core service — nine test classes turned
+    red on task-count and claim-watermark assertions. The managed unit is the
+    honest handle: hand-quiescing it only survives until the next auto-restart,
+    so the blocker names the unit, not a bare process kill. Three states stay
+    three states: an unreadable unit is a WARN (skipped), never a green (P18).
+    """
+    if active_state is None:
+        return [("WARN", "backend-l2-runner",
+                 "unit state unreadable; window may still collide with a resident executor")]
+    if active_state == "inactive":
+        if owned_orphans:
+            return [("FAIL", "backend-l2-runner",
+                     f"managed unit quiet but unmanaged executor processes remain in this "
+                     f"checkout (pids {' '.join(map(str, owned_orphans))}): they claim window "
+                     f"tasks too; quiesce them by pid with owner confirmation first")]
+        return [("PASS", "backend-l2-runner",
+                 f"{unit} quiet; window keeps exclusive ownership of executor task rows")]
+    if active_state in ("active", "activating", "reloading"):
+        return [("FAIL", "backend-l2-runner",
+                 f"{unit} is {active_state}: its executor would claim this window's task rows "
+                 f"through the live services (r32 pollution shape). Run "
+                 f"`e2e_window_preflight.py --quiesce-runner` before the window and "
+                 f"`--restore-runner` at its tail; hand-killing the process does not hold "
+                 f"because the unit's Restart policy revives it")]
+    return [("WARN", "backend-l2-runner", f"unexpected unit state {active_state!r}; treated as unknown")]
+
+
+def check_backend_l2_runner():
+    """Opt-in section: executor-unit quiescence for full backend L2 windows."""
+    unit = f"{_default_runner_unit()}.service"
+    try:
+        out = subprocess.run(["systemctl", "--user", "show", unit, "-p", "ActiveState"],
+                             capture_output=True, text=True, timeout=10).stdout or ""
+    except Exception as exc:
+        return [("WARN", "backend-l2-runner",
+                 f"probe failed {type(exc).__name__}: {str(exc)[:80]}")]
+    m_act = re.search(r"ActiveState=(\S+)", out)
+    active_state = m_act.group(1) if m_act else None
+    orphans = ()
+    if active_state == "inactive":
+        orphans = tuple(_owned_orphan_runner_pids(Path(__file__).resolve().parents[2]))
+    return grade_backend_l2_quiescence(active_state, orphans, unit)
+
+
+def runner_unit_transition(to_quiet: bool):
+    """Quiesce or restore this chain's managed executor unit, owner-checked.
+
+    Only ever touches this chain's slot-suffixed unit name (never another
+    chain's), and verifies by reading the unit back instead of trusting the
+    transition call (external writes are confirmed by re-read, not by rc).
+    """
+    unit = f"{_default_runner_unit()}.service"
+    action = "stop" if to_quiet else "start"
+    want = "inactive" if to_quiet else "active"
+    try:
+        subprocess.run(["systemctl", "--user", action, unit],
+                       capture_output=True, text=True, timeout=120)
+        out = subprocess.run(["systemctl", "--user", "show", unit, "-p", "ActiveState"],
+                             capture_output=True, text=True, timeout=10).stdout or ""
+    except Exception as exc:
+        print(f"RUNNER-TRANSITION=FAIL unit={unit} action={action} "
+              f"error={type(exc).__name__}: {str(exc)[:100]}")
+        return 1
+    m_state = re.search(r"ActiveState=(\S+)", out)
+    state = m_state.group(1) if m_state else "unknown"
+    ok = state == want or (to_quiet and state == "failed")
+    print(f"RUNNER-TRANSITION={'OK' if ok else 'FAIL'} unit={unit} action={action} "
+          f"state={state} want={want}")
+    return 0 if ok else 1
+
 def run(args):
     sections = [
         ("artifact-freshness", lambda: check_freshness(args.repo_root, args.accept_stale)),
@@ -819,6 +911,8 @@ def run(args):
                     if line.strip()] if args.node_list else None),
             specs_root=args.specs_root)),
     ]
+    if backend_l2_window_declared():
+        sections.append(("backend-l2-runner", check_backend_l2_runner))
     report, blocked = [], []
     print(f"[preflight] {' '.join(os.uname()[0:2])} | workers={args.workers} "
           f"| eta cap={args.eta_cap_s}s")
@@ -1074,6 +1168,23 @@ def selftest():
             "an owned unmanaged runner is a warning, not a false 'missing' alarm"
         assert grade_runner_unit(None, None, 90)[0][0] == "WARN", "unreadable state warns"
         assert grade_runner_unit("active", 10.0, 0)[0][0] == "WARN", "opt-out must say so"
+        # Full backend L2 quiescence (r32 pollution shape): all four states proven
+        # two-sided — active executor blocks with the named one-click remedy, quiet
+        # unit passes, an owned unmanaged runner still blocks, unreadable is a
+        # named skip and never a green (P18).
+        quiet = grade_backend_l2_quiescence("inactive", (), "tp-e2e-runner-slot0.service")
+        assert quiet[0][0] == "PASS" and "slot0" in quiet[0][2], quiet
+        colliding = grade_backend_l2_quiescence("active", (), "tp-e2e-runner-slot0.service")
+        assert colliding[0][0] == "FAIL" and "--quiesce-runner" in colliding[0][2], \
+            f"an active executor must block the L2 window with its remedy: {colliding}"
+        strays = grade_backend_l2_quiescence("inactive", (4242,), "u")
+        assert strays[0][0] == "FAIL" and "4242" in strays[0][2], \
+            "an unmanaged runner in this checkout pollutes just the same"
+        assert grade_backend_l2_quiescence(None, (), "u")[0][0] == "WARN", \
+            "unreadable state must not read as quiet"
+        live_quiet = check_backend_l2_runner()
+        assert live_quiet and live_quiet[0][0] in ("PASS", "WARN", "FAIL"), \
+            f"live quiescence probe returns a graded row: {live_quiet}"
         # Waiver integrity (observed 2026-11-20): a board recipe declared itself
         # queue-free while its node list also ran the survey spectrum, whose acts
         # are claimed off the executor queue. With no chain runner the acts sat
@@ -1170,6 +1281,12 @@ def main(argv=None):
                         default=int(os.environ.get("TP_PREFLIGHT_STRAY_AGE_S", 600)))
     parser.add_argument("--out")
     parser.add_argument("--selftest", action="store_true")
+    parser.add_argument("--quiesce-runner", action="store_true",
+                        help="quiet this chain's managed executor unit before a full "
+                             "backend L2 window (unit re-read verifies the transition)")
+    parser.add_argument("--restore-runner", action="store_true",
+                        help="hand this chain's managed executor unit back at the "
+                             "window tail; pair with --quiesce-runner")
     parser.add_argument("--queue-need", action="store_true",
                         help="print PREFLIGHT-QUEUE-NEED=yes|no for --node-list and exit "
                              "(window recipes use it instead of guessing their spectrum shape)")
@@ -1178,6 +1295,10 @@ def main(argv=None):
         args.specs_root = os.path.join(args.repo_root, "frontend")
     if args.selftest:
         return selftest()
+    if getattr(args, "quiesce_runner", False):
+        return runner_unit_transition(to_quiet=True)
+    if getattr(args, "restore_runner", False):
+        return runner_unit_transition(to_quiet=False)
     if args.queue_need:
         return queue_need_report(args.node_list, args.specs_root)
     return run(args)

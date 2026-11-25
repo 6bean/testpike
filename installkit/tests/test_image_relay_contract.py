@@ -168,7 +168,7 @@ def test_apply_refuses_an_unparsable_daemon_file(tmp_path, monkeypatch):
     monkeypatch.setattr(image_relay, "_restart_engine", lambda: True)
     handled, note = image_relay.apply_daemon_mirrors(["docker.m.daocloud.io"],
                                                      daemon_path=str(daemon))
-    assert not handled and "解析失败" in note
+    assert not handled and "failed to parse" in note
     assert daemon.read_text(encoding="utf-8") == "{ not json", "a broken file is left untouched"
 
 

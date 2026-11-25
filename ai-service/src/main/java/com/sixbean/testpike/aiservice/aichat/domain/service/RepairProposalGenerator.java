@@ -101,7 +101,7 @@ public class RepairProposalGenerator {
         try {
             script = coreGateway.getScript(caseId);
         } catch (RuntimeException unreadable) {
-            log.warn("对话修复草案跳过：脚本读取失败 caseId={} err={}", caseId,
+            log.warn("Chat repair proposal skipped: script read failed caseId={} err={}", caseId,
                     unreadable.getMessage());
             return ChatRepairDraft.rejected("读取当前脚本失败，无法给出可信修复草案");
         }
@@ -123,7 +123,7 @@ public class RepairProposalGenerator {
                             behaviorDirectivesHead(), script.actionJson(), errorDetail, null)),
                     projectId, null);
         } catch (RuntimeException providerDown) {
-            log.warn("对话修复提案外呼失败 projectId={} err={}", projectId,
+            log.warn("Chat repair proposal provider call failed projectId={} err={}", projectId,
                     providerDown.getMessage());
             return ChatRepairDraft.rejected("修复提案服务暂时不可用", script.version());
         }

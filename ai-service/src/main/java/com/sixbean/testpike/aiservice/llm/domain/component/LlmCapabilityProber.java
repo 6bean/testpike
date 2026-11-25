@@ -63,7 +63,7 @@ public class LlmCapabilityProber {
             return LlmProbeVerdict.UNKNOWN;
         }
         if (providerFactory.isMock()) {
-            log.info("能力探测跳过：当前供应商为替身形态，无法对真实线路证明强制行为 model={}",
+            log.info("Capability probe skipped: current provider is a stand-in (mock) endpoint, enforcement behaviour cannot be proven against the real line model={}",
                     endpoint.modelName());
             return LlmProbeVerdict.UNKNOWN;
         }
@@ -72,15 +72,15 @@ public class LlmCapabilityProber {
         switch (verdict) {
             case PROMOTED -> {
                 ledger.promoteEnforced(endpoint.modelName(), form);
-                log.info("能力探测转正：端点在该形态强制了结构化输出 model={} form={}",
+                log.info("Capability probe promoted: endpoint enforces structured output in this form model={} form={}",
                         endpoint.modelName(), form);
             }
             case STILL_UNENFORCED -> {
                 ledger.markProbed(endpoint.modelName(), form);
-                log.info("能力探测复核仍不强制：保持可强制形态改道 model={} form={}",
+                log.info("Capability reprobe still not enforcing: schema calls of this form stay rerouted to the enforceable form model={} form={}",
                         endpoint.modelName(), form);
             }
-            case UNKNOWN -> log.warn("能力探测无证据（供应商失败或无可判正文），本轮不落账 model={} form={}",
+            case UNKNOWN -> log.warn("Capability probe inconclusive (provider failure or no judgeable response body), nothing booked this round model={} form={}",
                     endpoint.modelName(), form);
             default -> {
             }
@@ -101,7 +101,7 @@ public class LlmCapabilityProber {
                     && result.toolCalls() != null && !result.toolCalls().isEmpty();
             return new LlmChatOutcome(result != null, content, toolOnly);
         } catch (RuntimeException probeFailed) {
-            log.warn("能力探测调用失败 model={} form={} reason={}",
+            log.warn("Capability probe call failed model={} form={} reason={}",
                     endpoint.modelName(), form, probeFailed.getMessage());
             return new LlmChatOutcome(false, null, false);
         }

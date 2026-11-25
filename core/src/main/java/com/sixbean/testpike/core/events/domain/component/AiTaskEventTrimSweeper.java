@@ -83,6 +83,20 @@ public class AiTaskEventTrimSweeper {
     static final int SITE_CAP_MIN = 200;
     static final int SITE_CAP_MAX = 20000;
 
+    /**
+     * Bulk contract-enrichment family (MJ P4): business-step frames of one
+     * spec-enrich run ride this ledger under kind mock-spec-enrich; its frame
+     * ceiling is a dedicated hot key so the enrichment batch story stays
+     * replayable independently of the other families' windows.
+     */
+    public static final String KIND_MOCK_SPEC_ENRICH = "mock-spec-enrich";
+
+    public static final String MOCK_HISTORY_FRAME_CAP_KEY = "mock.spec-import.history-frame-cap";
+
+    static final int MOCK_CAP_DEFAULT = 2000;
+    static final int MOCK_CAP_MIN = 200;
+    static final int MOCK_CAP_MAX = 20000;
+
     /** Rows removed per statement — keeps each batch a short transaction. */
     private static final int DELETE_BATCH_LIMIT = 5_000;
 
@@ -208,9 +222,19 @@ public class AiTaskEventTrimSweeper {
     }
 
     /**
-     * Scope predicate shared by both faces: {@code true} selects only the site
-     * family rows, {@code false} everything else (a NULL kind can never be a
-     * site row, so {@code IS DISTINCT FROM} keeps such rows in the global face).
+     * Enrichment-family frame ceiling, read fresh from
+     * {@link #MOCK_HISTORY_FRAME_CAP_KEY} and clamped into 200~20000.
+     */
+    public int resolveMockHistoryFrameCap() {
+        return resolveClamped(MOCK_HISTORY_FRAME_CAP_KEY, MOCK_CAP_DEFAULT, MOCK_CAP_MIN, MOCK_CAP_MAX);
+    }
+
+    /**
+     * Scope predicate of the retention face: {@code true} selects only the
+     * site family rows, {@code false} everything else (a NULL kind can never
+     * be a site row, so {@code IS DISTINCT FROM} keeps such rows in the
+     * global face). The ceiling face keys per family instead (see
+     * {@link #trimOverflow}).
      * The leading space is deliberate: text blocks strip line-trailing blanks,
      * so the seam before this predicate would otherwise glue keywords together.
      */
@@ -261,33 +285,47 @@ public class AiTaskEventTrimSweeper {
      * @return rows removed in this round
      */
     public int trimOverflow() {
-        return trimOverflowFamily(true, resolveSiteHistoryFrameCap())
-                + trimOverflowFamily(false, resolveMaxEventsPerTask());
+        return trimOverflowCapped(" job_kind IS NOT DISTINCT FROM ?",
+                new Object[] {KIND_WEB_ELEMENT_SURVEY_SITE}, resolveSiteHistoryFrameCap(), "site")
+                + trimOverflowCapped(" job_kind IS NOT DISTINCT FROM ?",
+                new Object[] {KIND_MOCK_SPEC_ENRICH}, resolveMockHistoryFrameCap(), "enrichment")
+                + trimOverflowCapped(" job_kind IS DISTINCT FROM ? AND job_kind IS DISTINCT FROM ?",
+                new Object[] {KIND_WEB_ELEMENT_SURVEY_SITE, KIND_MOCK_SPEC_ENRICH},
+                resolveMaxEventsPerTask(), "global");
     }
 
-    private int trimOverflowFamily(boolean siteFamily, int cap) {
+    /**
+     * Ceiling face of one event family: evict the oldest surplus above the
+     * family cap inside every (job_kind, job_ref, run_token) window. The
+     * scope predicate arrives as data (equality/inequality list plus bind
+     * args) so adding a family never forks another boolean branch.
+     */
+    private int trimOverflowCapped(String scopePredicate, Object[] scopeArgs, int cap, String family) {
         int total = 0;
         for (int batch = 0; batch < MAX_BATCHES_PER_RUN; batch++) {
+            Object[] args = java.util.Arrays.copyOf(scopeArgs, scopeArgs.length + 2);
+            args[scopeArgs.length] = cap;
+            args[scopeArgs.length + 1] = DELETE_BATCH_LIMIT;
             int deleted = jdbcTemplate.update("""
                     WITH ranked AS (
                         SELECT id, ROW_NUMBER() OVER (PARTITION BY job_kind, job_ref, run_token
                                                        ORDER BY id DESC) AS rn
                         FROM tp_ai_task_event
-                        WHERE """ + familyScope(siteFamily) + """
+                        WHERE """ + scopePredicate + """
                           
                     ), victims AS (
                         SELECT id FROM ranked WHERE rn > ? ORDER BY id LIMIT ?
                     )
                     DELETE FROM tp_ai_task_event
                      WHERE id IN (SELECT id FROM victims)""",
-                    KIND_WEB_ELEMENT_SURVEY_SITE, cap, DELETE_BATCH_LIMIT);
+                    args);
             total += deleted;
             if (deleted < DELETE_BATCH_LIMIT) {
                 return total;
             }
         }
-        log.warn("过程事件台账上限驱逐本轮封顶（{} 批 x {} 条，站点族={}），剩余超限行下轮续清",
-                MAX_BATCHES_PER_RUN, DELETE_BATCH_LIMIT, siteFamily);
+        log.warn("过程事件台账上限驱逐本轮封顶（{} 批 x {} 条，族={}），剩余超限行下轮续清",
+                MAX_BATCHES_PER_RUN, DELETE_BATCH_LIMIT, family);
         return total;
     }
 

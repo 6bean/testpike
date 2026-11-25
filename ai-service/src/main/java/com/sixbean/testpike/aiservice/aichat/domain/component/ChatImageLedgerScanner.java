@@ -64,7 +64,7 @@ public class ChatImageLedgerScanner {
         try {
             metas = coreGateway.chatImageMetas(userId, sessionId, cap);
         } catch (RuntimeException ex) {
-            log.warn("历史贴图台账读门暂不可用，本轮按无历史图回答: {}", ex.toString());
+            log.warn("Chat image ledger read gate unavailable, answering this turn without history images: {}", ex.toString());
             return List.of();
         }
         List<ChatImageAttachment> candidates = new ArrayList<>();
@@ -124,7 +124,7 @@ public class ChatImageLedgerScanner {
                 }
             }
         } catch (com.fasterxml.jackson.core.JacksonException ex) {
-            log.warn("历史贴图台账行不可解析，已跳过该行: {}", ex.toString());
+            log.warn("Chat image ledger row unparsable, row skipped: {}", ex.toString());
         }
     }
 }

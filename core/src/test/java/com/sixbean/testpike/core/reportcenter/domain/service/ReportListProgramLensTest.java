@@ -129,10 +129,25 @@ class ReportListProgramLensTest {
         List<Long> seeded = List.of(seedProjectWeekly(s[0]), seedProjectWeekly(s[1]),
                 seedProjectWeekly(s[2]), seedGlobalMonthly());
 
-        PageResult<ReportListItem> got = reportCenterService.list(
-                lensList(0L), ProgramLensFixture.OPERATOR);
-
-        assertTrue(got.list().stream().map(ReportListItem::id).toList().containsAll(seeded),
+        // the legacy window orders by reporting period, so a freshly seeded
+        // fixture row (especially the old global-monthly one) can legitimately
+        // sit behind live-period rows on page one; the untouched-view contract
+        // is that the whole ledger stays reachable — verified by walking pages
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        long total = -1;
+        for (int page = 1; page <= 20; page++) {
+            PageResult<ReportListItem> got = reportCenterService.list(
+                    new ReportQuery(page, 50, null, null, null, null, null, null, null, 0L),
+                    ProgramLensFixture.OPERATOR);
+            if (total < 0) {
+                total = got.total();
+            }
+            got.list().forEach(r -> seen.add(r.id()));
+            if (got.list().isEmpty() || seen.size() >= total) {
+                break;
+            }
+        }
+        assertTrue(seen.containsAll(seeded),
                 "programId=0 leaves the historical unfiltered view intact");
     }
 }

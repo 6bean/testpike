@@ -17,6 +17,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 
 @SpringBootTest(classes = CoreApplication.class)
@@ -44,14 +45,15 @@ class PerfReportCompareTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "版本对比测试项目_" + uniq, "PERFCMP" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-对比测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-cmp-ex-",
+                "GATLING", "K6");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "版本对比测试项目_", "PERFCMP", "性能-对比测", 1,
+                "http://perf-target.local/api", 1000, null);
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach
@@ -60,25 +62,15 @@ class PerfReportCompareTest {
     }
 
     private void cleanupRows() {
-        jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_whitelist WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFCMP%'");
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-cmp-ex-");
+        // Fixture-scoped teardown through the shared sweep (R40): the hand-written
+        // DELETE list used to omit tp_exec_task, so every dispatched run left a
+        // pending task row orphaned against the deleted project (post-test census
+        // showed 7 such rows after this suite in the fresh-install CI window).
+        SharedDbFixtureSweep.byProjectList(jdbcTemplate, jdbcTemplate.queryForList(
+                "SELECT id FROM tp_project WHERE code LIKE 'PERFCMP%'", Long.class));
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
-    }
 
     private long newScenario() {
         return perfScenarioService.create(projectId, new PerfScenarioInput(

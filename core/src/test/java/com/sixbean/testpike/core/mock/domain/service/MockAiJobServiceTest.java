@@ -60,6 +60,8 @@ class MockAiJobServiceTest {
     private static final String SPEC_SYNC_KEY = "ai.mock.spec-sync";
     private static final String LLM_FALLBACK_KEY = "ai.mock.llm-fallback";
     private static final String RECORD_SUMMARIZE_KEY = "ai.mock.record-summarize";
+    private static final String SPEC_ENRICH_KEY = "ai.mock.spec-enrich";
+    private static final String BULK_LIMIT_KEY = "mock.spec-import.bulk-endpoint-limit";
     private static final String ALLOWLIST_KEY = "mock.proxy.allowlist";
 
     @Autowired
@@ -125,7 +127,7 @@ class MockAiJobServiceTest {
 
     private void closeAllGates() {
         for (String k : new String[]{MASTER_KEY, NL_STUB_KEY, EDGE_KEY, SPEC_SYNC_KEY,
-                LLM_FALLBACK_KEY, RECORD_SUMMARIZE_KEY}) {
+                LLM_FALLBACK_KEY, RECORD_SUMMARIZE_KEY, SPEC_ENRICH_KEY}) {
             configCacheHolder.remove(k); // seeded value is '0' = closed
         }
     }
@@ -165,7 +167,113 @@ class MockAiJobServiceTest {
                 "{\"prompt\":\"" + prompt + "\"}", status);
     }
 
+    /** Seed a parsed contract version row with N endpoints in the space's
+     *  project — the input a spec-enrich task reads. Rows are named mjw-* so
+     *  the sweep stays scoped to fixtures this test created. */
+    private long seedSpec(long spaceId, int endpointCount) {
+        Long projectId = jdbcTemplate.queryForObject(
+                "SELECT project_id FROM tp_mock_space WHERE id = ?", Long.class, spaceId);
+        StringBuilder endpoints = new StringBuilder("[");
+        for (int i = 0; i < endpointCount; i++) {
+            if (i > 0) {
+                endpoints.append(',');
+            }
+            String path = "/mjw/enrich/e" + i;
+            endpoints.append("{\"method\":\"GET\",\"path\":\"").append(path)
+                    .append("\",\"endpointKey\":\"GET ").append(path).append("\"}");
+        }
+        endpoints.append(']');
+        String name = "mjw-enrich-" + UUID.randomUUID().toString().substring(0, 10);
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO tp_api_spec (project_id, name, spec_format, spec_title,"
+                        + " spec_text, content_sha256, spec_version, endpoints)"
+                        + " VALUES (?, ?, 'openapi3-json', ?, '{}', ?, 1, ?::jsonb)"
+                        + " RETURNING id",
+                Long.class, projectId, name, name,
+                UUID.randomUUID().toString().replace("-", ""), endpoints.toString());
+    }
+
     // ---- gate matrix ----
+
+    @Test
+    void specEnrichRidesTheSameGateMatrixAndPinsItsSpecRow() {
+        long spaceId = newSpace();
+        long specId = seedSpec(spaceId, 2);
+        try {
+            configCacheHolder.put(MASTER_KEY, "1");
+            configCacheHolder.put(SPEC_ENRICH_KEY, "0"); // explicit close wins over seeded '1'
+            ServiceException e = assertThrows(ServiceException.class,
+                    () -> aiJobService.createJob(new MockAiJobCreateInput(
+                            spaceId, "spec-enrich", "完善目录接口返回体", null, specId)));
+            assertEquals(BizErrorCode.FORBIDDEN, e.getCode());
+            assertTrue(e.getMessage().contains(SPEC_ENRICH_KEY),
+                    "closed sub-switch refusal must name the key to open, got: " + e.getMessage());
+            assertEquals(0, jobCount(spaceId), "a refused job must never reach the table");
+
+            configCacheHolder.put(SPEC_ENRICH_KEY, "1");
+            long jobId = aiJobService.createJob(new MockAiJobCreateInput(
+                    spaceId, "spec-enrich", "完善目录接口返回体", null, specId)).id();
+            assertEquals("queued", statusOf(jobId));
+            String storedInput = jdbcTemplate.queryForObject(
+                    "SELECT input_json::text FROM tp_mock_ai_job WHERE id = ?",
+                    String.class, jobId);
+            assertTrue(storedInput.matches(".*\"specId\":\\s*" + specId + "\\b.*"),
+                    "the stored input must echo the contract row the run will read, got: "
+                            + storedInput);
+        } finally {
+            closeAllGates();
+            jdbcTemplate.update("DELETE FROM tp_mock_ai_job WHERE space_id = ?", spaceId);
+            jdbcTemplate.update("DELETE FROM tp_api_spec WHERE id = ?", specId);
+            jdbcTemplate.update("DELETE FROM tp_mock_space WHERE id = ?", spaceId);
+        }
+    }
+
+    @Test
+    void specEnrichWithoutAContractRowIsRefusedWithGuidance() {
+        long spaceId = newSpace();
+        try {
+            configCacheHolder.put(MASTER_KEY, "1");
+            configCacheHolder.put(SPEC_ENRICH_KEY, "1");
+            ServiceException e = assertThrows(ServiceException.class,
+                    () -> aiJobService.createJob(new MockAiJobCreateInput(
+                            spaceId, "spec-enrich", "补全场景响应", null, null)));
+            assertEquals(BizErrorCode.VALIDATION_ERROR, e.getCode());
+            assertTrue(e.getMessage().contains("契约版本"),
+                    "refusal must name the missing input in plain words, got: " + e.getMessage());
+            assertEquals(0, jobCount(spaceId));
+        } finally {
+            closeAllGates();
+            jdbcTemplate.update("DELETE FROM tp_mock_ai_job WHERE space_id = ?", spaceId);
+            jdbcTemplate.update("DELETE FROM tp_mock_space WHERE id = ?", spaceId);
+        }
+    }
+
+    @Test
+    void specEnrichOverTheEndpointCapNamesCountLimitAndBatchingPath() {
+        long spaceId = newSpace();
+        long specId = seedSpec(spaceId, 3);
+        try {
+            configCacheHolder.put(MASTER_KEY, "1");
+            configCacheHolder.put(SPEC_ENRICH_KEY, "1");
+            configCacheHolder.put(BULK_LIMIT_KEY, "2");
+            ServiceException e = assertThrows(ServiceException.class,
+                    () -> aiJobService.createJob(new MockAiJobCreateInput(
+                            spaceId, "spec-enrich", "批量完善", null, specId)));
+            assertEquals(BizErrorCode.VALIDATION_ERROR, e.getCode());
+            String msg = e.getMessage();
+            assertTrue(msg.contains("3") && msg.contains("2"),
+                    "refusal must name the real endpoint count and the cap, got: " + msg);
+            assertTrue(msg.contains("分批"),
+                    "refusal must point at the batching path, got: " + msg);
+            assertEquals(0, jobCount(spaceId), "over-cap refusal never queues");
+        } finally {
+            configCacheHolder.remove(BULK_LIMIT_KEY);
+            closeAllGates();
+            jdbcTemplate.update("DELETE FROM tp_mock_ai_job WHERE space_id = ?", spaceId);
+            jdbcTemplate.update("DELETE FROM tp_api_spec WHERE id = ?", specId);
+            jdbcTemplate.update("DELETE FROM tp_mock_space WHERE id = ?", spaceId);
+        }
+    }
 
     @Test
     void masterGateClosedRefusesInPlainWordsWithAuditAndZeroRows() {

@@ -107,8 +107,19 @@ class ExecutorPoolWatermarkLedgerTest {
         assertEquals(1, onlyA.size());
         assertEquals(TYPE_A, onlyA.get(0).executorType());
 
-        List<ExecutorPoolWatermarkPoint> fleet = ledger.recentSeries(null, 10);
-        assertEquals(2, fleet.size(), "a missing filter honestly spans every pool");
+        // a missing filter honestly spans every pool, so the window also carries
+        // samples written outside this suite (autoscaler rows live on the shared
+        // slot database) — the contract is that both fixture pools appear
+        // unfiltered, never that the ledger holds only fixture rows
+        List<ExecutorPoolWatermarkPoint> fleet = ledger.recentSeries(null, 100);
+        List<ExecutorPoolWatermarkPoint> marked = fleet.stream()
+                .filter(p -> p.executorType().startsWith("watermarktype"))
+                .toList();
+        assertEquals(2, marked.size(), "fixture samples from both pools show up in the fleet window");
+        assertTrue(marked.stream().anyMatch(p -> TYPE_A.equals(p.executorType())),
+                "pool A is not narrowed away by the missing filter");
+        assertTrue(marked.stream().anyMatch(p -> TYPE_B.equals(p.executorType())),
+                "pool B is not narrowed away by the missing filter");
     }
 
     @Test

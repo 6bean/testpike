@@ -170,6 +170,12 @@ export function useTestRunTail(
     let lastFrameAt = Date.now()
     let cursor = 0
     let terminalHit = false
+    // Replay vs live-follow, one distinction: when the FIRST batch already
+    // carries the terminal frame the run sealed before this window opened,
+    // so the viewer is revisiting a finished run — the window is the revisit
+    // door and must stay open (read what landed, no vanished flash). Only a
+    // window that watched the run reach its end closes itself on terminal.
+    let sealedAtEntry = false
     try {
       for (let guard = 0; guard < maxPolls; guard++) {
         const batch = await fetchEvents(outcome.runToken, cursor)
@@ -200,6 +206,7 @@ export function useTestRunTail(
                   && !row.summary.startsWith('提示')))
         if (done) {
           terminalHit = true
+          if (guard === 0) sealedAtEntry = true
           if (!options.terminal) {
             // legacy synchronous doors: the verdict row may land a beat later
             await sleep(interval)
@@ -217,7 +224,7 @@ export function useTestRunTail(
       if (!terminalHit) interrupted.value = true
     } finally {
       running.value = false
-      if (terminalHit && options.closeOnTerminal) drawerOpen.value = false
+      if (terminalHit && options.closeOnTerminal && !sealedAtEntry) drawerOpen.value = false
     }
   }
 

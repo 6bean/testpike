@@ -2,6 +2,7 @@ package com.sixbean.testpike.admin.mock.api.controller;
 
 import com.sixbean.testpike.admin.auth.api.dto.CurrentUser;
 import com.sixbean.testpike.admin.auth.app.component.UserContext;
+import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubImportResultView;
 import com.sixbean.testpike.admin.mock.infrastructure.remote.client.CoreMockRuleClient;
@@ -16,7 +17,10 @@ import org.mockito.ArgumentCaptor;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -143,5 +147,66 @@ class MockStubImportBridgeTest {
         ServiceException ex = assertThrows(ServiceException.class, () ->
                 controller.importFromSpec(101L, 42L, List.of(draft("GET /a", "get", "/a"))));
         assertEquals(Integer.valueOf(400), ex.getCode(), "core save-chain 400 must not be rewritten to 500");
+    }
+
+    /** Advice rows mirror the core shape field-for-field; the bridge re-decides nothing. */
+    private static MockStubDraftAdviceView advice(String key, String verdict,
+                                                  String adviceState, boolean defaultChecked) {
+        return new MockStubDraftAdviceView(key, "订单查询", "get", "exact", "/orders/{id}",
+                "[]", "{\"status\":200}", "openapi", "spec:42",
+                verdict, "供支付回调查询订单状态", null, null,
+                "{\"hits7d\":12}", 70, 80, "rule", adviceState, defaultChecked);
+    }
+
+    @Test
+    void previewDraftsAdvice_forwardsSpecAndSpaceIds_passesAdviceRowsUntouched() {
+        loginAdmin();
+        when(specClient.get(42L)).thenReturn(spec(42L, 9L));
+        when(ruleClient.previewStubDraftsAdvice(42L, 101L)).thenReturn(List.of(
+                advice("GET /orders/{id}", "recommend", "pending", true)));
+
+        List<MockStubDraftAdviceView> rows = controller.previewDraftsAdvice(42L, 101L).getData();
+
+        verify(guard).assertCanWriteRequirement(any(CurrentUser.class), eq(9L));
+        verify(ruleClient).previewStubDraftsAdvice(42L, 101L);
+        assertEquals(1, rows.size());
+        MockStubDraftAdviceView head = rows.get(0);
+        assertEquals("recommend", head.verdict());
+        assertEquals("供支付回调查询订单状态", head.reason(),
+                "advice reason is core wording — forwarded verbatim");
+        assertEquals("pending", head.adviceState(),
+                "the honest waiting label comes from core, never recomputed here");
+        assertEquals(80, head.confidence());
+        assertEquals("rule", head.origin());
+        assertTrue(head.defaultChecked(),
+                "default selection rides on core's advice set — the bridge adds no rule of its own");
+    }
+
+    @Test
+    void previewDraftsAdvice_blankSpaceId_forwardsAdviceFreeRowsUntouched() {
+        loginAdmin();
+        when(specClient.get(42L)).thenReturn(spec(42L, 9L));
+        when(ruleClient.previewStubDraftsAdvice(42L, null)).thenReturn(List.of(
+                advice("GET /orders/{id}", null, null, false)));
+
+        List<MockStubDraftAdviceView> rows = controller.previewDraftsAdvice(42L, null).getData();
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).verdict(),
+                "no space context keeps the advice null — never a fabricated suggestion");
+        assertFalse(rows.get(0).defaultChecked(),
+                "advice-free rows arrive unchecked exactly as core shaped them");
+    }
+
+    @Test
+    void previewDraftsAdvice_guardRefusal_stopsBeforeCoreIsTouched() {
+        loginAdmin();
+        when(specClient.get(42L)).thenReturn(spec(42L, 9L));
+        org.mockito.Mockito.doThrow(new ServiceException(
+                        "您不是该项目成员，无权访问该项目资源", 403))
+                .when(guard).assertCanWriteRequirement(any(CurrentUser.class), eq(9L));
+
+        assertThrows(ServiceException.class, () -> controller.previewDraftsAdvice(42L, 101L));
+        verify(ruleClient, never()).previewStubDraftsAdvice(anyLong(), any());
     }
 }

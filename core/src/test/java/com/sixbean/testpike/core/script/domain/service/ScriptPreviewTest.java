@@ -147,7 +147,14 @@ class ScriptPreviewTest {
 
         assertEquals(BizErrorCode.SCRIPT_LIMIT_EXCEEDED, ex.getCode());
         assertTrue(ex.getMessage().contains("超限"), "人话应含超限字样: " + ex.getMessage());
-        assertEquals(0, rows("tp_script"));
+        // fixture discipline (same posture as the 40001 case above): "zero
+        // persistence" is judged on this fixture's own rows — the shipped slot
+        // database legitimately carries other projects' scripts, so a
+        // whole-table count is not a stable assertion
+        assertEquals(0L, jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_script WHERE case_id = ?", Long.class, caseId));
+        assertEquals(0L, jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_script_version WHERE case_id = ?", Long.class, caseId));
     }
 
     @Test

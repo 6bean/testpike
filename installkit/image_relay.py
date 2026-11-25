@@ -312,7 +312,7 @@ def apply_daemon_mirrors(candidates, environ=None, daemon_path=DAEMON_JSON):
     a foreign workload must not be interrupted by an installer.
     """
     if not docker_available():
-        return False, "本机没有 docker 命令，加速器无法配置"
+        return False, "no docker command on this host; accelerators cannot be configured"
     existing = {}
     if os.path.exists(daemon_path):
         try:
@@ -320,39 +320,45 @@ def apply_daemon_mirrors(candidates, environ=None, daemon_path=DAEMON_JSON):
                 text = fh.read().strip()
             existing = json.loads(text) if text else {}
         except (OSError, ValueError) as exc:
-            return False, "%s 解析失败（%s）——不敢改动，请先人工确认该文件内容" % (daemon_path, exc)
+            return False, ("%s failed to parse (%s) — refusing to modify it; "
+                           "check the file by hand first" % (daemon_path, exc))
         if not isinstance(existing, dict):
-            return False, "%s 顶层不是对象——不敢改动" % daemon_path
+            return False, "%s root is not an object — refusing to modify it" % daemon_path
         backup = "%s.bak-%s" % (daemon_path, os.getpid())
         try:
             shutil.copyfile(daemon_path, backup)
         except OSError as exc:
-            return False, "%s 备份失败（%s）——放弃改动" % (daemon_path, exc)
+            return False, "%s backup failed (%s) — change abandoned" % (daemon_path, exc)
     merged, added = merge_registry_mirrors(existing, candidates)
     if not added:
-        return True, "%s 已含全部加速器候选，无需改动（幂等）" % daemon_path
+        return True, "%s already contains every accelerator candidate; nothing to do (idempotent)" % daemon_path
     try:
         os.makedirs(os.path.dirname(daemon_path), exist_ok=True)
         with open(daemon_path, "w", encoding="utf-8") as fh:
             json.dump(merged, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
     except OSError as exc:
-        return False, "%s 写入失败（%s）" % (daemon_path, exc)
+        return False, "%s write failed (%s)" % (daemon_path, exc)
     foreign = foreign_containers(environ)
     if foreign:
-        return False, ("加速器已写入 %s（原文件备份在 %s），但以下容器不属于本系统、"
-                       "重启 docker 会打断它们：%s。请自行择机执行：sudo systemctl restart docker"
-                       % (daemon_path, _backup_of(daemon_path), "、".join(foreign)))
+        return False, ("accelerators written to %s (previous file backed up to %s), "
+                       "but these containers do not belong to this system and a docker "
+                       "restart would interrupt them: %s. Run sudo systemctl restart "
+                       "docker yourself at a suitable moment"
+                       % (daemon_path, _backup_of(daemon_path), ", ".join(foreign)))
     restarted = _restart_engine()
     if not restarted:
-        return False, ("加速器已写入 %s（原文件备份在 %s），但引擎未能由本脚本重启。"
-                       "请执行：sudo systemctl restart docker" % (daemon_path, _backup_of(daemon_path)))
+        return False, ("accelerators written to %s (previous file backed up to %s), "
+                       "but this script could not restart the engine. "
+                       "Run: sudo systemctl restart docker"
+                       % (daemon_path, _backup_of(daemon_path)))
     claimed = {_strip_scheme(str(c)) for c in (configured_mirrors() or [])}
     missing_claim = [a for a in added if _strip_scheme(a) not in claimed]
     if missing_claim:
-        return False, ("加速器已写入 %s，但 docker info 回读未见生效（缺：%s）——"
-                       "请检查引擎状态后重跑" % (daemon_path, "、".join(missing_claim)))
-    return True, "加速器已生效：%s（docker info 回读确认）" % "、".join(_strip_scheme(a) for a in added)
+        return False, ("accelerators written to %s, but docker info does not show them "
+                       "in effect (missing: %s) — check the engine state and re-run"
+                       % (daemon_path, ", ".join(missing_claim)))
+    return True, "accelerators in effect: %s (confirmed via docker info)" % ", ".join(_strip_scheme(a) for a in added)
 
 
 def _backup_of(daemon_path):
@@ -397,12 +403,13 @@ def relay_one(image, mirror, direct_timeout, relay_timeout):
     ref = relay_ref(image, mirror)
     rc, _out, err = pull(ref, relay_timeout)
     if rc != 0:
-        return False, "%s 拉取失败：%s" % (ref, (err or "").strip()[-300:] or "无输出")
+        return False, "%s pull failed: %s" % (ref, (err or "").strip()[-300:] or "no output")
     tag_rc, _o, tag_err = _docker(["tag", ref, image], timeout=30)
     if tag_rc != 0:
-        return False, "%s 已拉到本机但改名 %s 失败：%s" % (ref, image, (tag_err or "").strip()[-200:])
+        return False, ("%s arrived but re-tagging to %s failed: %s"
+                       % (ref, image, (tag_err or "").strip()[-200:]))
     _docker(["rmi", ref], timeout=30)
-    return True, "经 %s 取到并改名为 %s" % (_strip_scheme(mirror), image)
+    return True, "fetched via %s and re-tagged to %s" % (_strip_scheme(mirror), image)
 
 
 def ensure_images(images, environ=None, printer=None, candidates=None, known=None):
@@ -428,7 +435,7 @@ def ensure_images(images, environ=None, printer=None, candidates=None, known=Non
         rc, _out, err = pull(image, direct_timeout)
         if rc == 0:
             report["pulled"].append(image)
-            printer("镜像 %s 已由本机引擎直接取到。" % image)
+            printer("image %s arrived directly from the local engine." % image)
             continue
         last_error = (err or "").strip()
         got = False
@@ -436,12 +443,13 @@ def ensure_images(images, environ=None, printer=None, candidates=None, known=Non
             ok, detail = relay_one(image, host, direct_timeout, relay_timeout)
             if ok:
                 report["relayed"].append(image)
-                printer("镜像 %s：%s" % (image, detail))
+                printer("image %s: %s" % (image, detail))
                 got = True
                 break
-            printer("镜像 %s：加速器 %s 未取到（%s）" % (image, _strip_scheme(host), detail))
+            printer("image %s: accelerator %s did not deliver it (%s)"
+                    % (image, _strip_scheme(host), detail))
         if not got:
-            report["failed"].append((image, last_error[-300:] or "官方仓库与各加速器均未取到"))
+            report["failed"].append((image, last_error[-300:] or "neither the official registry nor any accelerator delivered it"))
     return report
 
 
@@ -453,15 +461,18 @@ def ferry_guide(images, mirror_list=None):
     """
     listed = " ".join(images)
     return (
-        "本机与全部加速器都取不到镜像，可离线摆渡（不需要外网）：\n"
-        "  1) 在任意已装好 docker 且能拉到镜像的机器上执行：\n"
-        "     docker pull %s\n" % "\n     docker pull ".join(images or ["<镜像名:标签>"])
+        "Neither the hub nor any accelerator delivered these images; an "
+        "offline ferry works without egress:\n"
+        "  1) on any machine that has docker and can pull the images:\n"
+        "     docker pull %s\n" % "\n     docker pull ".join(images or ["<image:tag>"])
         + "     docker save -o testpike-images.tar %s\n" % listed
-        + "  2) 把 testpike-images.tar 拷到装机机（scp / U 盘 / 内网共享目录均可），执行：\n"
+        + "  2) copy testpike-images.tar to this machine (scp, USB stick, "
+        "shared intranet folder — anything works), then:\n"
         "     docker load -i testpike-images.tar\n"
-        "  3) 原样重跑同一条装机命令即从断点续跑。\n"
-        "内网另有可用仓库时，把它作为加速器登记即可免改代码：\n"
-        "  export %s=%s\n" % (MIRRORS_KEY, (mirror_list or "<内网仓库地址>") + "[,更多候选]")
+        "  3) re-run the exact same install command; it resumes from where it stopped.\n"
+        "If the intranet has its own registry, register it as an accelerator "
+        "(no code change needed):\n"
+        "  export %s=%s\n" % (MIRRORS_KEY, (mirror_list or "<registry address>") + "[,more candidates]")
     )
 
 
@@ -483,14 +494,17 @@ def ensure_for_compose(compose_path, profiles=(), environ=None, printer=None):
     missing = [i for i in images if not present_locally(i, known=known)]
     if not missing:
         return True
-    printer("本机缺少 %d 个中间件镜像：%s" % (len(missing), "、".join(missing)))
+    printer("this host is missing %d middleware images: %s"
+            % (len(missing), ", ".join(missing)))
     hub = hub_reachable(environ)
     daemon_mirrors = configured_mirrors() or []
     if hub is False and daemon_mirrors:
-        printer("官方镜像仓库 %s 不可达，但本机引擎已配加速器（%s），先按引擎直连取。"
-                % (HUB_HOST, "、".join(_strip_scheme(str(m)) for m in daemon_mirrors)))
+        printer("the official registry %s is unreachable, but the local engine "
+                "already has accelerators (%s); trying the engine route first."
+                % (HUB_HOST, ", ".join(_strip_scheme(str(m)) for m in daemon_mirrors)))
     elif hub is False:
-        printer("官方镜像仓库 %s 不可达，自动改道取镜像。" % HUB_HOST)
+        printer("the official registry %s is unreachable; detouring through "
+                "accelerators automatically." % HUB_HOST)
     if can_write_daemon(environ=environ):
         handled, note = apply_daemon_mirrors(mirrors(environ), environ=environ)
         printer(note)
@@ -509,7 +523,8 @@ def _summary(report, printer):
     """One honest line about what the relay actually did."""
     if not report["pulled"] and not report["relayed"]:
         return True
-    printer("镜像备齐：本机引擎直取 %d 个，经加速器改道 %d 个。"
+    printer("images ready: %d delivered directly by the local engine, "
+            "%d relayed through accelerators."
             % (len(report["pulled"]), len(report["relayed"])))
     return True
 
@@ -542,12 +557,13 @@ def main(argv=None):
 def _make_parser():
     parser = argparse.ArgumentParser(
         prog="image_relay.py",
-        description="装机镜像改道件（Docker Hub 不可达时自动经加速器取镜像）")
+        description="install image relay (fetches through accelerators when "
+                    "Docker Hub is unreachable)")
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("ensure", "plan", "guide"):
-        p = sub.add_parser(name, help={"ensure": "补齐 compose 所需镜像",
-                                        "plan": "只列出该阶段需要的镜像",
-                                        "guide": "只打印离线摆渡指引"}[name])
+        p = sub.add_parser(name, help={"ensure": "make the compose stage's images available",
+                                        "plan": "only list the images this stage needs",
+                                        "guide": "only print the offline ferry recipe"}[name])
         p.add_argument("--compose-file", required=(name != "guide"))
         p.add_argument("--profile", action="append", default=[])
         if name == "guide":

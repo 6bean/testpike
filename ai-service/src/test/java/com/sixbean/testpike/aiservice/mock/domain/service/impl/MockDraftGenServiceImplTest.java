@@ -56,7 +56,7 @@ class MockDraftGenServiceImplTest {
     private final ProjectLlmRouter llmRouter = mock(ProjectLlmRouter.class);
     private final MockDraftArtifactGateway artifactGateway = mock(MockDraftArtifactGateway.class);
     private final MockDraftGenServiceImpl service = new MockDraftGenServiceImpl(
-            coreGateway, llmChain, llmRouter, artifactGateway, new ObjectMapper());
+            coreGateway, llmChain, llmRouter, artifactGateway, new ObjectMapper(), null);
 
     private static LlmEndpointConfig endpoint() {
         return new LlmEndpointConfig("openai", "routed-model", "dummy-key",

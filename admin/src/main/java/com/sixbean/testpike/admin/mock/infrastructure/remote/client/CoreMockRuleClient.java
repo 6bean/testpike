@@ -14,6 +14,7 @@ import com.sixbean.testpike.admin.mock.api.dto.MockScenarioPageView;
 import com.sixbean.testpike.admin.mock.api.dto.MockScenarioView;
 import com.sixbean.testpike.admin.mock.api.dto.MockSpaceInput;
 import com.sixbean.testpike.admin.mock.api.dto.MockSpaceView;
+import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftAdviceView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubDraftView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubImportResultView;
 import com.sixbean.testpike.admin.mock.api.dto.MockStubInput;
@@ -95,6 +96,15 @@ public interface CoreMockRuleClient {
      * import time through the normal stub save chain.
      */
     List<MockStubDraftView> previewStubDrafts(long specId);
+
+    /**
+     * Advice-joined preview (MJ P3): forwards specId and the optional target
+     * space to core's single advice door and passes the joined rows through
+     * untouched — the deterministic floor, the AI deadline band and the
+     * default-check rule are core's single point; a blank spaceId honestly
+     * yields advice-free rows (no conflict reading without a target space).
+     */
+    List<MockStubDraftAdviceView> previewStubDraftsAdvice(long specId, Long spaceId);
 
     /**
      * Contract-direct import: posts the wizard's chosen drafts into core, which
@@ -232,4 +242,13 @@ public interface CoreMockRuleClient {
  * are core's single point — the bridge forwards wording untouched.
  */
     List<MockAiJobDraftItemView> listAiJobDrafts(long jobId);
+
+    /**
+     * Business-step cursor window of one bulk enrichment job (R62 tail door,
+     * read-only). Frames ride the shared process ledger under the dedicated
+     * kind; an empty window is the honest answer while the run has not landed
+     * its first frame or the retention sweep already reclaimed it.
+     */
+    List<com.sixbean.testpike.admin.ai.api.dto.AiTaskEventView>
+            aiJobProcessEvents(long jobId, long cursor, Integer limit);
 }

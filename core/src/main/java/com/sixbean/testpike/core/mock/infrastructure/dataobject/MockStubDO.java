@@ -23,6 +23,7 @@ public class MockStubDO {
     private String newState;
     private String source;
     private String sourceRef;
+    private String enrichedBy;
     private Boolean enabled;
     private Integer version;
     private LocalDateTime createdAt;
@@ -138,6 +139,14 @@ public class MockStubDO {
 
     public void setSourceRef(String sourceRef) {
         this.sourceRef = sourceRef;
+    }
+
+    public String getEnrichedBy() {
+        return enrichedBy;
+    }
+
+    public void setEnrichedBy(String enrichedBy) {
+        this.enrichedBy = enrichedBy;
     }
 
     public Boolean getEnabled() {

@@ -78,8 +78,8 @@ def test_teach_pg_existing_offers_keep_or_rename_and_warns_before_drop():
     _lines(text)
     assert "seaweedfs" in text
     assert "DB_URL" in text or "SWF_META_DB_NAME" in text  # rename entry
-    assert "保留" in text and "改名" in text                 # two real paths
-    assert "确认" in text                                   # do not drop blindly
+    assert text and "kept" in text and "rename" in text  # two real paths
+    assert "sure" in text                               # do not drop blindly
     assert "install.sh --scenario=" in text
 
 
@@ -106,7 +106,7 @@ def _run_preflight(*args):
 def test_preflight_disk_flag_reports_and_blocks_when_short(tmp_path):
     ok = _run_preflight("--require-disk-mb=1", "--disk-root=%s" % tmp_path)
     assert ok.returncode == 0, ok.stderr
-    assert "磁盘" in ok.stdout
+    assert "disk:" in ok.stdout
 
     # 2^40 MB can never be available: fail closed with the recovery note.
     bad = _run_preflight("--require-disk-mb=1099511627776",

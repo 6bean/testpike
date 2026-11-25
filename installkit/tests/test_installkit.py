@@ -148,7 +148,7 @@ def test_unknown_scenario_rejected_human(sandbox):
     proc = run_sh(["--scenario=nope"])
     assert proc.returncode == 2
     text = out(proc)
-    assert "场景" in text and "first" in text
+    assert "scenario" in text and "first" in text
 
 
 def test_missing_scenario_prints_usage(sandbox):
@@ -180,7 +180,7 @@ def test_s1_skeleton_routing_and_resume(sandbox, monkeypatch):
     assert re.search(r"\d{2}:\d{2}:\d{2}", text), "日志缺时间戳"
     again = run_sh(["--scenario=first"])
     assert again.returncode == 0
-    assert "已完成" in out(again)
+    assert "already completed" in out(again)
     assert files[0].read_text() == done, "续跑重复追加了位点"
 
 
@@ -234,7 +234,7 @@ def test_role_value_domain_guard(sandbox):
 def test_missing_token_human(sandbox):
     proc = run_sh(["--scenario=scale-out", "--role=executor"])
     assert proc.returncode == 2
-    assert "令牌" in out(proc)
+    assert "--token" in out(proc)
 
 
 def test_enroll_fail_passthrough(server, sandbox):
@@ -255,7 +255,7 @@ def test_scale_in_uninstall_boundary(sandbox):
     proc = run_sh(["--scenario=scale-in"])
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "只卸载" in text and "installkit 自己安装" in text
+    assert "only what installkit itself installed" in text
 
 
 def test_engines_repair_routing(sandbox):
@@ -293,7 +293,7 @@ def test_client_unreachable_human():
                            "--base-url=http://127.0.0.1:1", "--token=x"],
                           capture_output=True, text=True, timeout=30)
     assert proc.returncode == 1
-    assert "不可达" in out(proc)
+    assert "unreachable" in out(proc)
 
 
 
@@ -322,13 +322,13 @@ def test_recipe_probe_and_uninstall():
 def test_recipe_empty_rejected_human():
     with pytest.raises(ValueError) as e:
         recipe.commands_for({}, "install", host="linux")
-    assert "拒绝" in str(e.value)
+    assert "refusing" in str(e.value)
 
 
 def test_recipe_unknown_host_honest():
     with pytest.raises(ValueError) as e:
         recipe.commands_for(MINIUM_RECIPE, "install", host="windows")
-    assert "宿主" in str(e.value)
+    assert "no profile for this host" in str(e.value)
 
 
 def test_recipe_manual_steps_wd_guide():
@@ -473,10 +473,10 @@ def test_pkg_probe_three_profile_install_commands():
 def test_pkg_probe_unknown_rejected_human():
     with pytest.raises(ValueError) as e:
         pkg_probe.install_command("portage", "docker")
-    assert "包管理画像" in str(e.value)
+    assert "package-manager profile" in str(e.value)
     with pytest.raises(ValueError) as e2:
         pkg_probe.install_command("apt", "nope")
-    assert "前置件" in str(e2.value)
+    assert "Prerequisite" in str(e2.value)
 
 
 def test_pkg_probe_preflight_missing_prereq_human_with_hint(tmp_path):
@@ -485,7 +485,7 @@ def test_pkg_probe_preflight_missing_prereq_human_with_hint(tmp_path):
                           capture_output=True, text=True, timeout=30, env=env)
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "node" in text and "缺" in text
+    assert "node" in text and "missing" in text
     assert "install" in text, "缺件报告须附本画像安装命令"
 
 
@@ -501,15 +501,15 @@ def test_pkg_probe_preflight_ports_and_os_report():
     s.close()
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "OS" in text and "包管理" in text
-    assert str(port) in text and "占用" in text
+    assert "OS" in text and "package manager" in text
+    assert str(port) in text and "busy" in text
 
 
 def test_pkg_probe_preflight_unknown_requirement_rejected_human():
     proc = subprocess.run([sys.executable, str(PKG_PROBE_PY), "preflight", "--require=nope"],
                           capture_output=True, text=True, timeout=30)
     assert proc.returncode == 2
-    assert "前置件" in out(proc)
+    assert "Prerequisite" in out(proc)
 
 
 
@@ -522,9 +522,9 @@ def test_s1_wizard_questions_at_most_five_all_with_defaults():
     qs = s1_wizard.QUESTIONS
     assert 1 <= len(qs) <= 5, "冻结 §9.2 上限=5 题"
     for q in qs:
-        assert "默认" in q.prompt, "每题必须带默认值（可一路回车）"
-    joined = " ".join(q.prompt for q in qs)
-    assert "token" not in joined and "令牌" not in joined and "密码" not in joined, \
+        assert "default" in q.prompt, "每题必须带默认值（可一路回车）"
+    joined = " ".join(q.prompt for q in qs).lower()
+    assert "token" not in joined and "password" not in joined, \
         "红线 4：问答零敏感值采集（令牌只走 S2 场景请求体）"
 
 
@@ -562,8 +562,8 @@ def test_s1_role_question_realwired_not_skeleton(sandbox, monkeypatch):
     text = out(proc)
     content = (state / "state-first.txt").read_text()
     assert "step:role-question" in content, "问答位点未记账"
-    assert "问答位点" not in text, "role-question 仍是骨架占位=未实装"
-    assert "角色" in text and "默认" in text, "问答须人话透出角色与默认值语义"
+    assert "placeholder" not in text.lower(), "role-question 仍是骨架占位=未实装"
+    assert "role" in text.lower() and "default" in text.lower(), "问答须透出角色与默认值语义"
     assert (state / "answers-S1.json").exists(), "答案未落盘供后续位点消费"
 
 
@@ -591,7 +591,7 @@ def test_s1_bootstrap_missing_answers_honest_default(tmp_path):
 
 def test_s1_bootstrap_four_services_guide_never_force_stops():
     guide = " ".join(s1_bootstrap.four_services_guide())
-    assert "四服务" in guide and ("java -jar" in guide or "systemd" in guide)
+    assert "four services" in guide and ("java -jar" in guide or "systemd" in guide)
     banned = ["systemctl" + " stop", "kill" + " -9", "docker" + " stop"]
     for word in banned:
         assert word not in guide, "禁脚本强停他人服务（本机常驻栈冲突的诚实姿势）"
@@ -757,9 +757,9 @@ def test_s1_compose_seed_and_seed_demo_realwired_not_skeleton(sandbox, monkeypat
     content = (state / "state-first.txt").read_text()
     assert "step:compose-seed" in content and "step:seed-demo" in content
     assert "（骨架，T316 实装）" not in text, "compose/seed 位点仍是骨架占位=未实装"
-    assert "四服务" in text, "平台角色须透出四服务启动指引"
-    assert "seed-demo" in text and "幂等" in text, \
-        "播种位点=真自动播种；本沙箱 admin 不可达须诚实降级给可复读重跑命令，禁真打本机 8081 主槽服务"
+    assert "four services" in text, "platform role must surface the four-services startup guide"
+    assert "seed-demo" in text and "idempotent" in text, \
+        "the seed stage must be real auto-seeding; with admin unreachable in this sandbox it has to degrade honestly to a re-runnable command and never hit the local 8081 slot0 service"
 
 
 def test_s1_executor_role_branch_skips_compose(sandbox, monkeypatch):
@@ -774,7 +774,7 @@ def test_s1_executor_role_branch_skips_compose(sandbox, monkeypatch):
                           input="2\n\n\n\n\n", capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, out(proc)
     assert not flag.exists(), "纯执行器机不得拉起 compose"
-    assert "执行器" in out(proc)
+    assert "executor" in out(proc).lower()
 
 
 def test_s1_compose_unreachable_fails_human_with_hint(sandbox, monkeypatch):
@@ -788,7 +788,7 @@ def test_s1_compose_unreachable_fails_human_with_hint(sandbox, monkeypatch):
                           input="", capture_output=True, text=True, timeout=120)
     assert proc.returncode != 0
     text = out(proc)
-    assert "断点续跑" in text, "compose 失败=人话+可续跑提示（run_step 语义）"
+    assert "resume from the checkpoint" in text, "compose failure must name the cause and the resumable rerun (run_step semantics)"
     content = (state / "state-first.txt").read_text()
     assert "compose-seed" not in content, "失败步骤不得记账"
 
@@ -802,7 +802,7 @@ def test_s1_preflight_realwired_not_skeleton(sandbox, monkeypatch):
     files = list(state.glob("*.txt"))
     assert files[0].read_text().count("step:") >= 3, "S1 步骤记账断言（144 行同族）不得破坏"
     assert "step:preflight" in files[0].read_text()
-    assert "预检报告" in text and "包管理" in text
+    assert "Preflight report" in text and "package manager" in text
     assert "（骨架位点，S1 实装随 T316）" not in text, "预检仍是骨架占位=未实装"
 
 
@@ -829,7 +829,7 @@ def test_enroll_client_fetch_mirror_unreachable_human_nonzero(tmp_path):
     proc = subprocess.run([sys.executable, str(CLIENT_PY), "fetch-mirror",
                            "--base-url", "http://127.0.0.1:9"], capture_output=True, text=True, timeout=30)
     assert proc.returncode != 0
-    assert "官方源" in (proc.stdout + proc.stderr), "拉取失败须人话说明降级官方源"
+    assert "official source" in (proc.stdout + proc.stderr), "拉取失败须人话说明降级官方源"
 
 
 def test_s1_first_fetches_mirror_key_before_question(server, sandbox, monkeypatch):
@@ -861,7 +861,7 @@ def test_s1_mirror_fetch_failure_degrades_not_blocks(sandbox, monkeypatch):
                           input="", capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, "拉键失败=人话降级官方源，S1 不阻断"
     text = out(proc)
-    assert "官方源" in text
+    assert "official source" in text
     assert "step:role-question" in (state / "state-first.txt").read_text(), "降级后问答照常记账"
 
 
@@ -1098,7 +1098,7 @@ def test_client_fetch_recipe_unreachable_human(tmp_path):
     proc = run_client(["fetch-recipe", "--base-url=http://127.0.0.1:1",
                        "--engine=mobilewright", "--out=" + str(tmp_path / "x.json")])
     assert proc.returncode != 0
-    assert "不可达" in out(proc)
+    assert "unreachable" in out(proc)
 
 
 
@@ -1233,7 +1233,7 @@ def test_doctor_probe_ok_and_missing(tmp_path):
     assert probes["this-tool-is-not-here-xyz --version"]["ok"] is False
     assert eng["mobilewright"]["status"] == "missing"
     assert [m["cmd"] for m in report["missing"]] == ["this-tool-is-not-here-xyz --version"]
-    assert "缺件" in out(proc), "人话摘要必须点名缺件"
+    assert "component(s) missing" in out(proc), "the summary must name the missing components"
 
 
 def test_doctor_empty_state_honest_no_recipe(tmp_path):
@@ -1244,7 +1244,8 @@ def test_doctor_empty_state_honest_no_recipe(tmp_path):
     assert report["engines"] == []
     assert report["host"] == "linux"
     text = out(proc)
-    assert "配方" in text and "请先" in text, "空态必须人话引导下一步动作"
+    assert "no engine recipe" in text and "scenario" in text, \
+        "an empty state must point at the next concrete action"
 
 
 def test_doctor_broken_recipe_honest_row(tmp_path):
@@ -1297,7 +1298,7 @@ def test_repair_wires_doctor_report(server, sandbox):
     proc = run_sh(["--scenario=repair"])
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "体检报告" in text and "mobilewright" in text
+    assert "Health report" in text and "mobilewright" in text
     assert "骨架位点，实内容随 T318" not in text.split("复检")[0], "doctor 位点仍是骨架=未实装"
     assert (state / "doctor-report.json").exists(), "结构化报告必落状态目录（env-doctor/补装件消费位）"
     repair_state = (state / "state-repair.txt").read_text() if (state / "state-repair.txt").exists() else ""
@@ -1380,7 +1381,8 @@ def test_ledger_corrupt_honest_reject(tmp_path):
     r = run_ledger(["list", "--state-dir", str(tmp_path), "--json"])
     assert r.returncode == 2
     text = out(r)
-    assert "installed.json" in text and "体检" in text, "损坏账必须人话点名文件与出路"
+    assert "installed.json" in text and "health check" in text, \
+        "a damaged ledger must name the file and the way out"
 
 
 def test_refill_plan_reports_missing_and_pin_drift(tmp_path):
@@ -1396,7 +1398,7 @@ def test_refill_plan_reports_missing_and_pin_drift(tmp_path):
                                                          "install": [{"cmd": "x"}]}}})
     _write_report(tmp_path, [
         {"engine": "mw", "status": "missing", "probes": [{"cmd": "nope", "ok": False}],
-         "reason": "缺件探测不过：nope"},
+         "reason": "probe failed: nope"},
         {"engine": "mi", "status": "ok", "probes": [], "reason": None},
         {"engine": "hand", "status": "ok", "probes": [], "reason": None},
     ])
@@ -1406,9 +1408,9 @@ def test_refill_plan_reports_missing_and_pin_drift(tmp_path):
     assert r.returncode == 0, out(r)
     lines = [ln.split("\t") for ln in r.stdout.splitlines() if ln.strip()]
     codes = [c for c, *_ in lines]
-    assert codes == ["mw", "mi"], "缺件+钉漂移点名，ok 无账手装件不得入补装计划"
-    assert "缺件" in lines[0][1]
-    assert "钉漂移" in lines[1][1] and "1.6.0" in lines[1][1] and "1.6.1" in lines[1][1]
+    assert codes == ["mw", "mi"], "missing + pin drift are named; ok manual entries stay out"
+    assert "missing" in lines[0][1]
+    assert "pin drift" in lines[1][1] and "1.6.0" in lines[1][1] and "1.6.1" in lines[1][1]
 
 
 def test_refill_plan_pinned_ok_engine_not_listed(tmp_path):
@@ -1428,7 +1430,7 @@ def test_refill_plan_missing_report_honest_reject(tmp_path):
     pass
     r = run_ledger(["refill-plan", "--state-dir", str(tmp_path), "--host", "linux"])
     assert r.returncode == 2
-    assert "体检报告" in out(r)
+    assert "doctor-report.json" in out(r)
 
 
 def _calls(counter):
@@ -1502,7 +1504,7 @@ def test_repair_refill_installs_missing_then_idempotent(server, sandbox):
     proc = run_sh(["--scenario=repair"], env=env)
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "补装" in text, "旧骨架 say 位作废：repair 必真跑补段位点"
+    assert "refill" in text, "repair must really run the refill steps (old skeleton say-lines are gone)"
     calls = counter.read_text().splitlines()
     assert any("mobilewright@0.0.63" in c for c in calls), \
         "缺件引擎的配方 install 命令必须被执行（复用 recipe.py 单源）"
@@ -1512,7 +1514,7 @@ def test_repair_refill_installs_missing_then_idempotent(server, sandbox):
     before = len(counter.read_text().splitlines())
     proc2 = run_sh(["--scenario=repair"], env=env)
     assert proc2.returncode == 0, out(proc2)
-    assert "位点续跑跳过" in out(proc2)
+    assert "already completed" in out(proc2)
     assert len(counter.read_text().splitlines()) == before, "二次 repair 补装段必须零外呼"
 
 
@@ -1522,7 +1524,7 @@ def test_repair_refill_no_demand_honest_empty(server, sandbox):
     _write_report(state, [])
     proc = run_sh(["--scenario=repair"], env=dict(os.environ, INSTALLKIT_CMD_BIN="true"))
     assert proc.returncode == 0, out(proc)
-    assert "无可补" in out(proc)
+    assert "Nothing to refill" in out(proc)
 
 
 
@@ -1545,7 +1547,7 @@ def test_ledger_uninstall_plan_empty_and_corrupt(tmp_path):
     (tmp_path / "installed.json").write_text("{broken", encoding="utf-8")
     r = run_ledger(["uninstall-plan", "--state-dir", str(tmp_path), "--host", "linux"])
     assert r.returncode != 0
-    assert "只删自装" in out(r) or "人工核对" in out(r)
+    assert "self-installed" in out(r) or "by hand" in out(r)
 
 
 def test_engines_uninstall_refuses_off_ledger_engine(server, sandbox):
@@ -1556,7 +1558,7 @@ def test_engines_uninstall_refuses_off_ledger_engine(server, sandbox):
                   env=dict(os.environ, INSTALLKIT_CMD_BIN=script))
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "账外" in text and "永不触碰" in text, f"缺账外件人话声明：{text}"
+    assert "not in the install ledger" in text and "never touches" in text, f"missing the off-ledger refusal wording: {text}"
     assert not _calls(counter), "账外件禁执行任何卸载命令（误删面=零）"
 
 
@@ -1594,7 +1596,7 @@ def test_scale_in_no_self_installed_honest_empty(sandbox):
     script, counter = _counter_cmd_bin(state.parent)
     proc = run_sh(["--scenario=scale-in"], env=dict(os.environ, INSTALLKIT_CMD_BIN=script))
     assert proc.returncode == 0, out(proc)
-    assert "无 installkit 自装" in out(proc)
+    assert "No installkit self-installed" in out(proc)
     assert not _calls(counter)
 
 
@@ -1607,7 +1609,7 @@ def test_scale_in_missing_recipe_skips_honest_keeps_ledger(sandbox):
     script, counter = _counter_cmd_bin(state.parent)
     proc = run_sh(["--scenario=scale-in"], env=dict(os.environ, INSTALLKIT_CMD_BIN=script))
     assert proc.returncode == 0, out(proc)
-    assert "配方不在盘" in out(proc)
+    assert "no recipe on disk" in out(proc)
     assert not _calls(counter), "无配方命令可跑=禁凭空猜卸载命令"
     entries = json.loads(run_ledger(["list", "--state-dir", str(state),
                                      "--json"]).stdout)
@@ -1632,21 +1634,20 @@ def _no_lang_env():
     return {k: v for k, v in os.environ.items() if k != "INSTALLKIT_LANG"}
 
 
-def test_messages_every_key_has_zh_en_parity():
-    pass
-    assert set(messages.LANGS) == {"zh", "en"}
-    for key, rows in messages.MESSAGES.items():
-        assert set(rows) == set(messages.LANGS), f"文案键 {key} 双轨缺语言"
-        for lang, text in rows.items():
-            assert text and text.strip(), f"文案键 {key}({lang}) 空值"
+def test_messages_every_key_is_nonempty_english():
+    """Install surface ships English only: no per-key language table, no CJK."""
+    for key, text in messages.MESSAGES.items():
+        assert text and text.strip(), f"message key {key} is empty"
+        assert not any("\u4e00" <= ch <= "\u9fff" for ch in text), \
+            f"message key {key} still carries CJK on the English-only install surface"
 
 
-def test_messages_unknown_lang_falls_back_zh_with_hint(capsys):
-    zh = messages.t("recipe.empty_recipe", lang="zh")
-    got = messages.t("recipe.empty_recipe", lang="fr")
-    assert got == zh, "未知语言回退中文（装机不因语言值域中断）"
-    err = capsys.readouterr().err
-    assert "fr" in err and "zh" in err, "回退必须人话点名，禁静默换语言"
+def test_messages_placeholders_render():
+    text = messages.t("host.not_in_domain", host="plan9",
+                      supported="linux / macos / windows")
+    assert "plan9" in text and "linux" in text and "windows" in text, \
+        "format placeholders must render (information complete, nothing truncated)"
+    assert messages.t("recipe.empty_recipe").strip().startswith("This engine")
 
 
 def test_host_range_message_shared_single_source():
@@ -1670,20 +1671,18 @@ def test_doctor_host_error_english(tmp_path):
     assert "不在值域" not in text, "en 轨不得混中文文案（双轨闸）"
 
 
-def test_recipe_empty_english_and_zh_default(tmp_path):
-    pass
+def test_recipe_empty_english_default(tmp_path):
+    """Empty-recipe rejection renders English without any language switch."""
     empty = tmp_path / "r.json"
     empty.write_text("{}", encoding="utf-8")
     base = [sys.executable, str(RECIPE_PY), "install", "--recipe-file", str(empty),
             "--host", "linux"]
-    zh = subprocess.run(base, capture_output=True, text=True, timeout=60, check=False,
-                        env=_no_lang_env())
-    assert zh.returncode == 2 and "凭空猜" in (zh.stdout + zh.stderr)
-    en = subprocess.run(base, capture_output=True, text=True, timeout=60, check=False,
-                        env=dict(os.environ, INSTALLKIT_LANG="en"))
-    en_text = en.stdout + en.stderr
-    assert en.returncode == 2 and "guess" in en_text.lower()
-    assert "凭空猜" not in en_text, "en 轨不得混中文文案（双轨闸）"
+    run = subprocess.run(base, capture_output=True, text=True, timeout=60, check=False,
+                         env=_no_lang_env())
+    text = run.stdout + run.stderr
+    assert run.returncode == 2 and "guess" in text.lower()
+    assert not any("\u4e00" <= ch <= "\u9fff" for ch in text), \
+        "the install surface must not emit CJK operator text"
 
 
 def test_ledger_missing_report_error_english(tmp_path):
@@ -1728,9 +1727,10 @@ def test_doctor_missing_summary_points_to_env_doctor_entry(tmp_path):
     proc = run_doctor(["--state-dir", str(tmp_path), "--host", "linux"])
     assert proc.returncode == 0, out(proc)
     text = out(proc)
-    assert "复制" in text and "doctor-report.json" in text, "缺件必须点名报告文件与出路"
-    assert "体检" in text, "指路到引擎中心「体检」页（A1 env-doctor 消费入口）"
-    assert "管理员" in text
+    assert "Copy" in text and "doctor-report.json" in text, \
+        "missing components must point at the report file and the way out"
+    assert "env-doctor" in text, "route into the Engine Center health panel (A1 env-doctor)"
+    assert "administrator" in text
 
 
 def test_doctor_missing_hint_english_track(tmp_path):

@@ -12,6 +12,7 @@ import {
 } from '@/api/mock'
 import { listApiSpecs, uploadApiSpec, type ApiSpecView } from '@/api/apiSpec'
 import { bizErrorMsg } from '@/utils/bizError'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
 
 /**
  * Contract-direct stub wizard — channel A: an OpenAPI contract becomes mock
@@ -136,10 +137,17 @@ async function loadStep1(): Promise<void> {
   }
 }
 
-function spaceLabel(s: MockSpaceItem): string {
-  const alias = s.alias ? `（${s.alias}）` : ''
-  return `${s.name}${alias}`
-}
+/**
+ * Destination space name for the read-only echo in steps 2/3: the host-provided
+ * space wins (workbench mount), otherwise the label of the row picked in step 1.
+ * The write target must stay visible at the confirm and receipt steps — hiding
+ * it there forces the user to remember a choice made one step back.
+ */
+const targetSpaceName = computed(() => {
+  if (props.presetSpaceName) return props.presetSpaceName
+  const s = spaces.value.find((x) => x.id === pickedSpaceId.value)
+  return s ? mockSpaceLabel(s) : ''
+})
 
 /** Space status in plain words — only a published space answers real traffic. */
 function spaceStatusLabel(status: number | null): string {
@@ -218,8 +226,11 @@ function step2DisabledReason(): string {
   return ''
 }
 
-// ---------- step 3: outcome ----------
+// ---------- step 3: outcome (receipt counts: created / skipped / failed) ----------
 const result = ref<MockStubImportResult | null>(null)
+// Drafts sent to the import door; the third receipt number is the honest
+// remainder (returned created + skipped never exceeds what was sent).
+const importedTotal = ref(0)
 
 async function onImport(): Promise<void> {
   if (pickedSpaceId.value === null || pickedSpecId.value === null) return
@@ -228,6 +239,7 @@ async function onImport(): Promise<void> {
   applying.value = true
   step2Error.value = ''
   try {
+    importedTotal.value = chosen.length
     result.value = await importStubsFromSpec(pickedSpaceId.value, pickedSpecId.value, chosen)
     step.value = 2
   } catch (e) {
@@ -235,6 +247,38 @@ async function onImport(): Promise<void> {
   } finally {
     applying.value = false
   }
+}
+
+const failedCount = computed(() => {
+  if (result.value === null) return 0
+  const created = result.value.createdStubIds?.length ?? 0
+  const skipped = result.value.skippedEndpointKeys?.length ?? 0
+  return Math.max(0, importedTotal.value - created - skipped)
+})
+
+// The door files created ids in the sent-draft order, so the i-th accepted
+// (not-skipped) draft maps to the i-th created id — the first browser-tryable
+// rule is the first GET in that sequence. A POST/PUT import honestly shows no
+// try button instead of a dead one (the docs page guards GET-only tries).
+const firstTryableStubId = computed<number | null>(() => {
+  const ids = result.value?.createdStubIds ?? []
+  if (ids.length === 0) return null
+  const skipped = new Set(result.value?.skippedEndpointKeys ?? [])
+  const accepted = drafts.value.filter(
+    (d) => selected.value.has(d.endpointKey) && !skipped.has(d.endpointKey),
+  )
+  const i = accepted.findIndex((d) => d.method.toUpperCase() === 'GET')
+  return i >= 0 && i < ids.length ? ids[i] : null
+})
+
+/** Open the endpoint list with the first tryable rule queued for a live try. */
+function tryFirstStub(): void {
+  if (firstTryableStubId.value === null || pickedSpaceId.value === null || props.projectId === null) return
+  void router.push({
+    path: `/mock/spaces/${pickedSpaceId.value}`,
+    query: { projectId: props.projectId, tab: 'docs', tryStub: String(firstTryableStubId.value) },
+  })
+  closeWizard()
 }
 
 /** Return to the space workbench docs tab with the destination space in hand. */
@@ -260,6 +304,7 @@ watch(
     drafts.value = []
     selected.value = new Set()
     result.value = null
+    importedTotal.value = 0
     keyword.value = ''
     pickedSpecId.value = null
     sourceMode.value = 'existing'
@@ -278,11 +323,14 @@ watch(
   <el-dialog
     :model-value="props.modelValue"
     :title="t('apitest.stubImport.title')"
-    :class="step === 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
+    :class="step >= 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
     data-test="stub-direct-dialog"
     @update:model-value="(v: boolean) => { if (!v) closeWizard() }"
   >
-    <el-steps :active="step" finish-status="success" simple>
+    <!-- The receipt step is shown only after the import finished, so the rail
+         closes at active=3: every step takes its done state instead of the
+         last circle staying hollow while the text reports completion. -->
+    <el-steps :active="step === 2 ? 3 : step" finish-status="success" simple>
       <el-step :title="t('apitest.stubImport.step1')" />
       <el-step :title="t('apitest.stubImport.step2')" />
       <el-step :title="t('apitest.stubImport.step3')" />
@@ -299,13 +347,27 @@ watch(
       <div v-if="sourceMode === 'upload'" class="sd-upload" data-test="stub-direct-upload-panel">
         <p class="sd-hint">{{ t('apitest.stubImport.uploadHint') }}</p>
         <div class="sd-upload-row">
+          <!-- The native file widget labels itself in the browser's own
+               language, so the app draws the pick button instead and keeps
+               the real input hidden in the DOM — automation (and the button
+               click) still feed it directly. -->
           <input
             ref="fileInput"
             type="file"
             accept=".json,.yaml,.yml"
+            class="sd-file-hidden"
             data-test="stub-direct-file-input"
             @change="onFileChange"
           >
+          <el-button data-test="stub-direct-pick-file" @click="fileInput?.click()">
+            {{ t('apitest.stubImport.pickFileBtn') }}
+          </el-button>
+          <span v-if="pickedFile" class="sd-file-name" data-test="stub-direct-file-name">
+            {{ t('apitest.stubImport.filePicked', { name: pickedFile.name }) }}
+          </span>
+          <span v-else class="sd-hint" data-test="stub-direct-file-none">
+            {{ t('apitest.stubImport.noFileHint') }}
+          </span>
           <el-input
             v-model="uploadName"
             :placeholder="t('apitest.stubImport.uploadNamePh')"
@@ -372,9 +434,9 @@ watch(
           style="width: 320px"
           data-test="stub-direct-space-select"
         >
-          <el-option v-for="s in spaces" :key="s.id" :value="s.id" :label="spaceLabel(s)">
+          <el-option v-for="s in spaces" :key="s.id" :value="s.id" :label="mockSpaceLabel(s)">
             <span class="sd-option-line">
-              <span>{{ spaceLabel(s) }}</span>
+              <span>{{ mockSpaceLabel(s) }}</span>
               <span class="sd-option-status">{{ spaceStatusLabel(s.status) }}</span>
             </span>
           </el-option>
@@ -407,6 +469,9 @@ watch(
     <div v-else-if="step === 1" class="sd-body">
       <p class="sd-hint" data-test="stub-direct-detected">
         {{ t('apitest.stubImport.detected', { n: drafts.length }) }}
+      </p>
+      <p v-if="targetSpaceName" class="sd-echo" data-test="stub-direct-target-space-echo">
+        {{ t('apitest.stubImport.targetSpaceEcho', { name: targetSpaceName }) }}
       </p>
       <div class="sd-toolbar">
         <el-checkbox
@@ -470,7 +535,13 @@ watch(
       <p v-if="(result?.skippedEndpointKeys?.length ?? 0) > 0" data-test="stub-direct-done-skipped">
         {{ t('apitest.stubImport.doneSkipped', { n: result?.skippedEndpointKeys?.length ?? 0 }) }}
       </p>
+      <p v-if="failedCount > 0" class="sd-error" data-test="stub-direct-done-failed">
+        {{ t('apitest.stubImport.doneFailed', { n: failedCount }) }}
+      </p>
       <p class="sd-hint" data-test="stub-direct-done-note">{{ t('apitest.stubImport.doneNote') }}</p>
+      <p v-if="targetSpaceName" class="sd-echo" data-test="stub-direct-target-space-echo">
+        {{ t('apitest.stubImport.targetSpaceEcho', { name: targetSpaceName }) }}
+      </p>
       <div class="sd-actions">
         <el-button
           type="primary"
@@ -479,6 +550,13 @@ watch(
           @click="viewInDocs"
         >
           {{ t('apitest.stubImport.viewDocs') }}
+        </el-button>
+        <el-button
+          v-if="firstTryableStubId !== null"
+          data-test="stub-direct-try-first"
+          @click="tryFirstStub"
+        >
+          {{ t('apitest.stubImport.tryFirst') }}
         </el-button>
         <el-button data-test="stub-direct-close-btn" @click="closeWizard">{{ t('common.close') }}</el-button>
       </div>
@@ -490,9 +568,16 @@ watch(
 .sd-body { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .sd-block-title { margin: 6px 0 0; font-size: 13px; }
 .sd-hint { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); }
+/* Read-only destination echo: slightly stronger than a hint so the write
+   target is visible at a glance in the confirm and receipt steps. */
+.sd-echo { margin: 0; font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
 .sd-upload { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
   border: 1px dashed var(--el-border-color); border-radius: 8px; }
 .sd-upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Hidden-but-present file input: keeps set_input_files paths working while the
+   visible affordance is the localized button above. */
+.sd-file-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.sd-file-name { font-size: 12px; color: var(--el-text-color-primary); }
 .sd-error { margin: 0; font-size: 12px; color: var(--el-color-danger); }
 .sd-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sd-stat { font-size: 12px; color: var(--el-text-color-secondary); }

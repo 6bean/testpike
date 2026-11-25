@@ -54,7 +54,7 @@ class AiGenServiceImplStructuredDecodeEnforcementNoticeTest {
     private static final long NEW_CASE_ID = 911L;
 
     /** Anchor marker of the non-enforcement WARN (shared with the L3 script). */
-    private static final String NOTICE_MARK = "端点未强制";
+    private static final String NOTICE_MARK = "did not enforce it";
 
     private final CoreGateway coreGateway = mock(CoreGateway.class);
     private final LlmFallbackChain llmChain = mock(LlmFallbackChain.class);

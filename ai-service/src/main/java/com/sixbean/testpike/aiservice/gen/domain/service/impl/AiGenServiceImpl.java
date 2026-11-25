@@ -689,7 +689,7 @@ public class AiGenServiceImpl implements AiGenService {
         coreGateway.markRunning(taskId);
         LlmEndpointConfig endpoint = projectLlmRouter.route(projectId);
         coreGateway.markModel(taskId, endpoint.modelName());
-        log.info("AI 生成任务开始 taskId={} projectId={} taskType={} model={}",
+        log.info("AI generation task started taskId={} projectId={} taskType={} model={}",
                 taskId, projectId, message.taskType(), endpoint.modelName());
 
         if (message.taskType() == 2) {
@@ -721,7 +721,7 @@ public class AiGenServiceImpl implements AiGenService {
             String caseTitle = generated.title();
 
             long caseId = persistCase(message, generated, requirement);
-            log.info("AI 生成用例落库 taskId={} caseId={} caseNo=TC-{}", taskId, caseId, caseTitle);
+            log.info("AI generated case persisted taskId={} caseId={} caseNo=TC-{}", taskId, caseId, caseTitle);
 
             if (message.requirementId() != null) {
                 coreGateway.linkRequirement(message.requirementId(), List.of(caseId), operatorId);
@@ -734,14 +734,14 @@ public class AiGenServiceImpl implements AiGenService {
             com.sixbean.testpike.aiservice.gen.domain.component.ConfidenceMeasure measured =
                     measuredConfidence.get();
             if (measured != null && measured.low()) {
-                log.warn("低置信自动限深 taskId={} caseId={} 实测置信=3，阶段 2 未执行；"
-                        + "可在用例上重新生成脚本", taskId, caseId);
+                log.warn("Low-confidence auto depth-limit taskId={} caseId={} measured confidence=3, stage 2 not executed;"
+                        + " the script can be regenerated on the case", taskId, caseId);
                 coreGateway.markDone(taskId, caseId);
                 coreGateway.createNotification(operatorId, projectId, "AI_GEN_DONE",
                         "AI 用例生成完成",
                         "需求「" + truncate(caseTitle, 40) + "」已生成用例；脚本未生成（置信度实测偏低），可重新生成脚本",
                         "ai-gen-done:" + taskId);
-                log.info("AI 生成任务完成（自动限深） taskId={} caseId={}", taskId, caseId);
+                log.info("AI generation task finished (auto depth-limit) taskId={} caseId={}", taskId, caseId);
                 return;
             }
             generateAndSaveScript(message, caseId, generated, endpoint, markedModel,
@@ -752,7 +752,7 @@ public class AiGenServiceImpl implements AiGenService {
                     "AI 用例生成完成",
                     "需求「" + truncate(caseTitle, 40) + "」已生成用例并生成脚本，等待评审",
                     "ai-gen-done:" + taskId);
-            log.info("AI 生成任务完成 taskId={} caseId={}", taskId, caseId);
+            log.info("AI generation task finished taskId={} caseId={}", taskId, caseId);
         } catch (ServiceException e) {
             handleFailure(taskId, projectId, operatorId, message.requirementText(), e);
             throw e;
@@ -786,7 +786,7 @@ public class AiGenServiceImpl implements AiGenService {
                     "脚本重新生成完成",
                     "用例「" + truncate(title, 40) + "」脚本已重新生成",
                     "script-done:" + taskId);
-            log.info("AI 脚本重生成完成 taskId={} caseId={}", taskId, caseId);
+            log.info("AI script regeneration finished taskId={} caseId={}", taskId, caseId);
         } catch (ServiceException e) {
             handleFailure(taskId, projectId, operatorId, "脚本重新生成", e);
             throw e;
@@ -970,7 +970,7 @@ public class AiGenServiceImpl implements AiGenService {
                                     + "引用不存在的名称会被执行前校验拒绝）：")
                     + GAP_DECLARATION_GUIDANCE;
         } catch (Exception e) {
-            log.warn("脚本生成项目资源池摘要读取失败 projectId={}（fail-soft 零注入）",
+            log.warn("Script generation project resource-pool summary read failed projectId={} (fail-soft, zero injection)",
                     projectId, e);
             return "";
         }
@@ -1003,7 +1003,7 @@ public class AiGenServiceImpl implements AiGenService {
             rows.addAll(coreGateway.listProjectApiCollections(projectId, operatorId));
             return rows;
         } catch (Exception e) {
-            log.warn("阶段 2 缺资源核对池读取失败 projectId={}（判定不确定=零申报）",
+            log.warn("Stage-2 missing-resource verification pool read failed projectId={} (uncertain verdict = zero declaration)",
                     projectId, e);
             return List.of();
         }
@@ -1154,7 +1154,7 @@ public class AiGenServiceImpl implements AiGenService {
                             priorRepairFailures(coreGateway.listCaseRepairs(caseId, cap), cap),
                             "该用例既往修复失败（逐条避免重演）：");
         } catch (Exception e) {
-            log.warn("脚本生成既往修复回灌读取失败 caseId={}（fail-soft 零注入）", caseId, e);
+            log.warn("Script generation prior-repair feedback read failed caseId={} (fail-soft, zero injection)", caseId, e);
             return "";
         }
     }
@@ -1246,8 +1246,8 @@ public class AiGenServiceImpl implements AiGenService {
                                 if (!stage1NoticeDone[0] && stage1StructuredMounted[0]
                                         && GenStructuredOutput.hasFormatResidual(disputes)) {
                                     stage1NoticeDone[0] = true;
-                                    log.warn("结构化输出已挂载但端点未强制（格式类分歧残余）"
-                                                    + " taskId={} model={} 分歧={}",
+                                    log.warn("Structured output attached but the endpoint did not enforce it (format-class residual disputes)"
+                                                    + " taskId={} model={} disputes={}",
                                             taskId, primary.modelName(), disputes);
                                     // Capability-row correction at the moment of
                                     // proof (machine gate): the mounted form of
@@ -1271,7 +1271,7 @@ public class AiGenServiceImpl implements AiGenService {
                                     knowledge, fewshot, wording, contract, riskFeedback, originalSegment, message, primary,
                                     notice, markedModel, bag, frozenStage1System, disputes,
                                     stage1StructuredMounted, stage1MountedForm));
-            log.info("阶段 1 推理确认环 taskId={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
+            log.info("Stage-1 reasoning confirmation ring taskId={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
                     taskId, ring.roundsUsed(), ring.roundsPlanned(), ring.modelCalls(),
                     ring.converged(), ring.stalled());
             GeneratedCase parsedDraft;
@@ -1292,7 +1292,7 @@ public class AiGenServiceImpl implements AiGenService {
                 }
             }
             if (!ring.converged()) {
-                log.warn("阶段 1 推理确认环未收敛，残余分歧随草案卡诚实亮出 taskId={} 残余={}",
+                log.warn("Stage-1 reasoning confirmation ring not converged; residual disputes surface on the draft card taskId={} residual={}",
                         taskId, ring.residualClaims());
             }
             // A7 priority-rule override wins over the model suggestion (PRD 4.1 A7)
@@ -1325,7 +1325,7 @@ public class AiGenServiceImpl implements AiGenService {
                     var measured = measuredOpt.get();
                     measuredConfidenceOut.set(measured);
                     confidence = measured.level();
-                    log.info("置信度实测 taskId={} 实测level={} 自报={} 信号[忠实={} 覆盖={} 出处={}]",
+                    log.info("Confidence measured taskId={} measuredLevel={} selfReported={} signals[fidelity={} coverage={} source={}]",
                             taskId, measured.level(), parsedDraft.confidence(),
                             fidelitySignal, coverageSignal, sourceSignal);
                 }
@@ -1345,7 +1345,7 @@ public class AiGenServiceImpl implements AiGenService {
                                     coreGateway.getSysConfig(NO_TRUTH_HONEST_MARK_KEY), true)
                     && com.sixbean.testpike.aiservice.gen.domain.component.FidelityGate
                             .honestMarkHits(ring.draft()) > 0) {
-                log.info("置信度诚实标注钳制 taskId={} 草案含「{}」无据步骤 level {}→2（不可顶格置信）",
+                log.info("Confidence clamped by honest mark taskId={} draft contains \"{}\" without evidence steps level {}->2 (full confidence withheld)",
                         taskId, com.sixbean.testpike.aiservice.gen.domain.component
                                 .FidelityGate.HONEST_MARK, confidence);
                 confidence = 2;
@@ -1432,7 +1432,7 @@ public class AiGenServiceImpl implements AiGenService {
             if (shaped.responseFormat() == null) {
                 throw refused;
             }
-            log.warn("阶段 1 端点拒绝结构化输出，回退旧解析路径 taskId={} model={} err={}",
+            log.warn("Stage-1 endpoint refused structured output, falling back to legacy parsing path taskId={} model={} err={}",
                     message.taskId(), primary.modelName(), refused.getMessage());
             return stage1Chat(shaped.withoutResponseFormat(), message, primary, notice,
                     markedModel, bag).content();
@@ -1501,8 +1501,8 @@ public class AiGenServiceImpl implements AiGenService {
                     fidelityRecheckUsed[0]++;
                     disputes.addAll(fidelity.disputes());
                 } else {
-                    log.warn("忠实闸轮数上限已用尽 taskId={} budget={} 核对={} 命中={}，"
-                                    + "残余不一致点名亮出={}",
+                    log.warn("Fidelity gate round budget exhausted taskId={} budget={} checked={} matched={},"
+                                    + " residual mismatches named={}",
                             taskId, budget, fidelity.checkedClaims(), fidelity.matchedClaims(),
                             fidelity.disputes());
                 }
@@ -1527,11 +1527,11 @@ public class AiGenServiceImpl implements AiGenService {
                             CoverageChecker.DEFAULT_THRESHOLD,
                             CoverageChecker.THRESHOLD_MIN, CoverageChecker.THRESHOLD_MAX));
             if (ledger.embeddingDegraded()) {
-                log.warn("规则账本对账降级（嵌入链不可用，本轮维持旧判据）taskId={} 来源块={} 散文候选={}",
+                log.warn("Rule-ledger reconciliation degraded (embedding chain unavailable, this round keeps legacy criteria) taskId={} sourceBlocks={} proseCandidates={}",
                         taskId, ledgerBlocks.size(), ledger.proseCandidateCount());
             } else {
                 if (ledger.proseCandidateCount() > 0) {
-                    log.warn("规则账本散文候选待人工裁定（不自动判定）taskId={} 条数={}",
+                    log.warn("Rule-ledger prose candidates await manual ruling (no auto verdict) taskId={} count={}",
                             taskId, ledger.proseCandidateCount());
                 }
                 disputes.addAll(ledger.feedbackLines());
@@ -1564,7 +1564,7 @@ public class AiGenServiceImpl implements AiGenService {
         try {
             chunks = coreGateway.getDocumentChunks(anchor.documentId());
         } catch (Exception e) {
-            log.warn("规则账本锚定块取块失败 requirementId={} documentId={}（本轮账本为空，生成不中断）: {}",
+            log.warn("Rule-ledger anchored block fetch failed requirementId={} documentId={} (ledger empty this round, generation continues): {}",
                     requirement.id(), anchor.documentId(), e.getMessage());
             return List.of();
         }
@@ -1600,11 +1600,11 @@ public class AiGenServiceImpl implements AiGenService {
                 message.operatorId(), message.taskId(), bag);
         backfillModelOnFallback(message.taskId(), primary, outcome.activeEndpoint(), markedModel);
         if (outcome.limitReached()) {
-            log.warn("阶段 1 工具循环达轮次上限 taskId={}（{} 次派发/{} 次拒绝），"
-                            + "末次输出继续走校验链（可能缺终答）",
+            log.warn("Stage-1 tool loop hit its round limit taskId={} ({} dispatched/{} rejected),"
+                            + " the last output still goes through the validation chain (final answer may be missing)",
                     message.taskId(), outcome.dispatched(), outcome.rejected());
         }
-        log.info("阶段 1 FC 工具循环 taskId={} rounds={} dispatched={} rejected={}",
+        log.info("Stage-1 FC tool loop taskId={} rounds={} dispatched={} rejected={}",
                 message.taskId(), outcome.rounds(), outcome.dispatched(), outcome.rejected());
         return outcome.result();
     }
@@ -1671,19 +1671,19 @@ public class AiGenServiceImpl implements AiGenService {
             try {
                 out = stage1ChatDirect(shaped, message, primary, notice, markedModel).content();
             } catch (RuntimeException transportDown) {
-                log.warn("格式类残余定向补写传输失败，保留原判 taskId={} round={} reason={}",
+                log.warn("Format-residual targeted repair transport failed, original verdict kept taskId={} round={} reason={}",
                         taskId, round, transportDown.getMessage());
                 return null;
             }
             try {
                 GeneratedCase repaired = caseJsonParser.parse(out);
-                log.info("格式类残余已定向补写字段成功 taskId={} round={} 缺项={}",
+                log.info("Format-residual targeted field repair succeeded taskId={} round={} missing={}",
                         taskId, round, gapText);
                 return repaired;
             } catch (IllegalArgumentException stillBroken) {
                 working = out == null || out.isBlank() ? working : out;
-                log.warn("格式类残余定向补写第 {} 轮仍不合契约 taskId={} 缺项={}",
-                        round, taskId, String.join("；",
+                log.warn("Format-residual targeted repair still out of contract after round {} taskId={} missing={}",
+                        round, taskId, String.join("; ",
                                 caseJsonParser.collectMissingFields(working)));
             }
         }
@@ -1714,7 +1714,7 @@ public class AiGenServiceImpl implements AiGenService {
         try {
             candidates = coreGateway.listEnabledConnectionNames(projectId, envName);
         } catch (RuntimeException doorDown) {
-            log.warn("机械缺项装配跳过，连接名读取通道不可用，保留原判 taskId={} reason={}",
+            log.warn("Mechanical gap assembly skipped, connection-name read channel unavailable, original verdict kept taskId={} reason={}",
                     taskId, doorDown.getMessage());
             return draft;
         }
@@ -1766,7 +1766,7 @@ public class AiGenServiceImpl implements AiGenService {
                 if (round > 1) {
                     recordProcessEvent(taskId, "step",
                             groupTag + " 格式类问题已按缺项清单补写并通过脚本校验");
-                    log.info("脚本通道格式类残余定向补写成功 taskId={} round={}",
+                    log.info("Script-channel format-residual targeted repair succeeded taskId={} round={}",
                             taskId, round - 1);
                 }
                 return JsonOutputExtractor.extractJson(working);
@@ -1793,7 +1793,7 @@ public class AiGenServiceImpl implements AiGenService {
                                 scope.message().projectId(), scope.notice(), null)
                         .result().content();
             } catch (RuntimeException transportDown) {
-                log.warn("脚本通道定向补写传输失败，保留原判 taskId={} round={} reason={}",
+                log.warn("Script-channel targeted repair transport failed, original verdict kept taskId={} round={} reason={}",
                         taskId, round, transportDown.getMessage());
                 return null;
             }
@@ -1801,8 +1801,8 @@ public class AiGenServiceImpl implements AiGenService {
                     + round + "/" + budget + " 轮：" + gapText);
             working = out == null || out.isBlank() ? working : out;
         }
-        log.warn("脚本通道格式类残余定向补写预算用尽仍不合契约，保留原判 taskId={} 缺项={}",
-                taskId, String.join("；", actionJsonValidator.validate(working).errors()));
+        log.warn("Script-channel format-residual targeted repair budget exhausted and still out of contract, original verdict kept taskId={} missing={}",
+                taskId, String.join("; ", actionJsonValidator.validate(working).errors()));
         return null;
     }
 
@@ -1910,7 +1910,7 @@ public class AiGenServiceImpl implements AiGenService {
                         "缺资源申报：" + item.category()
                                 + (item.intent().isBlank() ? "" : "——" + item.intent()));
             }
-            log.info("阶段 2 缺资源申报入账 taskId={} caseId={} 条数={}",
+            log.info("Stage-2 missing-resource declarations recorded taskId={} caseId={} count={}",
                     message.taskId(), caseId, declaredGaps.size());
         }
         String savedDraft = saveWithValidationRepairRounds(frozen, generated, caseId, normalized);
@@ -1919,7 +1919,7 @@ public class AiGenServiceImpl implements AiGenService {
         recordProcessEvent(message.taskId(), "step", groups.size() > 1
                 ? "AI 脚本已写入用例（caseId " + caseId + "），" + groups.size() + " 个步骤组合并保存"
                 : "AI 脚本已写入用例（caseId " + caseId + "），整单一次生成并通过校验");
-        log.info("AI 脚本落库 caseId={} 步骤组数={}（片宽={}）", caseId, groups.size(), sliceWidth);
+        log.info("AI script persisted caseId={} stepGroups={} (sliceWidth={})", caseId, groups.size(), sliceWidth);
     }
 
     /**
@@ -1949,7 +1949,7 @@ public class AiGenServiceImpl implements AiGenService {
                         .honestMarkHits(savedDraft) == 0) {
             return;
         }
-        log.info("置信度诚实标注钳制 taskId={} caseId={} 阶段 2 落库稿含「{}」无据步骤 level {}→2（不可顶格置信）",
+        log.info("Confidence clamped by honest mark taskId={} caseId={} stage-2 persisted draft contains \"{}\" without evidence steps level {}->2 (full confidence withheld)",
                 message.taskId(), caseId, com.sixbean.testpike.aiservice.gen.domain.component
                         .FidelityGate.HONEST_MARK, persistedConfidence);
         try {
@@ -1958,7 +1958,7 @@ public class AiGenServiceImpl implements AiGenService {
             try {
                 coreGateway.clampCaseConfidence(caseId, 2, message.operatorId());
             } catch (ServiceException rejected) {
-                log.warn("置信度诚实标注钳制回写被拒（乐观锁），保留原值 taskId={} caseId={} 原因={}",
+                log.warn("Confidence clamp write-back rejected (optimistic lock), original value kept taskId={} caseId={} reason={}",
                         message.taskId(), caseId, rejected.getMessage());
                 recordProcessEvent(message.taskId(), "step",
                         "用例 " + caseId + " 含「需人工精化」标注的无据步骤，置信度顶格下调回写被并发编辑"
@@ -1995,7 +1995,7 @@ public class AiGenServiceImpl implements AiGenService {
             try {
                 coreGateway.saveScript(caseId, "v2", current, 1, scope.message().operatorId());
                 if (attempt > 0) {
-                    log.info("修复轮回写成功 caseId={} 轮次={}", caseId, attempt);
+                    log.info("Repair round write-back succeeded caseId={} round={}", caseId, attempt);
                 }
                 return current;
             } catch (ServiceException rejected) {
@@ -2048,8 +2048,8 @@ public class AiGenServiceImpl implements AiGenService {
                             if (!stage2NoticeDone[0] && stage2MountedForm[0] != null
                                     && GenStructuredOutput.hasFormatResidual(disputes)) {
                                 stage2NoticeDone[0] = true;
-                                log.warn("结构化输出已挂载但端点未强制（脚本通道）"
-                                                + " taskId={} model={} 分歧={}",
+                                log.warn("Structured output attached but the endpoint did not enforce it (script channel)"
+                                                + " taskId={} model={} disputes={}",
                                         scope.message().taskId(), scope.primary().modelName(),
                                         disputes);
                                 if (capabilityLedger != null) {
@@ -2060,7 +2060,7 @@ public class AiGenServiceImpl implements AiGenService {
                             return disputes;
                         },
                         (draft, disputes) -> askStage2(scope, view, disputes, stage2MountedForm));
-        log.info("阶段 2 推理确认环 {} taskId={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
+        log.info("Stage-2 reasoning confirmation ring {} taskId={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
                 groupTag, scope.message().taskId(), ring.roundsUsed(), ring.roundsPlanned(),
                 ring.modelCalls(), ring.converged(), ring.stalled());
         // S4 segment B: the ring outcome is a process milestone for the
@@ -2260,7 +2260,7 @@ public class AiGenServiceImpl implements AiGenService {
             if (shaped.responseFormat() == null) {
                 throw refused;
             }
-            log.warn("阶段 2 端点拒绝结构化输出，回退旧解析路径 taskId={} caseId={} model={} err={}",
+            log.warn("Stage-2 endpoint refused structured output, falling back to legacy parsing path taskId={} caseId={} model={} err={}",
                     message.taskId(), message.projectId(), primary.modelName(),
                     refused.getMessage());
             handle = com.sixbean.testpike.aiservice.llm.domain.component
@@ -2273,7 +2273,7 @@ public class AiGenServiceImpl implements AiGenService {
         // ring never logged its tail, with no exception anywhere on the stack.
         // These boundary INFO lines localise the silence to one seam for the
         // next minimal family window; behaviour-neutral, no second source.
-        log.info("阶段 2 模型调用返回 taskId={} 内容长度={} 端点={}",
+        log.info("Stage-2 model call returned taskId={} contentLength={} endpoint={}",
                 message.taskId(),
                 handle.result().content() == null ? -1 : handle.result().content().length(),
                 handle.activeEndpoint().modelName());
@@ -2324,7 +2324,7 @@ public class AiGenServiceImpl implements AiGenService {
         // Closing-window diagnostic: verifier seam entry/exit, so the
         // next minimal family window names the exact step that goes silent after
         // the provider response. Behaviour-neutral.
-        log.info("阶段 2 复核开始 草稿长度={} 证据块={}",
+        log.info("Stage-2 review started draftLength={} evidenceBlocks={}",
                 draft == null ? -1 : draft.length(), evidence.size());
         boolean styleGateOn = com.sixbean.testpike.common.util.ScriptStyleContract
                 .isSwitchOn(coreGateway.getSysConfig(
@@ -2344,7 +2344,7 @@ public class AiGenServiceImpl implements AiGenService {
                 disputes.add("上次脚本姿势不符合团队规范："
                         + com.sixbean.testpike.common.util.ScriptStyleContract
                                 .describe(styleViolations));
-                log.warn("B6 姿势闸未通过 违例={} 条", styleViolations.size());
+                log.warn("B6 style gate rejected violations={}", styleViolations.size());
             }
         }
         disputes.addAll(com.sixbean.testpike.aiservice.llm.pipeline.DeliberationLoop
@@ -2367,7 +2367,7 @@ public class AiGenServiceImpl implements AiGenService {
             var refs = fidelityGate.controlRefs(draft, candidates, honestMarkRule);
             if (!refs.passed()) {
                 disputes.addAll(refs.disputes());
-                log.warn("控件引用忠实核对检出 {} 条（候选清单/诚实标注为准），随定向修订轮反馈",
+                log.warn("Control-reference fidelity check found {} disputes (candidate list / honest marks govern), fed into the targeted revision round",
                         refs.disputes().size());
             }
         }
@@ -2385,7 +2385,7 @@ public class AiGenServiceImpl implements AiGenService {
         String previous = markedModel.getAndSet(active.modelName());
         if (!active.modelName().equals(previous)) {
             coreGateway.markModel(taskId, active.modelName());
-            log.info("LLM 降级后模型标识回填 taskId={} from={} to={}",
+            log.info("Model id backfilled after LLM fallback taskId={} from={} to={}",
                     taskId, primary.modelName(), active.modelName());
         }
     }
@@ -2441,7 +2441,7 @@ public class AiGenServiceImpl implements AiGenService {
             riskPages = coreGateway.listPageWriteRiskPages(projectId);
         } catch (com.sixbean.testpike.common.exception.ServiceException
                 | org.springframework.web.client.RestClientException outage) {
-            log.warn("写入风险账读路径不可用，本任务不注入回灌段 projectId={}: {}",
+            log.warn("Write-risk ledger read path unavailable, no feedback section injected for this task projectId={}: {}",
                     projectId, outage.getMessage());
             return "";
         }
@@ -2735,12 +2735,12 @@ public class AiGenServiceImpl implements AiGenService {
         try {
             chunks = coreGateway.getDocumentChunks(anchor.documentId());
         } catch (Exception e) {
-            log.warn("原文区块反查取块失败 requirementId={} documentId={}（本轮零注入，生成不中断）: {}",
+            log.warn("Original-block lookup fetch failed requirementId={} documentId={} (zero injection this round, generation continues): {}",
                     requirement.id(), anchor.documentId(), e.getMessage());
             return "";
         }
         if (chunks == null || chunks.isEmpty()) {
-            log.info("原文区块反查 documentId={} requirementId={} 取块=0 本轮零注入",
+            log.info("Original-block lookup documentId={} requirementId={} blocks=0 zero injection this round",
                     anchor.documentId(), requirement.id());
             return "";
         }
@@ -2748,7 +2748,7 @@ public class AiGenServiceImpl implements AiGenService {
                 OriginalTextBlockAssembler.KEY_ORIGINAL_BLOCK_MAX_TOKENS);
         Integer budgetTokens = OriginalTextBlockAssembler.tokensOrNull(rawBudget);
         if (budgetTokens == null && rawBudget != null && !rawBudget.isBlank()) {
-            log.warn("原文区块注入预算键 {} 值非法或越界（当前 {}），按出厂 {} 回退（热更即生效）",
+            log.warn("Original-block injection budget key {} invalid or out of range (current {}), falling back to shipped default {} (hot-reload applies)",
                     OriginalTextBlockAssembler.KEY_ORIGINAL_BLOCK_MAX_TOKENS, rawBudget,
                     OriginalTextBlockAssembler.DEFAULT_ORIGINAL_BLOCK_MAX_TOKENS);
         }
@@ -2765,11 +2765,11 @@ public class AiGenServiceImpl implements AiGenService {
         String block = originalTextBlockAssembler.assemble(anchor, chunks, budgetChars,
                 chapterAligned);
         if (block.isEmpty()) {
-            log.warn("原文区块注入缺口 requirementId={} documentId={} 取块={} 注入=0 预算chars={} 锚chunkIds={}（命中块缺失或陈旧，本轮零注入，提示词不变更）",
+            log.warn("Original-block injection gap requirementId={} documentId={} blocks={} injected=0 budget-chars={} anchorChunkIds={} (hit chunk missing or stale, zero injection this round, prompt unchanged)",
                     requirement.id(), anchor.documentId(), chunks.size(),
                     budgetChars, anchor.chunkIds());
         } else {
-            log.info("原文区块反查 requirementId={} documentId={} 取块={} 注入=1 预算chars={} 锚chunkIds={}",
+            log.info("Original-block lookup requirementId={} documentId={} blocks={} injected=1 budget-chars={} anchorChunkIds={}",
                     requirement.id(), anchor.documentId(), chunks.size(),
                     budgetChars, anchor.chunkIds());
         }
@@ -2853,7 +2853,7 @@ public class AiGenServiceImpl implements AiGenService {
         // would point at a task that never failed. Skip honestly with one
         // WARN naming the race, no notice, no terminal error event.
         if (TerminalStateRaceSignals.matches(e)) {
-            log.warn("AI 生成结果回写跳过（任务已是终态，停止指令先行） taskId={} reason={}",
+            log.warn("AI generation result write-back skipped (task already terminal, stop command first) taskId={} reason={}",
                     taskId, e.getMessage());
             return;
         }
@@ -2893,19 +2893,19 @@ public class AiGenServiceImpl implements AiGenService {
             // failure must never be folded into the race noise (same posture
             // as DocExtractServiceImpl.failExtraction).
             if (EntityGoneSignals.matches(notifyEx)) {
-                log.warn("AI 生成失败回写跳过（任务已被删除，失败通知无宿主） taskId={} reason={}",
+                log.warn("AI generation failure write-back skipped (task deleted, failure notification has no host) taskId={} reason={}",
                         taskId, notifyEx.getMessage());
             } else if (TerminalStateRaceSignals.matches(notifyEx)) {
                 // The task stopped while this failure leg was in flight: the
                 // stop is its recorded outcome, the failure write-back
                 // rejection is the expected race (shared vocabulary, R40).
-                log.warn("AI 生成失败回写跳过（任务已是终态，失败通知无落点） taskId={} reason={}",
+                log.warn("AI generation failure write-back skipped (task already terminal, failure notification has no target) taskId={} reason={}",
                         taskId, notifyEx.getMessage());
             } else {
-                log.error("AI 失败通知写入异常 taskId={}", taskId, notifyEx);
+                log.error("AI failure notification write error taskId={}", taskId, notifyEx);
             }
         }
-        log.warn("AI 生成任务失败 taskId={} code={} msg={}", taskId, code, msg);
+        log.warn("AI generation task failed taskId={} code={} msg={}", taskId, code, msg);
         // The terminal failure event lands through the same seam as before
         // failure event goes through the single-source formatter so the drawer
         // always ends with category + suggestion + retry entry, never a bare

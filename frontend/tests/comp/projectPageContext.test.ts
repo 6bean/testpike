@@ -111,3 +111,25 @@ describe('上下文水合不劫持显式参（§5a 规则3 时序面，E2E 实�
     expect(w.get('[data-test="ctx-pid"]').text()).toBe('9')
   })
 })
+
+describe('同路由深链切换：query projectId 变更必重解析（组件复用面 URL 优先）', () => {
+  it('复用组件内跳转另一项目的深链→消费位与头部上下文跟随新项目', async () => {
+    const { w, ctx, router } = await mountAt('/mock/spaces/28?projectId=20', [20])
+    await router.push('/mock/spaces/29?projectId=21')
+    await nextTick()
+    await flushPromises()
+    expect(w.get('[data-test="ctx-pid"]').text()).toBe('21')
+    expect(ctx.selectedIds).toEqual([21])
+    expect(router.currentRoute.value.query.projectId).toBe('21')
+  })
+
+  it('深链切回缺参路由=回落上下文首位并回写（不留旧项目残值）', async () => {
+    const { w, ctx, router } = await mountAt('/tags?projectId=42', [7])
+    await router.push('/tags')
+    ctx.select([9])
+    await nextTick()
+    await flushPromises()
+    expect(w.get('[data-test="ctx-pid"]').text()).toBe('9')
+    expect(router.currentRoute.value.query.projectId).toBe('9')
+  })
+})

@@ -264,8 +264,4 @@ class ExecTaskPerfRunTest {
                 "脏信封=徽标无目标诚实缺席，禁炸列表读路径");
     }
 
-    private long lastInsertedId(String table) {
-        return jdbcTemplate.queryForObject(
-                "SELECT max(id) FROM " + table, Long.class);
-    }
 }

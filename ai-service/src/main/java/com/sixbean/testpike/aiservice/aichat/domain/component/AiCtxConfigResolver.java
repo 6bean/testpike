@@ -71,7 +71,7 @@ public class AiCtxConfigResolver {
     public boolean healEnabled() {
         String raw = coreGateway.getSysConfig(KEY_HEAL_ENABLED);
         if (raw != null && !raw.isBlank() && !SysConfigBooleans.isLegal(raw)) {
-            log.warn("K8 {}={} 非法（允许 true/false 或 1/0），回退配置文件 {}",
+            log.warn("K8 {}={} invalid (allowed true/false or 1/0), falling back to config file {}",
                     KEY_HEAL_ENABLED, raw, properties.isHealOverBudget());
         }
         return SysConfigBooleans.parse(raw, properties.isHealOverBudget());
@@ -92,7 +92,7 @@ public class AiCtxConfigResolver {
                 .parseInt(raw, range[0], range[1], fallback);
         if (raw != null && !raw.isBlank() && value == fallback
                 && !String.valueOf(fallback).equals(raw.trim())) {
-            log.warn("K8 {}={} 非法或越界（允许 {}~{}），回退配置文件 {}",
+            log.warn("K8 {}={} invalid or out of range (allowed {}~{}), falling back to config file {}",
                     key, raw, range[0], range[1], fallback);
         }
         return value;

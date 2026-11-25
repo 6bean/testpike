@@ -261,7 +261,7 @@ class DocExtractReconcileTest {
         assertTrue(revisionPrompt.contains("覆盖账本缺口 2 条"),
                 "call 3 must be the count-dispute revision, got: " + revisionPrompt);
         boolean namedOnLog = logAppender.list.stream().anyMatch(e ->
-                e.getFormattedMessage().contains("复核计数断言"));
+                e.getFormattedMessage().contains("review count assertion"));
         assertTrue(namedOnLog,
                 "the zero-model-call mechanical check must name itself on the log face");
         ArgumentCaptor<String> steps = ArgumentCaptor.forClass(String.class);
@@ -286,7 +286,7 @@ class DocExtractReconcileTest {
         service.extract(message());
         verify(llmChain, times(3)).chat(any(), eq(PROJECT_ID), any(), anyBoolean(), any());
         boolean residualSurfaced = logAppender.list.stream().anyMatch(e ->
-                e.getFormattedMessage().contains("补提提案未收敛")
+                e.getFormattedMessage().contains("supplement proposal not converged")
                         && e.getFormattedMessage().contains("覆盖账本缺口"));
         assertTrue(residualSurfaced,
                 "the unconverged count dispute must ride the residual log face: "
@@ -376,10 +376,10 @@ class DocExtractReconcileTest {
         service.extract(message());
         verify(ledgerStore, never()).upsertIfChanged(anyLong(), any(), any());
         boolean fkNoise = logAppender.list.stream().anyMatch(e ->
-                e.getFormattedMessage().contains("覆盖账本落库失败"));
+                e.getFormattedMessage().contains("coverage ledger persist failed"));
         assertFalse(fkNoise, "gone document must skip the write, not surface a door-failure WARN");
         boolean honestSkip = logAppender.list.stream().anyMatch(e ->
-                e.getFormattedMessage().contains("覆盖账本跳过"));
+                e.getFormattedMessage().contains("coverage ledger skipped"));
         assertTrue(honestSkip, "the skip must be named on the log face (no silent drop)");
     }
 

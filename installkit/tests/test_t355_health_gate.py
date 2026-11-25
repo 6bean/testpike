@@ -114,7 +114,7 @@ def test_gate_pass_after_starting_downs_reports_evidence(tmp_path):
                                   health_probe_interval_seconds=0,
                                   health_startup_budget_seconds=10), env)
     assert res.success, res.detail
-    assert "健康闸" in res.detail and "3" in res.detail
+    assert "health gate" in res.detail and "3" in res.detail
     assert probe.calls == ["http://h/actuator/health"] * 5
     assert (tmp_path / "admin" / "current").resolve().name == "2.0.0"
     # exactly one restart: the new version came healthy, no rollback restart
@@ -135,7 +135,7 @@ def test_gate_down_after_first_up_rolls_back_locally(tmp_path):
                                   health_probe_interval_seconds=0,
                                   health_startup_budget_seconds=10), env)
     assert not res.success
-    assert "回切" in res.detail and "1.0.0" in res.detail
+    assert "rolled back" in res.detail and "1.0.0" in res.detail
     assert (tmp_path / "admin" / "current").resolve().name == "1.0.0"
     assert env.spawn_calls == [["systemctl", "restart", "tp-admin.service"]] * 2
 
@@ -151,7 +151,7 @@ def test_gate_startup_budget_exhausted_rolls_back(tmp_path):
                                   health_probe_interval_seconds=0,
                                   health_startup_budget_seconds=1), env)
     assert not res.success
-    assert "预算" in res.detail and "回切" in res.detail
+    assert "budget" in res.detail and "rolled back" in res.detail
     assert (tmp_path / "core" / "current").resolve().name == "2.0.0"
     assert env.spawn_calls == [["systemctl", "restart", "tp-core.service"]] * 2
 
@@ -166,7 +166,7 @@ def test_gate_fail_with_no_previous_release_is_honest(tmp_path):
                                   health_probe_interval_seconds=0,
                                   health_startup_budget_seconds=1), env)
     assert not res.success
-    assert "无旧版" in res.detail
+    assert "no previous release" in res.detail
     # only the forward restart happened — a rollback restart on a dangling
     # pre-state would be theatre
     assert env.spawn_calls == [["systemctl", "restart", "tp-admin.service"]]
@@ -249,7 +249,7 @@ def test_no_health_url_anywhere_skips_gate_honestly(tmp_path):
     res = sa.execute_command(_cmd("frontend", sha256=env.sha,
                                   artifact_url="https://m/frontend-dist.tar.gz"), env)
     assert res.success, res.detail
-    assert "跳过" in res.detail
+    assert "health gate skipped" in res.detail
     assert probe.calls == []
 
 

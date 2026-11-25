@@ -388,7 +388,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             throw new ServiceException(msg, BizErrorCode.AI_FORMAT_ERROR);
         }
 
-        log.info("F2 提取任务开始 documentId={} projectId={} model={} chunks={}",
+        log.info("F2 extraction task started documentId={} projectId={} model={} chunks={}",
                 documentId, message.projectId(), model, chunks.size());
         // segment B (the cost half of the shipped message contract): a
         // directed supplement names the blocks the user clicked, and the round
@@ -417,14 +417,14 @@ public class DocExtractServiceImpl implements DocExtractService {
                 coreGateway.markExtractionFailed(documentId, msg, extractToken);
                 throw new ServiceException(msg, BizErrorCode.VALIDATION_ERROR);
             }
-            log.info("F2 定向补提收窄 documentId={} 白名单块数={} 本轮参与块数={}",
+            log.info("F2 targeted supplement narrowed documentId={} whitelistChunks={} participatingChunksThisRound={}",
                     documentId, wanted.size(), selected.size());
             chunks = selected;
         }
         // segment 3b observability: a hinted message renders the targeted directive
         // into the FIRST prompt; log it so the live round is greppable in service logs.
         if (message.dimensionHint() != null && !message.dimensionHint().isBlank()) {
-            log.info("F2 定向补充提取首轮 documentId={} dimension={}",
+            log.info("F2 targeted supplement extraction first round documentId={} dimension={}",
                     documentId, message.dimensionHint().trim());
         }
         LlmFallbackNotice notice = new LlmFallbackNotice(message.operatorId(),
@@ -547,7 +547,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 boolean stillOver = tokenCounter != null
                         ? planner.needsCompressionByTokens(pruned) : planner.needsCompression(pruned);
                 if (!stillOver) {
-                    log.info("F5 预剪枝后回到预算内，零摘要直发 documentId={}", documentId);
+                    log.info("F5 back within budget after pre-pruning, direct send with zero summaries documentId={}", documentId);
                     extractInput = pruned;
                 } else {
                     // : per-group raw extraction below; the F5 Map round
@@ -559,10 +559,10 @@ public class DocExtractServiceImpl implements DocExtractService {
                     List<Map<String, Object>> cached = groupSummaryCache == null ? null
                             : groupSummaryCache.load(documentId, cacheToken(extractToken));
                     if (cached != null) {
-                        log.info("F5 分组摘要缓存命中，跳过概览轮 documentId={} 块数={}",
+                        log.info("F5 group-summary cache hit, overview round skipped documentId={} chunks={}",
                                 documentId, cached.size());
                     } else {
-                        log.info("F5 文档超上下文预算，启用逐组原文直提 documentId={} 分组数={}",
+                        log.info("F5 document exceeds context budget, per-group raw-text direct extraction enabled documentId={} groups={}",
                                 documentId, rawGroups.size());
                         // E8/ level-wise reduce (groups > trigger → ReducePlan checks
                         // capacity up front). F2 ruled posture: the overview is a
@@ -577,7 +577,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                             reducePlan = new MultiLevelReducePlanner(planner.policyOrDefault())
                                     .plan(rawGroups.size());
                         } catch (ServiceException capacityRefusal) {
-                            log.warn("F5 概览轮容量拒止，概览未生成（提取继续） documentId={}: {}",
+                            log.warn("F5 overview round refused by capacity, overview not generated (extraction continues) documentId={}: {}",
                                     documentId, capacityRefusal.getMessage());
                             recordProcessEventQuiet(documentId, extractToken, "step",
                                     "概览未生成：" + capacityRefusal.getMessage()
@@ -664,14 +664,14 @@ public class DocExtractServiceImpl implements DocExtractService {
             // be attributed to any source block is held back from the write.
             coreGateway.writeExtractionResult(documentId,
                     gateUnanchoredItems(documentId, extractToken, items), extractToken);
-            log.info("F2 提取任务完成 documentId={} 条目数={}", documentId, items.size());
+            log.info("F2 extraction task finished documentId={} items={}", documentId, items.size());
         } catch (ExtractGenerationSupersededException e) {
             // segment B: a newer generation owns the document now —
             // this run stops honestly with an audit line and a quiet return
             // (the MQ consumer acks; NO failExtraction: that write would
             // roll back the newer generation's status, and the core 409
             // generation guard stays as second insurance anyway).
-            log.warn("F2 提取轮次自检中止 documentId={}: {}", documentId, e.getMessage());
+            log.warn("F2 extraction round self-check aborted documentId={}: {}", documentId, e.getMessage());
             return;
         } catch (ServiceException e) {
             // : the failed generation keeps its fidelity book — seven
@@ -725,7 +725,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         List<List<Map<String, Object>>> buckets = tokenFace
                 ? planner.planChapterBucketsByTokens(bucketMax, input)
                 : planner.planChapterBucketsByChars(window, input);
-        log.info("F2 最终提取章节分桶 documentId={} 桶数={} 窗口={} 口径={}",
+        log.info("F2 final-extraction chapter bucketing documentId={} buckets={} window={} face={}",
                 documentId, buckets.size(), window, tokenFace ? "token" : "char");
         return buckets;
     }
@@ -740,7 +740,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         String raw = coreGateway.getSysConfig(ContextBudgetPlanner.KEY_FINAL_BUCKET_MAX_TOKENS);
         Integer parsed = ContextBudgetPlanner.finalBucketMaxOf(raw);
         if (parsed == null && raw != null && !raw.isBlank()) {
-            log.warn("最终提取分桶上限配置非法或为负，回退自动口径 key={} 原值={}",
+            log.warn("Final bucket cap config invalid or negative, falling back to auto face key={} rawValue={}",
                     ContextBudgetPlanner.KEY_FINAL_BUCKET_MAX_TOKENS, raw);
         }
         int inputCeiling = parsed != null ? parsed
@@ -824,7 +824,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         com.sixbean.testpike.aiservice.doc.domain.component.DocBucketResultCache cache =
                 this.bucketResultCache;
         if (cache != null) {
-            log.info("F2 桶结果复用账 documentId={} {}", documentId, cache.describeTally());
+            log.info("F2 bucket-result reuse tally documentId={} {}", documentId, cache.describeTally());
         }
     }
 
@@ -983,7 +983,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     // any bucket face) is booked as read-by-reuse exactly
                     // once - the bucket cache is never consulted for it.
                     fidelityMeter.bookReusedSourceTokens(estimatePackageTokens(group, estimator));
-                    log.info("F2 直提分组条目缓存命中 documentId={} 组序={}/{} 复用条目={}",
+                    log.info("F2 direct-extraction group items cache hit documentId={} group={}/{} reusedItems={}",
                             documentId, groupSeq, total, groupItems.size());
                 } else {
                     groupItems = runFinalBucketPlane(
@@ -1029,7 +1029,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     } catch (ExtractGenerationSupersededException abort) {
                         throw abort;
                     } catch (Exception failure) {
-                        log.warn("F2 直提组 {} 本轮第 {}/{} 次尝试失败（内联重试收敛上限 {}）"
+                        log.warn("F2 direct group {} attempt {}/{} this round failed (inline retry convergence cap {})"
                                         + "documentId={}: {}",
                                 groupSeq, attempt + 1, inlineRetryLimit + 1, inlineRetryLimit,
                                 documentId, failure.getMessage());
@@ -1106,14 +1106,14 @@ public class DocExtractServiceImpl implements DocExtractService {
                         stillRemoved.add(groupSeq);
                     } else {
                         computedGroups.set(groupSeq - 1, healed);
-                        log.info("F2 延后重提轮 {} 组 {} 就地恢复成功 documentId={} 复用条目={}",
+                        log.info("F2 deferred re-extract round {} group {} healed in place documentId={} reusedItems={}",
                                 round, groupSeq, documentId, healed.size());
                     }
                 } catch (ExtractGenerationSupersededException abort) {
                     throw abort;
                 } catch (Exception failure) {
                     stillRemoved.add(groupSeq);
-                    log.warn("F2 延后重提轮 {} 组 {} 仍失败 documentId={}: {}",
+                    log.warn("F2 deferred re-extract round {} group {} still failed documentId={}: {}",
                             round, groupSeq, documentId, failure.getMessage());
                 }
             }
@@ -1167,7 +1167,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                           ExtractDeadline deadline, String face) {
         if (runAbort.aborted() || deadline.spent()) {
             runAbort.trip(face + " 检出任务时长窗口耗尽");
-            throw new IllegalStateException("T641 闸后不再新起外呼: " + face);
+            throw new IllegalStateException("no new outbound call starts after the stop gate: " + face);
         }
     }
 
@@ -1246,7 +1246,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             // first-seen fold — fail-soft, items are never lost.
             if (runAbort.aborted() || deadline.spent()) {
                 runAbort.trip("归并建议环检出任务时长窗口耗尽");
-                log.info("F2 归并建议环闸断即停，残余簇回退机械首见折叠 documentId={}", documentId);
+                log.info("F2 merge-proposal ring tripped the stop gate; residual clusters fall back to mechanical first-seen folding documentId={}", documentId);
                 break;
             }
             String clusterTitle = cluster.get(0).get("title") instanceof String t ? t : "";
@@ -1271,7 +1271,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                             model, modelPinned, projectId, notice, deadline,
                                             disputes, extractToken, documentId, fidelityMeter);
                                 });
-                log.info("F2 归并建议推理确认环 documentId={} 标题={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
+                log.info("F2 merge-proposal reasoning confirmation ring documentId={} title={} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
                         documentId, clusterTitle, ring.roundsUsed(), ring.roundsPlanned(),
                         ring.modelCalls(), ring.converged(), ring.stalled());
                 if (ring.converged()) {
@@ -1280,7 +1280,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             } catch (RuntimeException providerDown) {
                 // Fail-soft: the folded first-seen row already stands for this
                 // cluster — an outage here must never drop items.
-                log.warn("F2 归并建议推理确认环供应商异常，回退机械首见折叠 documentId={} 标题={}: {}",
+                log.warn("F2 merge-proposal reasoning confirmation ring provider error, falling back to mechanical first-seen folding documentId={} title={}: {}",
                         documentId, clusterTitle, providerDown.getMessage());
             }
         }
@@ -1424,7 +1424,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 items = extractJsonParser.parse(result.content());
                 break;
             } catch (IllegalArgumentException e) {
-                log.warn("F2 提取输出不合格 documentId={} 桶={}/{} 第{}次: {}",
+                log.warn("F2 extraction output invalid documentId={} bucket={}/{} attempt {}: {}",
                         documentId, bucketNo, bucketTotal, attempt, e.getMessage());
                 retryFeedback.add("上次输出格式不合格：" + e.getMessage());
             }
@@ -1457,7 +1457,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         for (int level = 2; level <= reducePlan.levels(); level++) {
             List<List<Map<String, Object>>> buckets = new MultiLevelReducePlanner(policy)
                     .bucketize(summaries);
-            log.info("F5 逐级归并 document级 level={} 桶数={}", level, buckets.size());
+            log.info("F5 level-by-level merge document level={} buckets={}", level, buckets.size());
             summaries = mapSummarize(documentId, extractToken, projectId, notice, model, modelPinned,
                     buckets, planner.summaryBudgetChars(groupBudget), modelLimit, deadline, level,
                     fidelityMeter, runAbort);
@@ -1553,7 +1553,7 @@ public class DocExtractServiceImpl implements DocExtractService {
             // segment B seam 3 on the resume path: the generation
             // check keeps its iteration-head position for cached groups.
             checkGeneration(documentId, extractToken);
-            log.info("F5 分组摘要缓存命中 跳过组序={}", seq);
+            log.info("F5 group-summary cache hit skipping group={}", seq);
             summaries.add(Map.of("seq", seq, "chapter", String.valueOf(resumed.get("chapter")),
                     "content", String.valueOf(resumed.get("content"))));
             if (level == 1) {
@@ -1603,7 +1603,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     extractToken, FUNCTION_SUMMARY_PLANE, documentId, fidelityMeter);
             text = summary.content() == null ? "" : summary.content().trim();
             if (text.isEmpty() && attempt == 1) {
-                log.warn("F5 分组摘要空返回，重试第 2 次 组序={}", groupSeq);
+                log.warn("F5 group-summary empty return, retry 2 group={}", groupSeq);
             }
         }
         if (text.isEmpty()) {
@@ -1624,7 +1624,7 @@ public class DocExtractServiceImpl implements DocExtractService {
     private double overlapRatioFromConfig() {
         String raw = coreGateway.getSysConfig(ContextBudgetPlanner.KEY_GROUP_OVERLAP_RATIO);
         if (raw != null && !raw.isBlank() && !ContextBudgetPlanner.acceptsOverlapRatio(raw)) {
-            log.warn("提取封组重叠比例配置越界或非法，fail-closed 回退出厂值 {}：key={} 原值={}",
+            log.warn("Extraction group overlap ratio config out of range or invalid, fail-closed fallback to shipped value {}: key={} rawValue={}",
                     ContextBudgetPlanner.DEFAULT_OVERLAP_RATIO,
                     ContextBudgetPlanner.KEY_GROUP_OVERLAP_RATIO, raw);
         }
@@ -1642,7 +1642,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                            java.util.function.ToIntFunction<String> readOf) {
         String raw = coreGateway.getSysConfig(key);
         if (raw != null && !raw.isBlank() && !accepts.test(raw)) {
-            log.warn("提取节点上限配置越界或非法，fail-closed 回退出厂值 {}：key={} 原值={}",
+            log.warn("Extraction node cap config out of range or invalid, fail-closed fallback to shipped value {}: key={} rawValue={}",
                     factory, key, raw);
         }
         return readOf.applyAsInt(raw);
@@ -1654,7 +1654,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                  java.util.function.Function<String, Double> readOf) {
         String raw = coreGateway.getSysConfig(key);
         if (raw != null && !raw.isBlank() && !accepts.test(raw)) {
-            log.warn("提取节点上限配置越界或非法，fail-closed 回退出厂值 {}：key={} 原值={}",
+            log.warn("Extraction node cap config out of range or invalid, fail-closed fallback to shipped value {}: key={} rawValue={}",
                     factory, key, raw);
         }
         return readOf.apply(raw);
@@ -1751,7 +1751,7 @@ public class DocExtractServiceImpl implements DocExtractService {
         boolean densityMissed = com.sixbean.testpike.aiservice.llm.pipeline
                 .RecallDensityGate.missed(densityFloor, merged.size(), sourceTokens);
         if (densityMissed) {
-            log.info("F2 密度下限闸 documentId={} 实收={} 下限={} 源token={}",
+            log.info("F2 density floor gate documentId={} received={} floor={} sourceTokens={}",
                     documentId, merged.size(), densityExpected, sourceTokens);
             recordStageQuiet(documentId, extractToken, "density-floor",
                     "产出低于预期，已启动定向补充提取：实收 " + merged.size() + " 条，应不少于 " + densityExpected
@@ -1774,11 +1774,11 @@ public class DocExtractServiceImpl implements DocExtractService {
             // breath. Residual gaps stay honest on the coverage ledger.
             if (runAbort.aborted() || activeDeadline.spent()) {
                 runAbort.trip("覆盖对账轮检出任务时长窗口耗尽");
-                log.info("F2 覆盖对账闸断即停，剩余轮次不发起 documentId={} 自第{}轮 缺 {} 条",
+                log.info("F2 coverage reconciliation tripped the stop gate; remaining rounds are not started documentId={} from round {} missing {} items",
                         documentId, round, deficit);
                 break;
             }
-            log.info("F2 覆盖对账 documentId={} 第{}轮 未覆盖块数={} 尚缺条数={}",
+            log.info("F2 coverage reconciliation documentId={} round {} uncoveredChunks={} stillMissingItems={}",
                     documentId, round, gaps.size(), deficit);
             // one stage row per reconcile round (round/total/pending-gaps).
             recordStageQuiet(documentId, extractToken, "reconcile-" + round,
@@ -1841,7 +1841,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                 disputes.add("本轮提案条目数 " + parsed.size()
                                         + " 少于覆盖账本缺口 " + roundLedgerGap
                                         + " 条，请只针对缺口补齐条目（禁止合并条目或重复输出）");
-                                log.info("F2 复核计数断言 documentId={} 第{}轮 提案条目={} 账本缺口={}",
+                                log.info("F2 review count assertion documentId={} round {} proposalItems={} ledgerGap={}",
                                         documentId, roundNo, parsed.size(), roundLedgerGap);
                             }
                             return disputes;
@@ -1852,7 +1852,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                     modelPinned, projectId, notice, roundDeadline, disputes,
                                     extractToken, documentId, fidelityMeter, densityDirective);
                         });
-                log.info("F2 补提提案推理确认环 documentId={} 第{}轮 roundsUsed={}/{} modelCalls={} converged={} stalled={}",
+                log.info("F2 supplement-proposal reasoning confirmation ring documentId={} round {} roundsUsed={}/{} modelCalls={} converged={} stalled={}",
                         documentId, round, proposal.roundsUsed(), proposal.roundsPlanned(),
                         proposal.modelCalls(), proposal.converged(), proposal.stalled());
             } catch (RuntimeException providerDown) {
@@ -1871,7 +1871,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                         && (!gaps.isEmpty() || deficit > 0 || densityMissed)) {
                     resumeUsed = true;
                     activeDeadline = activeDeadline.reanchored(resumeSeconds * 1000L);
-                    log.info("F2 复核轮挂账恢复 documentId={} 第{}轮续期 {}s 剩余 {} 轮",
+                    log.info("F2 review round ledger resumed documentId={} round {} extended by {}s remaining {} rounds",
                             documentId, round, resumeSeconds, rounds - round);
                     recordStageQuiet(documentId, extractToken, "reconcile-resume",
                             "完整性复核已延期 " + resumeSeconds + " 秒，继续剩余 "
@@ -1881,7 +1881,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 }
                 // A provider outage must not lose the already-extracted items —
                 // the first pass succeeded; reconcile harder later, honestly.
-                log.warn("F2 覆盖对账补提轮外呼失败，保留已提条目 documentId={} 第{}轮 reason={}",
+                log.warn("F2 coverage-reconciliation supplement round outbound call failed; extracted items kept documentId={} round {} reason={}",
                         documentId, round, providerDown.getMessage());
                 break;
             }
@@ -1889,12 +1889,12 @@ public class DocExtractServiceImpl implements DocExtractService {
             try {
                 extra = extractJsonParser.parse(proposal.draft());
             } catch (IllegalArgumentException rejected) {
-                log.warn("F2 覆盖对账补提轮输出不合格，停止补提 documentId={} 第{}轮: {}",
+                log.warn("F2 coverage-reconciliation supplement round output invalid; supplement stopped documentId={} round {}: {}",
                         documentId, round, rejected.getMessage());
                 break;
             }
             if (!proposal.converged()) {
-                log.warn("F2 补提提案未收敛，残余分歧随预览账本亮出 documentId={} 第{}轮 残余={}",
+                log.warn("F2 supplement proposal not converged; residual disputes surface with the preview ledger documentId={} round {} residual={}",
                         documentId, round, proposal.residualClaims());
             }
             com.sixbean.testpike.aiservice.doc.domain.component.EvidenceChunkMatcher gapMatcher =
@@ -1914,8 +1914,8 @@ public class DocExtractServiceImpl implements DocExtractService {
             boolean densityMissedAfter = com.sixbean.testpike.aiservice.llm.pipeline
                     .RecallDensityGate.missed(densityFloor, merged.size(), sourceTokens);
             if (deficitAfter >= deficit && (!densityMissedAfter || extra.isEmpty())) {
-                log.info("F2 覆盖对账第{}轮零新增覆盖（缺 {} 条未减少，产出下限{}），提前收轮 documentId={}",
-                        round, deficit, densityMissedAfter ? "仍未达成" : "已达成", documentId);
+                log.info("F2 coverage reconciliation round {} added no coverage ({} missing items unchanged, output floor {}); early round close documentId={}",
+                        round, deficit, densityMissedAfter ? "coverage target missed" : "coverage target met", documentId);
                 gaps = stillGaps;
                 break;
             }
@@ -1948,12 +1948,12 @@ public class DocExtractServiceImpl implements DocExtractService {
             // stays non-fatal either way: a write outage must not weld the
             // extraction state machine.
             if (ledgerPresenceDoorReportsGone(documentId)) {
-                log.info("F2 覆盖账本跳过（文档已被删除） documentId={}", documentId);
+                log.info("F2 coverage ledger skipped (document deleted) documentId={}", documentId);
             } else {
                 try {
                     extractLedgerStore.upsertIfChanged(documentId, extractToken, steps);
                 } catch (RuntimeException ledgerDown) {
-                    log.warn("F2 覆盖账本落库失败，不影响提取结果 documentId={} reason={}",
+                    log.warn("F2 coverage ledger persist failed; extraction result unaffected documentId={} reason={}",
                             documentId, ledgerDown.getMessage());
                 }
             }
@@ -1968,7 +1968,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                     .filter(chapter -> !chapter.isBlank())
                     .distinct().limit(8)
                     .reduce((a, b) -> a + "、" + b).orElse("未标注");
-            log.warn("F2 提取覆盖残缺口 documentId={} 未覆盖块数={} 尚缺条数={} 残账章节={}（预览页按账本诚实亮牌）",
+            log.warn("F2 extraction coverage residual gap documentId={} uncoveredChunks={} stillMissingItems={} residualChapters={} (preview page surfaces the ledger openly)",
                     documentId, gaps.size(), deficit, residualChapters);
         }
         return merged;
@@ -1987,7 +1987,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 return String.valueOf(name);
             }
         } catch (Exception unreadable) {
-            log.warn("提取启动帧读文档名不可用 documentId={}: {}", documentId,
+            log.warn("Extraction start-frame document-name read unavailable documentId={}: {}", documentId,
                     unreadable.getMessage());
         }
         return "文档 " + documentId;
@@ -2225,7 +2225,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                 .toList();
         int held = items.size() - anchored.size();
         if (held > 0) {
-            log.warn("F2 证据锚校验未通过被拦 documentId={} 拦截条数={} 入库条数={} 开关={}",
+            log.warn("F2 evidence-anchor validation held items documentId={} heldItems={} storedItems={} switch={}",
                     documentId, held, anchored.size(), KEY_ANCHOR_REQUIRED_ENABLED);
             recordProcessEventQuiet(documentId, extractToken, "step",
                     "证据校验拦截 " + held + " 条需求点：证据摘录在原文中找不到对应段落，"
@@ -2352,8 +2352,8 @@ public class DocExtractServiceImpl implements DocExtractService {
             if (deltas.get() > 0L) {
                 throw e;
             }
-            log.warn("F2 流式通道建立失败，显式改用非流式重试一次 projectId={} 开关=ai.doc.extract-stream.enabled"
-                    + "（系统设置保存即生效，无需重启） err={}", projectId, e.getMessage());
+            log.warn("F2 streaming channel setup failed, explicitly retrying once in non-streaming mode projectId={} switch=ai.doc.extract-stream.enabled"
+                    + " (saving in system settings applies immediately, no restart needed) err={}", projectId, e.getMessage());
             return llmFallbackChain.chat(request, projectId, notice, modelPinned, planeClamp);
         }
     }
@@ -2440,11 +2440,11 @@ public class DocExtractServiceImpl implements DocExtractService {
         if (bucketResultCache != null) {
             int dropped = bucketResultCache.dropRunRows(documentId, extractToken);
             if (dropped > 0) {
-                log.info("F2 终态回收桶结果预占行 documentId={} 行数={}", documentId, dropped);
+                log.info("F2 terminal-state reclaim of bucket-result reservation rows documentId={} rows={}", documentId, dropped);
             }
         }
         if (EntityGoneSignals.matches(escapingFailure)) {
-            log.info("F2 提取终败回写短路（实体已删除，无终态可写） documentId={} reason={}",
+            log.info("F2 extraction final-failure write-back short-circuited (entity deleted, no terminal state to write) documentId={} reason={}",
                     documentId, escapingFailure.getMessage());
             return;
         }
@@ -2469,13 +2469,13 @@ public class DocExtractServiceImpl implements DocExtractService {
             // keeps its ERROR signature: a real persistence failure must never
             // be folded into the race noise.
             if (EntityGoneSignals.matches(writeBackEx)) {
-                log.warn("F2 提取失败回写跳过（文档已被删除） documentId={} writeBackReason={}",
+                log.warn("F2 extraction failure write-back skipped (document deleted) documentId={} writeBackReason={}",
                         documentId, writeBackEx.getMessage());
             } else {
-                log.error("F2 提取失败回写异常 documentId={}", documentId, writeBackEx);
+                log.error("F2 extraction failure write-back error documentId={}", documentId, writeBackEx);
             }
         }
-        log.warn("F2 提取任务失败 documentId={} msg={}", documentId, msg);
+        log.warn("F2 extraction task failed documentId={} msg={}", documentId, msg);
         // The terminal failure also lands a process event —
         // through the single-source formatter (shape = category + suggestion +
         // retry entry), so the extraction drawer never ends blank when a run

@@ -1,4 +1,6 @@
 import { request, type PageResult } from './request'
+import type { ExtractionEvent } from './taskEvents'
+import { MOCK_ENRICH_TERMINAL_PREFIXES } from '@/utils/serverTextWire'
 
 /**
  * API Mock inspector API (mirrors admin /api/v1/mock contract: spaces / hits /
@@ -111,6 +113,7 @@ export interface MockStubItem {
   newState: string | null
   source: string | null
   sourceRef: string | null
+  enrichedBy?: string | null
   enabled: boolean | null
   /** Optimistic lock echo (V240) — the edit door must send it back. */
   version?: number | null
@@ -298,6 +301,7 @@ export interface MockStubDraftItem {
   responseJson: string
   source: string
   sourceRef: string
+  enrichedBy?: string | null
 }
 
 /** Outcome of one contract-direct import (admin MockStubImportResultView mirror). */
@@ -480,6 +484,7 @@ export interface MockServingEndpointItem {
   newState: string | null
   source: string | null
   sourceRef: string | null
+  enrichedBy?: string | null
   enabled: boolean | null
   version: number | null
   updatedAt: string | null
@@ -587,11 +592,43 @@ export function isMockAiJobPending(job: { status: string }): boolean {
 }
 
 /** Filing payload (admin MockAiJobCreateRequest mirror). Create dispatches
- * the job immediately — the quote lives on the task card afterwards. */
+ *  the job immediately — the quote lives on the task card afterwards. */
 export interface MockAiJobCreatePayload {
   spaceId: number
   jobType: string
   prompt: string
+  /** Contract version row bound by the bulk data-enriching job (spec-enrich
+   *  only — core requires it there and refuses it everywhere else). */
+  specId?: number
+}
+
+/**
+ * Cursor window over one AI drafting job's business-step process tail
+ * (R62/R67 revisit door, admin GET /api/v1/mock/jobs/{id}/process-events).
+ * Rows share the ExtractionEvent shape used by every other tail — one decoder,
+ * one merge rule, no second copy (R40). The limit stays server-side when
+ * omitted; an empty window while the run has not landed its first frame is
+ * a valid answer, never an error.
+ */
+export async function listAiJobProcessEvents(
+  jobId: number,
+  cursor: number,
+  limit?: number,
+): Promise<ExtractionEvent[]> {
+  const rows = await request<ExtractionEvent[]>({
+    url: `/mock/jobs/${jobId}/process-events`,
+    method: 'get',
+    params: limit === undefined ? { cursor } : { cursor, limit },
+  })
+  return Array.isArray(rows) ? rows : []
+}
+
+/** Terminal frames of the bulk enrichment pipeline, sealed by the generation
+ *  side (drafts-ready and the failure seal). Single source so the view and
+ *  the wiring contract read one judgement, never two copies.
+ *  (Wire-contract literals, same form as the survey/explore tail prefixes.) */
+export function isMockEnrichTerminalRow(row: { summary: string }): boolean {
+  return MOCK_ENRICH_TERMINAL_PREFIXES.some((prefix) => row.summary.startsWith(prefix))
 }
 
 /** Pre-run cost estimate (admin MockAiJobEstimateView mirror) — arithmetic

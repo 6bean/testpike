@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * D8 approval-linked auto-launch (K8 switch perf.approval.auto-launch.enabled, default off).
@@ -59,13 +60,11 @@ class PerfApprovalAutoLaunchTest {
     void seedFixtures() {
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "审批自动起压测试项目_" + uniq, "PFAAL" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '开发-自动起压', 1, 'http://perf-target.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "审批自动起压测试项目_", "PFAAL", "开发-自动起压", 1,
+                "http://perf-target.local/api", 0, null);
+        projectId = seeded[0];
+        devEnvId = seeded[1];
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.approval.auto-launch.enabled", "false");
     }
@@ -95,10 +94,6 @@ class PerfApprovalAutoLaunchTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFAAL%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFAAL%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     /** Config write via ConfigService = cache synchronously invalidated (known lesson:

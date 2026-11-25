@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 
 @SpringBootTest(classes = CoreApplication.class)
@@ -146,6 +147,21 @@ class CiGatePolicyTest {
                 .compareTo(new BigDecimal("0.95")));
         List<Map<String, Object>> p0 = v.unmetItems().stream()
                 .filter(i -> "p0Fail".equals(i.get("item"))).toList();
+        if (p0.isEmpty()) {
+            // Diagnostic snapshot: on a fresh-install full-suite run this join once came
+            // back empty while the pass-rate row counted the same failed task, so the
+            // failure message now carries the raw join state for attribution (R41).
+            List<String> raw = jdbcTemplate.queryForList(
+                    "SELECT 'task=' || t.id || '/status=' || t.status || '/case=' || t.case_id"
+                            + " || '/prio=' || COALESCE(c.priority::text, 'MISSING-CASE')"
+                            + " FROM tp_exec_task t LEFT JOIN tp_test_case c ON c.id = t.case_id"
+                            + " WHERE t.batch_id = ? ORDER BY t.id",
+                    String.class, batch.id());
+            String p0Flag = String.valueOf(
+                    configService.getValue("ci.verdict.p0-zero", "1"));
+            fail("仅 1 条 P0 失败（status=4）：unmet=" + v.unmetItems()
+                    + " rawTaskJoin=" + raw + " p0ZeroConfig=" + p0Flag);
+        }
         assertEquals(1, p0.size(), "仅 1 条 P0 失败（status=4）：" + v.unmetItems());
         assertTrue(String.valueOf(p0.get(0).get("title")).contains("V5用例"), p0.get(0).toString());
         assertTrue(String.valueOf(p0.get(0).get("errorDetail")).contains("断言失败"), p0.get(0).toString());

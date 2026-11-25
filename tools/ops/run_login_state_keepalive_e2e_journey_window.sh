@@ -91,10 +91,14 @@ while systemctl --user is-active --quiet "tp-${WIN_NAME}"; do
 done
 all_rc=""
 for _ in $(seq 1 6); do
-  all_rc="$(grep -hoE 'TP-KA-ALL=[0-9]+' "$LOG_DIR/window.log" "$LIVE" 2>/dev/null | tail -1 | cut -d= -f2)"
+  # per-run window.log is the single source: the live log is shared and keeps
+  # anchors of earlier windows, so grepping it after window.log let a stale
+  # verdict override a fresh one (observed 2026-11-25 on the sibling recipe).
+  all_rc="$(grep -hoE 'TP-KA-ALL=[0-9]+' "$LOG_DIR/window.log" 2>/dev/null | tail -1 | cut -d= -f2)"
   [ -n "$all_rc" ] && break
   sleep 5
 done
+[ -n "$all_rc" ] || all_rc="$(grep -hoE 'TP-KA-ALL=[0-9]+' "$LIVE" 2>/dev/null | tail -1 | cut -d= -f2)"
 say "KAJ-EXIT=${all_rc:-1} verdict_anchor=${all_rc:-absent}"
 {
   echo "KAJ-EXIT=${all_rc:-1}"

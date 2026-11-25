@@ -47,7 +47,7 @@ public class ChatRunConsumer {
 
     @RabbitListener(queues = ChatRunQueueConfig.QUEUE_NAME)
     public void onMessage(AiChatRunMessage message) {
-        log.info("对话运行任务消费 sessionId={} messageId={} projectId={} userId={}",
+        log.info("Chat run task consumed sessionId={} messageId={} projectId={} userId={}",
                 message.sessionId(), message.assistantMessageId(),
                 message.projectId(), message.userId());
         String dedupKey = "ai-chat-run:" + message.assistantMessageId();
@@ -55,7 +55,7 @@ public class ChatRunConsumer {
         ConsumeOutcome outcome = consumeSupport.consumeOnce(dedupKey, token,
                 () -> idempotentRunner.run(message, token), CONSUME_LEASE_MILLIS);
         if (outcome == ConsumeOutcome.DUPLICATE) {
-            log.info("对话运行任务重复投递幂等跳过 messageId={}", message.assistantMessageId());
+            log.info("Chat run task duplicate delivery skipped idempotently messageId={}", message.assistantMessageId());
             Map<String, Object> before = new LinkedHashMap<>();
             before.put("sessionId", message.sessionId());
             before.put("assistantMessageId", message.assistantMessageId());
@@ -64,7 +64,7 @@ public class ChatRunConsumer {
         }
         // noise reduction: session/message already deleted -> ack + skip audit
         if (outcome == ConsumeOutcome.ENTITY_GONE_SKIPPED) {
-            log.info("对话运行实体已删除降噪跳过 messageId={}", message.assistantMessageId());
+            log.info("Chat run entity deleted, skipped for noise reduction messageId={}", message.assistantMessageId());
             Map<String, Object> before = new LinkedHashMap<>();
             before.put("sessionId", message.sessionId());
             before.put("assistantMessageId", message.assistantMessageId());

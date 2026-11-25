@@ -44,10 +44,10 @@ public class UsageCalibrationRefresher {
         try {
             int applied = refreshOnce();
             if (applied > 0) {
-                log.info("E11 C 系数回路刷新完成：applied={}", applied);
+                log.info("E11 C-coefficient calibration loop refresh done: applied={}", applied);
             }
         } catch (Exception e) {
-            log.warn("E11 C 系数回路刷新失败（下轮自动重试）: {}", e.getMessage());
+            log.warn("E11 C-coefficient calibration loop refresh failed (auto retry next round): {}", e.getMessage());
             jobRunner.alert("usageCalibrationRefresh", e);
         }
     }
@@ -63,7 +63,7 @@ public class UsageCalibrationRefresher {
             Number usage = num(row.get("avgUsageTokens"));
             if (model == null || model.isBlank() || count == null || est == null || usage == null
                     || est.doubleValue() <= 0 || usage.doubleValue() <= 0) {
-                log.warn("E11 C 系数回路：聚合行字段缺失/非正，跳过 row={}", row);
+                log.warn("E11 C-coefficient loop: aggregate row fields missing or non-positive, skipped row={}", row);
                 continue;
             }
             if (count.longValue() < minSamples) {
@@ -71,16 +71,16 @@ public class UsageCalibrationRefresher {
             }
             double coef = usage.doubleValue() / est.doubleValue();
             if (coef < MIN_COEF || coef > MAX_COEF || !Double.isFinite(coef)) {
-                log.warn("E11 C 系数回路：系数越出合理区间 [{}, {}] 拒装（上游数据异常）："
+                log.warn("E11 C-coefficient loop: coefficient outside plausible range [{}, {}], refused to apply (upstream data anomaly): "
                         + "model={} coef={}", MIN_COEF, MAX_COEF, model, coef);
                 continue;
             }
             TokenEstimatorRegistry.registerCoefficient(model, coef);
             applied++;
-            log.info("E11 C 系数回路：model={} samples={} est={} usage={} coef={} 已注册",
+            log.info("E11 C-coefficient loop: model={} samples={} est={} usage={} coef={} registered",
                     model, count.longValue(), est.doubleValue(), usage.doubleValue(), coef);
         }
-        log.debug("E11 C 系数回路刷新：window_days={} rows={} applied={}",
+        log.debug("E11 C-coefficient loop refresh: window_days={} rows={} applied={}",
                 windowDays, rows.size(), applied);
         return applied;
     }

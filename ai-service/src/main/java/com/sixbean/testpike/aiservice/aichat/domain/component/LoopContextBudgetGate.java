@@ -141,7 +141,7 @@ public class LoopContextBudgetGate implements LoopContextFitting {
         TokenEstimator estimator = TokenEstimatorRegistry.resolve(
                 endpoint.tokenizerFamily(), endpoint.modelName());
         PromptSizeGuard guard = new PromptSizeGuard(estimator);
-        log.warn("供应商上下文超限 400 触发自愈折叠 projectId={} err={}",
+        log.warn("Provider context overflow 400 triggered self-healing fold projectId={} err={}",
                 projectId, cause.getMessage());
         return fold(sent, projectId, endpoint, guard, messages, guard.estimate(messages));
     }
@@ -205,7 +205,7 @@ public class LoopContextBudgetGate implements LoopContextFitting {
         try {
             return router.route(projectId);
         } catch (ServiceException e) {
-            log.warn("循环预算闸取路由失败，本轮按原包发送 projectId={} err={}",
+            log.warn("Loop context budget gate router lookup failed, sending the original packet this turn projectId={} err={}",
                     projectId, e.getMessage());
             return null;
         }
@@ -243,7 +243,7 @@ public class LoopContextBudgetGate implements LoopContextFitting {
         if (post.decision() != PromptSizeGuard.Decision.PASS) {
             refuseOverBudget(projectId, endpoint, post.estTokens(), "折叠后仍超限");
         }
-        log.info("循环预算闸压缩重发 projectId={} est={} limit={} 折叠单元={} 保留原文轮={}",
+        log.info("Loop context budget gate compressed resubmit projectId={} est={} limit={} foldedUnits={} keptRawTurns={}",
                 projectId, estTokens, endpoint.promptLimitTokens(), foldCount,
                 units.size() - foldCount);
         return new ChatCompletionRequest(request.model(), List.copyOf(rebuilt),
@@ -259,7 +259,7 @@ public class LoopContextBudgetGate implements LoopContextFitting {
      */
     private void refuseOverBudget(long projectId, LlmEndpointConfig endpoint,
                                   int est, String reason) {
-        log.warn("循环预算闸拒止 projectId={} reason={} est={} limit={}",
+        log.warn("Loop context budget gate refused projectId={} reason={} est={} limit={}",
                 projectId, reason, est, endpoint.promptLimitTokens());
         throw new ServiceException("对话上下文超出模型上限（实际 " + est + " tokens > 上限 "
                 + endpoint.promptLimitTokens() + "），无法继续本轮对话，"
@@ -273,7 +273,7 @@ public class LoopContextBudgetGate implements LoopContextFitting {
         try {
             return rollingSummary.forTurn(model, projectId).summarize(rows);
         } catch (RuntimeException e) {
-            log.warn("循环摘要压缩不可用，超限包转入拒止: {}", e.toString());
+            log.warn("Loop summary compression unavailable, over-limit packet turned into refusal: {}", e.toString());
             return null;
         }
     }

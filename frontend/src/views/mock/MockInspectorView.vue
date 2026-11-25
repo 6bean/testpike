@@ -23,7 +23,7 @@
           <el-option
             v-for="s in spaces"
             :key="s.id"
-            :label="spaceLabel(s)"
+            :label="mockSpaceLabel(s)"
             :value="s.id"
           />
         </el-select>
@@ -272,11 +272,6 @@ const livePolling = ref(true)
 // : host-injected space id wins over the local pick (redirect-era fallback kept).
 const spaceId = computed(() => props.spaceId ?? pickedSpace.value)
 
-function spaceLabel(s: MockSpaceItem): string {
-  const alias = s.alias ? `（${s.alias}）` : ''
-  return `${s.name}${alias}`
-}
-
 async function loadSpaces(): Promise<void> {
   if (!projectId.value) {
     spaces.value = []
@@ -515,6 +510,7 @@ function fmtTime(raw: string | null | undefined): string {
 // touches, so this page only converges its space options when a Mock-space
 // draft lands (silent re-read; hits stay whatever traffic produced).
 import { useObjectSync } from '@/composables/useObjectSync'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
 
 useObjectSync({
   watch: ['MOCK_SPACE_WRITE'],

@@ -20,6 +20,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.FixtureInserts;
 
 /**
  * GB-1 environment override at the perf launch point (scenario × environment decoupling).
@@ -69,21 +70,16 @@ class PerfLaunchEnvOverrideTest {
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "环境下沉测试项目_" + uniq, "PFENVO" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        devEnvId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '开发-环境A', 1, 'http://perf-a.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        otherEnvId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '测试-环境B', 2, 'http://perf-b.local/api')", projectId);
-        otherEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        long otherProject = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "环境下沉他项目_" + uniq, "PFENVF" + uniq);
-        long otherProject = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        foreignEnvId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '他项目环境', 1, 'http://perf-x.local/api')", otherProject);
-        foreignEnvId = lastId("tp_project_env");
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -113,10 +109,6 @@ class PerfLaunchEnvOverrideTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFENVO%' OR code LIKE 'PFENVF%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFENVO%' OR code LIKE 'PFENVF%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

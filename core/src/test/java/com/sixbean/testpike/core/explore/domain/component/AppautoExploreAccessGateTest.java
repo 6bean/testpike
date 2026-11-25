@@ -9,6 +9,7 @@ import com.sixbean.testpike.core.explore.api.controller.ExploreInternalControlle
 import com.sixbean.testpike.core.explore.domain.service.ExploreService;
 import com.sixbean.testpike.core.project.api.dto.ProjectCreateInput;
 import com.sixbean.testpike.core.project.domain.service.ProjectService;
+import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,9 +73,9 @@ class AppautoExploreAccessGateTest {
     }
 
     private long insertEnv(String name, int envType) {
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, ?, ?, 'http://env.local/api')", projectId, name, envType);
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM tp_project_env", Long.class);
+        return FixtureInserts.insertReturningId(jdbcTemplate,
+                "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+                        + "VALUES (?, ?, ?, 'http://env.local/api')", projectId, name, envType);
     }
 
     private ExploreCreateInput mobileInput(Long envId) {

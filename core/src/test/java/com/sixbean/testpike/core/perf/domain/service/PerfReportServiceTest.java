@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 
 @SpringBootTest(classes = CoreApplication.class)
@@ -41,14 +43,11 @@ class PerfReportServiceTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "压测报告测试项目_" + uniq, "PERFREP" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-报告测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "压测报告测试项目_", "PERFREP", "性能-报告测", 1,
+                "http://perf-target.local/api", 1000, null);
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach
@@ -72,10 +71,6 @@ class PerfReportServiceTest {
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFREP%'");
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
-    }
 
     private long newScenario(Integer driverLimit, Map<String, Double> sla) {
         return perfScenarioService.create(projectId, new PerfScenarioInput(
@@ -221,9 +216,8 @@ class PerfReportServiceTest {
     @Test
     void crossProjectAndMissingRunRejectedWithoutLeakage() {
         long otherProjectCode = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES ('他项目', ?, 1)",
+        long otherProject = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES ('他项目', ?, 1)",
                 "PERFREPX" + otherProjectCode);
-        long otherProject = lastId("tp_project");
         long scenarioId = newScenario(null, null);
         long runId = launchAndSeedFrames(scenarioId, framesWithAuth());
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFREPX%'");

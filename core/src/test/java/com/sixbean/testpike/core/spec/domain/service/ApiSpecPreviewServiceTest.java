@@ -131,18 +131,27 @@ class ApiSpecPreviewServiceTest {
         assertEquals(2, applied.createdRequests());
         assertEquals(0, applied.skipped());
 
+        // Request rows carry no project_id; scope through the owning collection so
+        // foreign apitest rows from sibling suites cannot inflate the count (R37).
         Integer requests = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_apitest_request", Integer.class);
+                "SELECT count(*) FROM tp_apitest_request r"
+                        + " JOIN tp_apitest_collection c ON c.id = r.collection_id"
+                        + " WHERE c.project_id = ?",
+                Integer.class, projectId);
         assertEquals(2, requests);
         Integer rootCollections = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_apitest_collection WHERE parent_id = 0", Integer.class);
+                "SELECT count(*) FROM tp_apitest_collection WHERE parent_id = 0 AND project_id = ?",
+                Integer.class, projectId);
         assertTrue(rootCollections >= 1, "tags 建集合层级（根至少 1）");
 
         SpecPreviewApplyResult replay = apiSpecPreviewService.apply(1L, preview.id(), allKeys);
         assertEquals(0, replay.createdRequests(), "重放同清单幂等跳过");
         assertEquals(2, replay.skipped());
         Integer still = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_apitest_request", Integer.class);
+                "SELECT count(*) FROM tp_apitest_request r"
+                        + " JOIN tp_apitest_collection c ON c.id = r.collection_id"
+                        + " WHERE c.project_id = ?",
+                Integer.class, projectId);
         assertEquals(2, still, "幂等重放不双建请求");
     }
 
@@ -156,8 +165,12 @@ class ApiSpecPreviewServiceTest {
         SpecPreviewApplyResult rest = apiSpecPreviewService.apply(
                 1L, preview.id(), List.of(preview.items().get(1).endpointKey()));
         assertEquals(1, rest.createdRequests(), "未选键后可补写");
+        // Same project-scoped count as the replay case: collection join owns the scope.
         Integer total = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_apitest_request", Integer.class);
+                "SELECT count(*) FROM tp_apitest_request r"
+                        + " JOIN tp_apitest_collection c ON c.id = r.collection_id"
+                        + " WHERE c.project_id = ?",
+                Integer.class, projectId);
         assertEquals(2, total);
     }
 

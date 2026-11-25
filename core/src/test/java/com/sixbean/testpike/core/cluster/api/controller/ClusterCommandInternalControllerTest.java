@@ -93,14 +93,14 @@ class ClusterCommandInternalControllerTest {
     void 进度_四件原样透传() {
         controller.progress(Map.of("commandId", 9, "claimerId", 7,
                 "step", "deps", "message", "装依赖中"));
-        verify(commandService).progress(9L, 7L, "deps", "装依赖中");
+        verify(commandService).progress(9L, 7L, "deps", "装依赖中", null, null);
     }
 
     @Test
     void 回执_成败与人话详情透传() {
         controller.result(Map.of("commandId", 9, "claimerId", 7,
                 "success", true, "resultDetail", "引擎已就位"));
-        verify(commandService).complete(9L, 7L, true, "引擎已就位");
+        verify(commandService).complete(9L, 7L, true, "引擎已就位", null, null);
     }
 
     @Test

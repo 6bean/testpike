@@ -37,10 +37,10 @@ public class LlmTimeoutResolver {
                 if (seconds >= MIN_SECONDS && seconds <= MAX_SECONDS) {
                     return Duration.ofSeconds(seconds);
                 }
-                log.warn("K8 llm.timeout-seconds={} 越界（允许 {}~{}），回退配置文件 {}s",
+                log.warn("K8 llm.timeout-seconds={} out of range (allowed {}-{}), falling back to config file value {}s",
                         raw, MIN_SECONDS, MAX_SECONDS, properties.getTimeoutSeconds());
             } catch (NumberFormatException e) {
-                log.warn("K8 llm.timeout-seconds={} 非法整数，回退配置文件 {}s",
+                log.warn("K8 llm.timeout-seconds={} is not a valid integer, falling back to config file value {}s",
                         raw, properties.getTimeoutSeconds());
             }
         }
@@ -64,11 +64,11 @@ public class LlmTimeoutResolver {
                 if (seconds >= STREAM_IDLE_MIN_SECONDS && seconds <= STREAM_IDLE_MAX_SECONDS) {
                     return Duration.ofSeconds(seconds);
                 }
-                log.warn("K8 ai.llm.stream-idle-timeout-seconds={} 越界（允许 {}~{}），回退配置文件 {}s",
+                log.warn("K8 ai.llm.stream-idle-timeout-seconds={} out of range (allowed {}-{}), falling back to config file value {}s",
                         raw, STREAM_IDLE_MIN_SECONDS, STREAM_IDLE_MAX_SECONDS,
                         properties.getStreamIdleTimeoutSeconds());
             } catch (NumberFormatException e) {
-                log.warn("K8 ai.llm.stream-idle-timeout-seconds={} 非法整数，回退配置文件 {}s",
+                log.warn("K8 ai.llm.stream-idle-timeout-seconds={} is not a valid integer, falling back to config file value {}s",
                         raw, properties.getStreamIdleTimeoutSeconds());
             }
         }
@@ -94,10 +94,10 @@ public class LlmTimeoutResolver {
                 if (seconds >= MIN_SECONDS && seconds <= MAX_SECONDS) {
                     return Duration.ofSeconds(seconds);
                 }
-                log.warn("K8 ai.doc.llm-timeout-seconds={} 越界（允许 {}~{}），沿用全局超时",
+                log.warn("K8 ai.doc.llm-timeout-seconds={} out of range (allowed {}-{}), keeping the global timeout",
                         raw, MIN_SECONDS, MAX_SECONDS);
             } catch (NumberFormatException e) {
-                log.warn("K8 ai.doc.llm-timeout-seconds={} 非法整数，沿用全局超时", raw);
+                log.warn("K8 ai.doc.llm-timeout-seconds={} is not a valid integer, keeping the global timeout", raw);
             }
         }
         return resolve();
@@ -122,10 +122,10 @@ public class LlmTimeoutResolver {
                 if (seconds >= MIN_SECONDS && seconds <= MAX_SECONDS) {
                     return Duration.ofSeconds(seconds);
                 }
-                log.warn("K8 ai.judge.qa-gen.llm-timeout-seconds={} 越界（允许 {}~{}），沿用全局超时",
+                log.warn("K8 ai.judge.qa-gen.llm-timeout-seconds={} out of range (allowed {}-{}), keeping the global timeout",
                         raw, MIN_SECONDS, MAX_SECONDS);
             } catch (NumberFormatException e) {
-                log.warn("K8 ai.judge.qa-gen.llm-timeout-seconds={} 非法整数，沿用全局超时", raw);
+                log.warn("K8 ai.judge.qa-gen.llm-timeout-seconds={} is not a valid integer, keeping the global timeout", raw);
             }
         }
         return resolve();

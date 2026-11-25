@@ -84,10 +84,10 @@ public class LlmCapabilityReprobeScheduler {
         try {
             int probes = reprobeOnce();
             if (probes > 0) {
-                log.info("能力台账复探轮完成：本轮探测 {} 项", probes);
+                log.info("Capability ledger reprobe round finished: {} items probed this round", probes);
             }
         } catch (RuntimeException roundFailed) {
-            log.warn("能力台账复探轮失败（下一轮自动重试，探测幂等）: {}",
+            log.warn("Capability ledger reprobe round failed (auto retry next round, probing is idempotent): {}",
                     roundFailed.getMessage());
             jobRunner.alert("llmCapabilityReprobe", roundFailed);
         }
@@ -114,7 +114,7 @@ public class LlmCapabilityReprobeScheduler {
         if (catalog.isEmpty()) {
             // Fail-closed: without live catalog rows there is no legitimate
             // endpoint to probe (a stub would fabricate a verdict — P18).
-            log.warn("能力台账复探本轮跳过：模型清单为空（core 不可达或全部停用），到期行 {} 项保持原状",
+            log.warn("Capability ledger reprobe skipped this round: model catalog empty (core unreachable or all disabled), {} due rows left unchanged",
                     due.size());
             return 0;
         }
@@ -127,14 +127,14 @@ public class LlmCapabilityReprobeScheduler {
         int probed = 0;
         for (String[] pair : due) {
             if (spent >= dailyMax) {
-                log.info("能力台账复探已达当日预算上限 {}，剩余到期行顺延下一轮", dailyMax);
+                log.info("Capability ledger reprobe hit the daily budget cap {}, remaining due rows deferred to next round", dailyMax);
                 break;
             }
             LlmConfigBrief row = catalog.stream()
                     .filter(c -> pair[0].equals(c.modelName()))
                     .findFirst().orElse(null);
             if (row == null || isBlank(row.baseUrl())) {
-                log.info("能力台账复探跳过：模型 {} 在启用清单中无可用行（已停用或改名），不落任何判定",
+                log.info("Capability ledger reprobe skipped: model {} has no enabled catalog row (disabled or renamed), no verdict booked",
                         pair[0]);
                 continue;
             }

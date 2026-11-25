@@ -83,7 +83,7 @@ def test_doctor_summary_points_runtime_gap(tmp_path, monkeypatch, capsys):
     _recipe(tmp_path, "m", {"runtime_requires": {"node": ">=22.12"}})
     dc.print_summary(dc.build_report(tmp_path, "linux"), "空态提示")
     text = capsys.readouterr().out
-    assert "版本不足" in text and "22.12" in text, "人话点名运行时缺口（不截断）"
+    assert "below" in text and "22.12" in text, "name the runtime gap without truncating"
 
 
 
@@ -124,14 +124,14 @@ def test_repair_runtime_gap_auto_fills_and_books(tmp_path):
     proc = _run_sh(["--scenario=repair"], env)
     text = proc.stdout + proc.stderr
     assert proc.returncode == 0, text
-    assert "版本不足" in text and "执行补齐" in text, "缺件点名→自动补齐闭环"
+    assert "below" in text and "Applying refill" in text, "missing named -> auto refill closes the loop"
     booked = (state / "state-repair.txt").read_text()
     assert "step:runtime-ensure" in booked and "step:refill" in booked
     assert booked.index("step:runtime-ensure") < booked.index("step:refill")
     report = json.loads((state / "doctor-report.json").read_text(encoding="utf-8"))
     assert report["missing_runtime"]["status"] == "below"
     proc2 = _run_sh(["--scenario=repair"], env)
-    assert "位点续跑跳过" in proc2.stdout + proc2.stderr
+    assert "already completed" in proc2.stdout + proc2.stderr
 
 
 def test_repair_runtime_satisfied_zero_plan(tmp_path):
@@ -142,7 +142,7 @@ def test_repair_runtime_satisfied_zero_plan(tmp_path):
     env = _env(tmp_path, INSTALLKIT_CMD_BIN="true")
     proc = _run_sh(["--scenario=repair"], env)
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "零补齐" in proc.stdout + proc.stderr or "已满足" in proc.stdout + proc.stderr
+    assert "zero refill" in proc.stdout + proc.stderr or "satisfied" in proc.stdout + proc.stderr
 
 
 

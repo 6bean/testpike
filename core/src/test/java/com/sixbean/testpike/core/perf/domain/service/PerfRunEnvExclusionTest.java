@@ -19,6 +19,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * GA-2 environment execution lock at the perf launch point.
@@ -62,17 +64,18 @@ class PerfRunEnvExclusionTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-excl-ex-",
+                "GATLING", "K6");
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "环境锁测试项目_" + uniq, "PFEXCL" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        devEnvId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '开发-环境锁', 1, 'http://perf-target.local/api')", projectId);
-        devEnvId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        otherEnvId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '预发-环境锁', 2, 'http://perf-other.local/api')", projectId);
-        otherEnvId = lastId("tp_project_env");
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -85,6 +88,7 @@ class PerfRunEnvExclusionTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-excl-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFEXCL%')");
         jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
@@ -102,10 +106,6 @@ class PerfRunEnvExclusionTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFEXCL%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFEXCL%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

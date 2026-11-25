@@ -1492,6 +1492,62 @@ public class CoreGateway {
     public record PageRows<T>(List<T> list, long total) {
     }
 
+    /**
+     * One parsed contract version row by id (core ApiSpecInternalController
+     * GET /internal/api-specs/{id}). The brief mirrors only the line names
+     * the enrichment leg consumes — unknown wire fields are ignored, same
+     * bridge posture as {@link #listApiSpecs}. A missing row relays core's
+     * plain-word ServiceException untouched.
+     */
+    public ApiSpecBrief getApiSpec(long specId) {
+        return call(HttpMethod.GET, "/internal/api-specs/" + specId, null,
+                new ParameterizedTypeReference<com.sixbean.testpike.common.clientobject.Response<ApiSpecBrief>>() {
+                }, 0L);
+    }
+
+    /**
+     * Deterministic draft floor (contract-direct rows) of one contract for
+     * the enrichment bundle — the SAME core door the bulk-import wizard reads
+     * (single-sourced schema-to-sample expansion, never a second engine).
+     * Passing the space id also opens the stored advice rows the backfill
+     * round later refines.
+     */
+    public List<SpecDraftAdviceRow> listSpecDraftAdvice(long specId, long spaceId) {
+        List<SpecDraftAdviceRow> rows = call(HttpMethod.GET,
+                "/internal/mock/stub/drafts-advised?specId=" + specId + "&spaceId=" + spaceId,
+                null,
+                new ParameterizedTypeReference<com.sixbean.testpike.common.clientobject.Response<
+                        List<SpecDraftAdviceRow>>>() {
+                }, 0L);
+        return rows == null ? List.of() : rows;
+    }
+
+    /**
+     * AI advice backfill intake (core MockSpecImportAdviceController POST
+     * /internal/mock/spec-import/verdict-refine): stored deterministic rows
+     * are refined in place; the core single point skips keys it never judged.
+     */
+    public void refineSpecVerdicts(long specId, long spaceId, List<SpecVerdictRow> refined) {
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("specId", specId);
+        body.put("spaceId", spaceId);
+        body.put("refined", refined == null ? List.of() : refined);
+        call(HttpMethod.POST, "/internal/mock/spec-import/verdict-refine", body, null, 0L);
+    }
+
+    /** Contract draft row of the deterministic floor door (draft + advice subset). */
+    public record SpecDraftAdviceRow(String endpointKey, String name, String method,
+                                     String pathMatchType, String pathPattern, String matchersJson,
+                                     String responseJson, String source, String sourceRef,
+                                     String verdict) {
+    }
+
+    /** One AI-refined advice row sent to the core backfill intake. */
+    public record SpecVerdictRow(String endpointKey, String verdict, String reason,
+                                 String conflictAction, String impactJson,
+                                 int realism, int confidence) {
+    }
+
     /** Contract version row brief (display name + latest version + endpoint snapshot). */
     public record ApiSpecBrief(Long id, String name, Integer specVersion,
                                List<ApiEndpointBrief> endpoints) {

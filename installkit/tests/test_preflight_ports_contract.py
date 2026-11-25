@@ -65,4 +65,15 @@ def test_pkg_probe_auto_flag_resolves_without_occupancy_failures(tmp_path):
                           capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0
     resolved = {port for _, port in host_ports.effective_host_ports(ROOT)}
-    assert any(("端口 %s" % port) in proc.stdout for port in resolved)
+    assert any(("port %s" % port) in proc.stdout for port in resolved)
+
+
+def test_pkg_probe_source_ships_english_only():
+    """The preflight probe ships English-only operator text (no i18n track)."""
+    src = open(os.path.join(ROOT, "installkit", "pkg_probe.py"),
+               encoding="utf-8").read()
+    offenders = [line for line in src.splitlines()
+                 if any("\u4e00" <= ch <= "\u9fff" for ch in line)]
+    assert not offenders, (
+        "install surface must not carry CJK operator text; offending lines: %s"
+        % offenders[:3])

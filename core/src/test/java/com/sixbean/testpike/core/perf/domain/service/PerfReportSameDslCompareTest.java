@@ -18,6 +18,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * Cross-scenario comparison relaxed by the pinned DSL fingerprint .
@@ -65,13 +67,15 @@ class PerfReportSameDslCompareTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-dsl-ex-",
+                "GATLING", "K6");
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "同DSL对比测试项目_" + uniq, "PFDSL" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                 + "VALUES (?, '性能-同DSL', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
                 + "allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
@@ -82,23 +86,15 @@ class PerfReportSameDslCompareTest {
     }
 
     private void cleanupRows() {
-        jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PFDSL%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PFDSL%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PFDSL%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_whitelist WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PFDSL%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PFDSL%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFDSL%'");
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-dsl-ex-");
+        // Fixture-scoped teardown through the shared sweep (R40): the FK tree
+        // reaches tp_perf_* / tp_project_env AND tp_exec_task — the hand-written
+        // DELETE list below used to omit tp_exec_task, leaking pending task rows
+        // that later suites' claim walks picked up (seen in fresh-install CI triage).
+        SharedDbFixtureSweep.byProjectList(jdbcTemplate, jdbcTemplate.queryForList(
+                "SELECT id FROM tp_project WHERE code LIKE 'PFDSL%'", Long.class));
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
-    }
 
     /** Scenario carrying the canonical DSL (name differs per call, DSL stays identical). */
     private long newScenarioWithDsl(String name, int targetRps) {

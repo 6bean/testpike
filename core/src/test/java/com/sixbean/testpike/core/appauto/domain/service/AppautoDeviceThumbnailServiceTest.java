@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.appauto.api.dto.AppautoDeviceThumbnailView;
 import com.sixbean.testpike.core.appauto.domain.component.MonitorFrameBuffer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +18,11 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -56,6 +59,7 @@ class AppautoDeviceThumbnailServiceTest {
     private ObjectMapper objectMapper;
 
     private long projectId;
+    private final List<Long> deviceIds = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -66,15 +70,39 @@ class AppautoDeviceThumbnailServiceTest {
                 "SELECT id FROM tp_project WHERE code = ?", Long.class, code);
     }
 
+    /**
+     * Fixture-scoped teardown (shared-dev-db hygiene): every row this class
+     * creates is removed by its tracked ids. Without it the leaked project-less
+     * shared devices pollute the device pool that matrix dispatch fans out to,
+     * and a fresh-install CI run turns red on stale offline walls.
+     */
+    @AfterEach
+    void tearDown() {
+        if (!deviceIds.isEmpty()) {
+            Object[] args = deviceIds.toArray();
+            String ph = deviceIds.stream().map(x -> "?").collect(Collectors.joining(","));
+            jdbcTemplate.update("DELETE FROM tp_appauto_takeover_request WHERE device_id IN (" + ph + ")", args);
+            jdbcTemplate.update("DELETE FROM tp_appauto_lease_run WHERE device_id IN (" + ph + ")", args);
+            jdbcTemplate.update("DELETE FROM tp_appauto_reservation WHERE device_id IN (" + ph + ")", args);
+            jdbcTemplate.update("DELETE FROM tp_appauto_device WHERE id IN (" + ph + ")", args);
+            deviceIds.forEach(id -> redisTemplate.delete("appauto-wall:thumb:" + id));
+            deviceIds.clear();
+        }
+        jdbcTemplate.update("DELETE FROM tp_exec_task WHERE project_id = ?", projectId);
+        jdbcTemplate.update("DELETE FROM tp_project WHERE id = ?", projectId);
+    }
+
     private long newDevice(String name) {
         String serial = "wt-" + Long.toHexString(System.nanoTime());
         jdbcTemplate.update(
                 "INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
                         + " VALUES (?, ?, ?, 'ADB')",
                 projectId, name, serial);
-        return jdbcTemplate.queryForObject(
+        long id = jdbcTemplate.queryForObject(
                 "SELECT id FROM tp_appauto_device WHERE project_id = ? AND serial = ?",
                 Long.class, projectId, serial);
+        deviceIds.add(id);
+        return id;
     }
 
     /** Running task whose dispatch envelope addresses the given device. */
@@ -209,8 +237,10 @@ class AppautoDeviceThumbnailServiceTest {
                 "INSERT INTO tp_appauto_device (project_id, name, serial, device_type)"
                         + " VALUES (NULL, ?, ?, 'ADB')",
                 name, serial);
-        return jdbcTemplate.queryForObject(
+        long id = jdbcTemplate.queryForObject(
                 "SELECT id FROM tp_appauto_device WHERE serial = ?", Long.class, serial);
+        deviceIds.add(id);
+        return id;
     }
 
     @Test

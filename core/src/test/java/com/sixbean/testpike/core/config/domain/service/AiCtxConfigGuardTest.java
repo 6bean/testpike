@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * with no mocks (strict-testing iron law).
  *
  * <p>Contract: seeded factory defaults match the adjudication sheet
- * (tool-block 2000 / keep-recent 6 / memory 30); out-of-range or non-numeric
+ * (tool-block 8000 / keep-recent 20 / memory 128, replayed by V505); out-of-range or non-numeric
  * int values are rejected with a readable message carrying the allowed
  * interval; the range boundaries themselves are accepted and the hot update
  * lands. Factory rows are restored to their seeded values in every finally
@@ -51,9 +51,9 @@ class AiCtxConfigGuardTest {
 
     @Test
     void seededRowsMatchAdjudicatedFactoryDefaults() {
-        assertSeededRow(KEY_TOOL_BLOCK, "2000", "int");
-        assertSeededRow(KEY_KEEP_RECENT, "6", "int");
-        assertSeededRow(KEY_MEMORY_ITEMS, "30", "int");
+        assertSeededRow(KEY_TOOL_BLOCK, "8000", "int");
+        assertSeededRow(KEY_KEEP_RECENT, "20", "int");
+        assertSeededRow(KEY_MEMORY_ITEMS, "128", "int");
     }
 
     @Test
@@ -79,9 +79,9 @@ class AiCtxConfigGuardTest {
         } finally {
             restoreSeededValues();
         }
-        assertEquals("2000", configValue(KEY_TOOL_BLOCK));
-        assertEquals("6", configValue(KEY_KEEP_RECENT));
-        assertEquals("30", configValue(KEY_MEMORY_ITEMS));
+        assertEquals("8000", configValue(KEY_TOOL_BLOCK));
+        assertEquals("20", configValue(KEY_KEEP_RECENT));
+        assertEquals("128", configValue(KEY_MEMORY_ITEMS));
     }
 
     @Test
@@ -134,9 +134,9 @@ class AiCtxConfigGuardTest {
     }
 
     private void restoreSeededValues() {
-        setConfigValue(KEY_TOOL_BLOCK, "int", "2000");
-        setConfigValue(KEY_KEEP_RECENT, "int", "6");
-        setConfigValue(KEY_MEMORY_ITEMS, "int", "30");
+        setConfigValue(KEY_TOOL_BLOCK, "int", "8000");
+        setConfigValue(KEY_KEEP_RECENT, "int", "20");
+        setConfigValue(KEY_MEMORY_ITEMS, "int", "128");
     }
 
     private String configValue(String key) {

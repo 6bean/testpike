@@ -56,7 +56,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
         }
         if (category != null && !category.isBlank()
                 && !KnowledgeMetadataFields.SOURCE_TYPE_TEST_SPEC.equalsIgnoreCase(category)) {
-            log.warn("G1 入库未知文档分类 category={}（回退 TEST_SPEC，core 上传闸外来源）", category);
+            log.warn("G1 ingest unknown document category category={} (falls back to TEST_SPEC, source outside the core upload gate)", category);
         }
         return SOURCE_TYPE_DOC;
     }
@@ -98,7 +98,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
     public void ingest(AiKbIngestMessage message) {
         List<Map<String, Object>> chunks = coreGateway.getDocumentChunks(message.documentId());
         if (chunks == null || chunks.isEmpty()) {
-            log.info("G1 入库跳过：文档无分块 documentId={}（非终态，等待重投）", message.documentId());
+            log.info("G1 ingest skipped: document has no chunks documentId={} (not a terminal state, awaiting redelivery)", message.documentId());
             return;
         }
         String docTitle = resolveDocTitle(message.documentId());
@@ -122,7 +122,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                     maskedContents.get(i), docTitle, lang, i, sourceType));
         }
         addInBatches(documents);
-        log.info("G1 文档入库完成 documentId={} docId={} chunks={} lang={} sourceType={}",
+        log.info("G1 document ingest completed documentId={} docId={} chunks={} lang={} sourceType={}",
                 message.documentId(), docId, documents.size(), lang, sourceType);
     }
 
@@ -133,7 +133,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
             return name == null || String.valueOf(name).isBlank()
                     ? "文档" + documentId : String.valueOf(name);
         } catch (Exception e) {
-            log.warn("G1 入库文档名取数失败 documentId={} err={}", documentId, e.getMessage());
+            log.warn("G1 ingest document-name lookup failed documentId={} err={}", documentId, e.getMessage());
             return "文档" + documentId;
         }
     }
@@ -143,7 +143,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
     public void ingestCase(CaseIngestEventMessage message) {
         Map<String, Object> detail = coreGateway.getCase(message.caseId());
         if (detail == null || detail.isEmpty()) {
-            log.info("G1 用例入库跳过：详情不可达 caseId={}（等待重投）", message.caseId());
+            log.info("G1 case ingest skipped: detail unreachable caseId={} (awaiting redelivery)", message.caseId());
             return;
         }
         String title = resolveCaseTitle(detail, message.caseId());
@@ -156,7 +156,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
         vectorStore.delete(KnowledgeMetadataFields.CASE_ID + " == " + message.caseId());
         addInBatches(List.of(buildChunkDocument(docId, message.projectId(), 1, title,
                 assembled, lang, SOURCE_TYPE_CASE, message.caseId(), resolveExcellent(detail))));
-        log.info("G1 用例入库完成 caseId={} version={} docId={} lang={}",
+        log.info("G1 case ingest completed caseId={} version={} docId={} lang={}",
                 message.caseId(), message.caseVersion(), docId, lang);
     }
 
@@ -165,7 +165,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
     public void ingestRequirement(CaseIngestEventMessage message) {
         CoreGateway.RequirementBrief brief = coreGateway.getRequirement(message.requirementId());
         if (brief == null) {
-            log.info("需求入库跳过：详情不可达 requirementId={}（等待重投/对账收敛）", message.requirementId());
+            log.info("Requirement ingest skipped: detail unreachable requirementId={} (awaiting redelivery / reconciliation convergence)", message.requirementId());
             return;
         }
         StringBuilder sb = new StringBuilder();
@@ -173,7 +173,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
         appendLine(sb, "验收标准", brief.acceptanceCriteria());
         String assembled = DesensitizeUtils.maskText(sb.toString());
         if (assembled.isBlank()) {
-            log.info("需求入库跳过：标题与验收标准均空 requirementId={}（无内容可入库）", message.requirementId());
+            log.info("Requirement ingest skipped: title and acceptance criteria both empty requirementId={} (no content to ingest)", message.requirementId());
             return;
         }
         String title = brief.title() == null || brief.title().isBlank()
@@ -184,7 +184,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
         vectorStore.delete(KnowledgeMetadataFields.DOC_ID + " == " + docId);
         addInBatches(List.of(buildChunkDocument(docId, message.projectId(), 1, title,
                 assembled, lang, SOURCE_TYPE_REQUIREMENT, 0L, false)));
-        log.info("需求入库完成 requirementId={} version={} docId={} lang={}",
+        log.info("Requirement ingest completed requirementId={} version={} docId={} lang={}",
                 message.requirementId(), message.requirementVersion(), docId, lang);
     }
 
@@ -199,7 +199,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                         .addValue("requirementId", requirementId),
                 Long.class);
         if (activeDocIds.isEmpty()) {
-            log.info("需求下线零动作 requirementId={}（未入库/已下线，天然幂等 no-op）", requirementId);
+            log.info("Requirement offline no-op requirementId={} (never ingested / already offline, naturally idempotent)", requirementId);
             return;
         }
         for (Long docId : activeDocIds) {
@@ -212,7 +212,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                         + " AND status = '" + KnowledgeMetadataFields.ACTIVE + "'",
                 new MapSqlParameterSource().addValue("sourceType", SOURCE_TYPE_REQUIREMENT)
                         .addValue("requirementId", requirementId));
-        log.info("需求下线完成 requirementId={} 台账置INACTIVE={}（向量删净，检索不可达封自污染环）",
+        log.info("Requirement offline completed requirementId={} ledger set INACTIVE={} (vectors purged; exclusion from retrieval closes the self-contamination loop)",
                 requirementId, deactivated);
     }
 
@@ -222,7 +222,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
     public void applyExcellentFlag(CaseIngestEventMessage message) {
         Map<String, Object> detail = coreGateway.getCase(message.caseId());
         if (detail == null || detail.isEmpty()) {
-            log.info("D3 优秀联动跳过：详情不可达 caseId={}（等待重投/对账收敛）", message.caseId());
+            log.info("D3 excellent linkage skipped: detail unreachable caseId={} (awaiting redelivery / reconciliation convergence)", message.caseId());
             return;
         }
         boolean excellent = resolveExcellent(detail);
@@ -235,23 +235,22 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
         if (!activeDocIds.isEmpty()) {
             int updated = metadataUpdater.updateCaseMetadata(
                     KnowledgeMetadataFields.EXCELLENT, String.valueOf(excellent), message.caseId());
-            log.info("D3 优秀联动直改 metadata caseId={} excellent={} 向量行={}（不重入向量化）",
+            log.info("D3 excellent linkage updates metadata in place caseId={} excellent={} vector-rows={} (no re-vectorization)",
                     message.caseId(), excellent, updated);
             return;
         }
         Object status = detail.get("status");
         if (status instanceof Number n && n.intValue() == CASE_STATUS_APPROVED) {
             if (!kbGate.isAutoIngestEnabled(message.projectId())) {
-                log.info("D3 优秀联动跳过兜底入库：项目知识库开关=关 caseId={} projectId={}（无 ACTIVE 行受闸）",
+                log.info("D3 excellent linkage skips the fallback ingest: project knowledge-base switch off caseId={} projectId={} (no ACTIVE rows to gate)",
                         message.caseId(), message.projectId());
                 return;
             }
-            log.info("D3 优秀联动：无 ACTIVE 台账但用例已通过 caseId={} → 兜底重入库（带真值进）",
-                    message.caseId());
+            log.info("D3 excellent linkage: no ACTIVE ledger row but the case is passed caseId={} -> re-ingest with real values", message.caseId());
             ingestCase(message);
             return;
         }
-        log.info("D3 优秀联动跳过：用例未入库且非已通过 caseId={} status={}（无可联动对象）",
+        log.info("D3 excellent linkage skipped: case not ingested and not passed caseId={} status={} (no linkage target)",
                 message.caseId(), status);
     }
 
@@ -304,7 +303,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                 appendLine(sb, "标签", names.toString());
             }
         } catch (Exception e) {
-            log.warn("G1 用例标签取数失败降级空标签不阻断 caseId={} err={}",
+            log.warn("G1 case label lookup failed, degrading to empty labels without blocking caseId={} err={}",
                     detail.get("id"), e.getMessage());
         }
         return sb.toString();
@@ -385,7 +384,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                         + " updated_at = now() WHERE source_type = '" + SOURCE_TYPE_CASE + "'"
                         + " AND source_ref = :caseId AND status = '" + KnowledgeMetadataFields.ACTIVE + "'",
                 new MapSqlParameterSource("caseId", caseId));
-        log.info("G1 用例清理完成 caseId={} 台账置INACTIVE={}（无台账行=未入库/重复清理，天然幂等 no-op）",
+        log.info("G1 case cleanup completed caseId={} ledger set INACTIVE={} (no ledger row = never ingested / duplicate cleanup, naturally idempotent)",
                 caseId, deactivated);
     }
 
@@ -397,7 +396,7 @@ public class KnowledgeIngestServiceImpl implements KnowledgeIngestService {
                         + " updated_at = now() WHERE project_id = :projectId"
                         + " AND status = '" + KnowledgeMetadataFields.ACTIVE + "'",
                 new MapSqlParameterSource("projectId", projectId));
-        log.info("G1 项目级清理完成 projectId={} 台账置INACTIVE={}（TC-G1-04）", projectId, deactivated);
+        log.info("G1 project-level cleanup completed projectId={} ledger set INACTIVE={}", projectId, deactivated);
     }
 
     /** Batched embedding insert (K8 batch-size hot-tunable, 14 §3.5 default 128 docs/request; split single-sourced in ListPartition). */

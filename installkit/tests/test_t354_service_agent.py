@@ -154,7 +154,7 @@ def test_upgrade_digest_mismatch_refuses_swap_keeps_old_version(tmp_path):
         sha256="0" * 64), env)
     assert not res.success
     # plain-word refusal names the digest mismatch (trace for the operator)
-    assert "校验" in res.detail or "digest" in res.detail.lower()
+    assert "sha256 mismatch" in res.detail.lower() or "digest" in res.detail.lower()
     # old release still current, unit never restarted
     assert (tmp_path / "admin" / "current").resolve().name == "1.0.0"
     assert env.spawn_calls == []
@@ -320,4 +320,15 @@ def test_restart_spawn_failure_lands_honest_receipt(tmp_path):
     assert not res.success
     # receipt names the unit and the failed restart (never a stack trace dump)
     assert "tp-admin.service" in res.detail
-    assert "重启" in res.detail
+    assert "restart" in res.detail
+
+
+def test_service_agent_source_ships_english_only():
+    """The host service-agent ships English-only operator text (no i18n track)."""
+    src = (Path(__file__).resolve().parents[1] / "service_agent.py").read_text(
+        encoding="utf-8")
+    offenders = [line for line in src.splitlines()
+                 if any("\u4e00" <= ch <= "\u9fff" for ch in line)]
+    assert not offenders, (
+        "install surface must not carry CJK operator text; offending lines: %s"
+        % offenders[:3])

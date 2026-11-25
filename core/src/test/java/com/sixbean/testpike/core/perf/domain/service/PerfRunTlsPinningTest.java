@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * B-10 TLS three-tier pinning on the perf chain .
@@ -76,17 +78,18 @@ class PerfRunTlsPinningTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-pin-ex-",
+                "GATLING", "K6");
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "TLS档位钉注测试项目_" + uniq, "PFTLSP" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envAId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '测试-自定义CA', 2, 'https://perf-ca.local/api')", projectId);
-        envAId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envBId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                         + "VALUES (?, '开发-默认校验', 1, 'https://perf-strict.local/api')", projectId);
-        envBId = lastId("tp_project_env");
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -99,6 +102,7 @@ class PerfRunTlsPinningTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-pin-ex-");
         for (String prefix : List.of("PFTLSP")) {
             jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
                     + "(SELECT id FROM tp_project WHERE code LIKE '" + prefix + "%')");
@@ -118,10 +122,6 @@ class PerfRunTlsPinningTest {
                     + "(SELECT id FROM tp_project WHERE code LIKE '" + prefix + "%')");
             jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE '" + prefix + "%'");
         }
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

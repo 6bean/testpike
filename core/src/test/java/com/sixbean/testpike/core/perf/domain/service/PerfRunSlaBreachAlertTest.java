@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * Contract tests for the automatic SLA red-light alert (GB-3, K2 subscription push).
@@ -68,15 +70,17 @@ class PerfRunSlaBreachAlertTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-sla-ex-",
+                "GATLING", "K6");
         long uniq = System.nanoTime() % 1_000_000_000L;
         operatorId = seedUser("perfsop_" + uniq);
         ownerId = seedUser("perfspo_" + uniq);
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status, test_owner_id, created_by) "
+        projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status, test_owner_id, created_by) "
                         + "VALUES (?, ?, 1, ?, ?)", "SLA红灯测试项目_" + uniq, "PERFSLA" + uniq, ownerId, operatorId);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
+        envId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
                 + "VALUES (?, '性能-SLA红灯测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
         jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
     }
 
@@ -86,21 +90,15 @@ class PerfRunSlaBreachAlertTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-sla-ex-");
         jdbcTemplate.update("DELETE FROM tp_notification WHERE dedup_key LIKE 'PERF_SLA_BREACH:%'");
         jdbcTemplate.update("DELETE FROM tp_notification_pref WHERE event_type = 'PERF_SLA_BREACH'");
-        jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_perf_whitelist WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
-                + "(SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%')");
-        jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFSLA%'");
+        // Fixture-scoped teardown through the shared sweep (R40): the FK tree
+        // reaches tp_perf_* / tp_project_env AND tp_exec_task — the hand-written
+        // DELETE list used to omit tp_exec_task, leaking pending task rows that
+        // later suites' claim walks picked up (seen in fresh-install CI triage).
+        SharedDbFixtureSweep.byProjectList(jdbcTemplate, jdbcTemplate.queryForList(
+                "SELECT id FROM tp_project WHERE code LIKE 'PERFSLA%'", Long.class));
         jdbcTemplate.update("DELETE FROM tp_user WHERE username LIKE 'perfsop_%' OR username LIKE 'perfspo_%'");
     }
 

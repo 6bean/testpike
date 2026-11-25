@@ -73,7 +73,7 @@ public class DomainExperienceReader {
             return DomainExperienceSection.render(
                     lines, cap, memory.total() + usage.total());
         } catch (RuntimeException e) {
-            log.warn("域经验读路径不可用，本轮对话不注入经验段（不影响对话执行）: {}", e.toString());
+            log.warn("Domain experience read path unavailable, no experience section injected this turn (chat execution unaffected): {}", e.toString());
             return "";
         }
     }

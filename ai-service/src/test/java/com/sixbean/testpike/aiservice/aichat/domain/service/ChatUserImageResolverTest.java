@@ -257,7 +257,7 @@ class ChatUserImageResolverTest {
         when(bytesFetcher.fetch(eq("http://storage.local/presigned-a"), anyInt()))
                 .thenReturn(new byte[]{(byte) 0x89, 'P', 'N', 'G', 1});
         when(bytesFetcher.fetch(eq("http://storage.local/presigned-b"), anyInt()))
-                .thenThrow(new IllegalStateException("存储服务返回状态码 403（预签名地址可能已过期）"));
+                .thenThrow(new IllegalStateException("storage service returned status code 403 (presigned URL may have expired)"));
         stubHappyVision("订单列表页空白区域超过半屏");
 
         ChatUserImageEvidence evidence = resolver.resolve(PROJECT, SESSION, twoImages());

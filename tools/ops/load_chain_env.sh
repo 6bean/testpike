@@ -27,7 +27,7 @@ fi
 if [ -n "${LOAD_ENV_ROOT:-}" ] && [ "${LOAD_ENV_ROOT}" != "$_root" ]; then
   _pin_slot="$(grep -E '^TP_CHAIN_SLOT=' "${LOAD_ENV_ROOT}/.env" 2>/dev/null | tail -1 | cut -d= -f2)"
   if [ -n "$_self_slot" ] && [ -n "$_pin_slot" ] && [ "$_self_slot" != "$_pin_slot" ]; then
-    echo "[load_chain_env] WARN LOAD_ENV_ROOT=${LOAD_ENV_ROOT} pins slot ${_pin_slot} but this tree declares slot ${_self_slot}——按跨槽泄漏指针处理：已摘除，装载本树自身配置。" >&2
+    echo "[load_chain_env] WARN LOAD_ENV_ROOT=${LOAD_ENV_ROOT} pins slot ${_pin_slot} but this tree declares slot ${_self_slot} - treated as a cross-slot leak pointer: the override was dropped, loading this tree's own configuration." >&2
   else
     _root="${LOAD_ENV_ROOT}"
   fi
@@ -44,12 +44,12 @@ for _cand in "${TP_PYTHON:-}" /usr/bin/python3 python3 python; do
   _tp="$_cand"; break
 done
 if [ -z "$_root" ] || [ ! -f "$_root/.env" ]; then
-  echo "[load_chain_env] ✗ 找不到本链配置源（$_root/.env 不存在）" >&2
+  echo "[load_chain_env] ✗ no chain configuration source found ($_root/.env does not exist)" >&2
   return 1 2>/dev/null || exit 1
 fi
 if [ -L "$_root/.env" ]; then
-  echo "[load_chain_env] ✗ 本链 .env 是指向别处的软链（$(readlink "$_root/.env")）——"        "配置源必须是本仓实体文件，否则各链会共用同一套资源。" >&2
-  echo "   修好它：python3 scripts/chain_slot.py configure --tree "$_root"" >&2
+  echo "[load_chain_env] ✗ this chain's .env is a symlink pointing elsewhere ($(readlink "$_root/.env")) -"        " the configuration source must be a real file in this repo, otherwise every chain shares one resource set." >&2
+  echo "   fix it: python3 scripts/chain_slot.py configure --tree "$_root"" >&2
   export TP_CHAIN_ENV_LOAD_FAILED=1
   return 1 2>/dev/null || exit 1
 fi
@@ -84,7 +84,7 @@ for _v in TP_E2E_DB_NAME TP_E2E_BASE_URL TP_E2E_API_BASE \
 done
 unset _v
 if [ -z "${TP_CHAIN_SLOT:-}" ]; then
-  echo "[load_chain_env] ✗ $_root/.env 没写 TP_CHAIN_SLOT——本链身份不明，按缺省会连主库，"        "拒绝继续。修好它：python3 scripts/chain_slot.py configure --tree "$_root"" >&2
+  echo "[load_chain_env] ✗ $_root/.env does not declare TP_CHAIN_SLOT - chain identity unknown, the fallback would connect the main-slot database,"        " refusing to continue. fix it: python3 scripts/chain_slot.py configure --tree "$_root"" >&2
   export TP_CHAIN_ENV_LOAD_FAILED=1
   return 1 2>/dev/null || exit 1
 fi
@@ -97,13 +97,13 @@ if [ -n "$_tp" ] && ! "$_tp" "$_ver" verify-env --help >/dev/null 2>&1; then
     # the configured tree is fine; only its validator is older than this rule
     _ver="$_own/scripts/chain_slot.py"
   else
-    echo "[load_chain_env] WARN 没有支持 verify-env 的校验器（本分支代码落后），" \
-         "本次只装载未校验；合回主线后自动恢复校验" >&2
+    echo "[load_chain_env] WARN no validator supports verify-env (this branch lags behind the rule)," \
+         " loading without validation; validation resumes after merge-back to the main line" >&2
     _ver=""
   fi
 fi
 if [ -n "$_ver" ] && ! "$_tp" "$_ver" verify-env --tree "$_root" >"$_f" 2>&1; then
-  echo "[load_chain_env] ✗ 本链 .env 自身不一致（库/端口带/槽号不同槽）：" >&2
+  echo "[load_chain_env] ✗ this chain's .env is internally inconsistent (database / port band / slot number point at different slots):" >&2
   sed -n '1,6p' "$_f" >&2
   export TP_CHAIN_ENV_LOAD_FAILED=1
 fi

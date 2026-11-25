@@ -30,12 +30,14 @@ DRY_RUN=0
 
 usage() {
     cat <<'USAGE'
-用法: release.sh --version=<v> [选项]
-  --version=<v>       发布版本号（必填，如 1.4.0；与 register 入参逐字一致）
-  --out-dir=<dir>     产物目录（默认 releases/<v> 于仓库根下）
-  --base-url=<url>    对外下载根（release.json 的工件 URL 前缀；缺省用相对路径，
-                      镜像改道后由操作者登记时替换域）
-  --dry-run           只打印将执行的构建命令，不构建（CI 排障用）
+Usage: release.sh --version=<v> [options]
+  --version=<v>       release version (required, e.g. 1.4.0; must match the
+                      register call argument verbatim)
+  --out-dir=<dir>     artifact directory (default: releases/<v> under repo root)
+  --base-url=<url>    public download root (URL prefix for release.json artifacts;
+                      default uses relative paths, swap the domain at register
+                      time after a mirror redirect)
+  --dry-run           print the build commands without running them (CI triage)
 USAGE
 }
 
@@ -46,12 +48,12 @@ for arg in "$@"; do
         --base-url=*) BASE_URL="${arg#*=}" ;;
         --dry-run)   DRY_RUN=1 ;;
         -h|--help)   usage; exit 0 ;;
-        *) echo "未识别参数：$arg" >&2; usage >&2; exit 2 ;;
+        *) echo "unrecognized argument: $arg" >&2; usage >&2; exit 2 ;;
     esac
 done
 
 if [ -z "$VERSION" ]; then
-    echo "缺少 --version=<v>——发布必须先定版本号（登记/预检/台账三处都按它逐字对齐）" >&2
+    echo "missing --version=<v> - a release needs the version first (register / pre-check / ledger all align on it verbatim)" >&2
     usage >&2
     exit 2
 fi
@@ -60,7 +62,7 @@ fi
 step() {
     echo "==> $*"
     if [ "$DRY_RUN" = 1 ]; then
-        echo "    (--dry-run 跳过执行)"
+        echo "    (--dry-run: step skipped)"
         return 0
     fi
     "$@"
@@ -71,7 +73,7 @@ build_one() { # module jar: mvn -pl <m> package -DskipTests (regression is CI's 
     ( cd "$ROOT" && mvn -q -pl "$module" -am package -DskipTests )
     local jar
     jar="$(ls "$ROOT/$module"/target/*.jar 2>/dev/null | grep -vE 'sources|javadoc|original' | head -1)"
-    [ -n "$jar" ] || { echo "模块 $module 未产出 jar（先确认 mvn package 成功）" >&2; return 1; }
+    [ -n "$jar" ] || { echo "module $module produced no jar (make sure mvn package succeeded first)" >&2; return 1; }
     if [ "$DRY_RUN" = 0 ]; then cp "$jar" "$OUT_DIR/$module.jar"; fi
     echo "    $module -> $OUT_DIR/$module.jar"
 }
@@ -96,7 +98,7 @@ step tar -czf "$OUT_DIR/service-agent.tar.gz" -C "$ROOT/installkit" \
 echo "    agent -> $OUT_DIR/service-agent.tar.gz"
 
 if [ "$DRY_RUN" = 1 ]; then
-    echo "(--dry-run 完成：以上为将执行清单，release.json 未生成)"
+    echo "(--dry-run done: the lines above are the plan, release.json was not written)"
     exit 0
 fi
 
@@ -123,7 +125,7 @@ for name in sorted(os.listdir(out_dir)):
         continue
     family = FAMILY_BY_FILE.get(name)
     if family is None:
-        print(f"    警告：{name} 不在族名映射内，跳过（发版脚本与 agent 目录漂移需对齐）")
+        print(f"    warning: {name} is not in the family mapping, skipped (release script and agent artifact list drifted - align them)")
         continue
     data = open(path, "rb").read()
     url = f"{base.rstrip('/')}/{name}" if base else name
@@ -137,8 +139,8 @@ payload = {"version": version,
            "artifacts": rows}
 with open(os.path.join(out_dir, "release.json"), "w", encoding="utf-8") as f:
     json.dump(payload, f, ensure_ascii=False, indent=2)
-print(f"    release.json 写出（{len(rows)} 件，逐件 sha256+size，键形=register 闸入参）")
+print(f"    release.json written ({len(rows)} artifacts, each with sha256+size, keys shaped for the register gate)")
 PY
 
-echo "发布产物目录就绪：$OUT_DIR"
-echo "下一步（操作者）：把该目录放到白名单域下serve，再经 admin release-manifests register 登记（artifacts 直接取 release.json 数组）。"
+echo "release artifact directory ready: $OUT_DIR"
+echo "next (operator): serve this directory under a whitelisted host, then register it via the admin release-manifests register API (pass the release.json artifacts array directly)."

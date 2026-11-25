@@ -180,8 +180,9 @@ class PerfRunCiVerdictTest {
         long scenarioId = newScenarioWithSla("隔离门禁场景", Map.of("p95Ms", 500.0));
         long runId = launchSeedAndFinish(scenarioId, List.of(
                 legacyFrame(0, 80.0, 120.0, 0.0)));
-        long otherProject = jdbcTemplate.queryForObject(
-                "SELECT coalesce(max(id), 0) + 999999 FROM tp_project", Long.class);
+        // Ghost band verified empty on the live dev db; literal avoids the
+        // global project max read that leaked high-id fixtures used to skew.
+        long otherProject = 999_999_999L;
 
         assertThatThrownBy(() -> perfReportService.ciVerdict(otherProject, runId))
                 .isInstanceOf(ServiceException.class)

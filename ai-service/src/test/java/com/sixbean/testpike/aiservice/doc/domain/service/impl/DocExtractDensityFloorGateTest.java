@@ -161,7 +161,7 @@ class DocExtractDensityFloorGateTest {
         assertTrue(secondPrompt.contains("主流程、等价类、反例、边界、状态组合"),
                 "density round carries the dimension-focused ask: " + secondPrompt);
         assertTrue(logAppender.list.stream().anyMatch(e ->
-                        e.getFormattedMessage().contains("F2 密度下限闸")),
+                        e.getFormattedMessage().contains("F2 density floor gate")),
                 "the trigger must be named on the log face");
         assertTrue(capturedStageCodes().contains("density-floor"),
                 "preview face gets its own stage row");
@@ -176,7 +176,7 @@ class DocExtractDensityFloorGateTest {
         service.extract(message());
         verify(llmChain, times(1)).chat(any(), eq(PROJECT_ID), any(), anyBoolean(), any());
         assertFalse(logAppender.list.stream().anyMatch(e ->
-                        e.getFormattedMessage().contains("F2 密度下限闸")),
+                        e.getFormattedMessage().contains("F2 density floor gate")),
                 "an explicit 0 must keep the floor fully out of the loop");
         assertFalse(capturedStageCodes().contains("density-floor"),
                 "an off floor lands no density stage row");
@@ -213,7 +213,7 @@ class DocExtractDensityFloorGateTest {
         service.extract(message());
         verify(llmChain, times(1)).chat(any(), eq(PROJECT_ID), any(), anyBoolean(), any());
         assertFalse(logAppender.list.stream().anyMatch(e ->
-                        e.getFormattedMessage().contains("F2 密度下限闸")),
+                        e.getFormattedMessage().contains("F2 density floor gate")),
                 "a met floor must stay silent");
     }
 

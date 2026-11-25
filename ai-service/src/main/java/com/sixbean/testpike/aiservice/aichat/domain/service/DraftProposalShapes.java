@@ -88,7 +88,7 @@ final class DraftProposalShapes {
         try {
             body = reader.readTree(argumentsJson);
         } catch (JsonProcessingException malformed) {
-            log.warn("草案参数体不是合法 JSON，诚实缺席 tool={} reason={}",
+            log.warn("Draft argument body is not valid JSON; proposal omitted tool={} reason={}",
                     toolName, malformed.getOriginalMessage());
             return null;
         }
@@ -123,7 +123,7 @@ final class DraftProposalShapes {
                 // a card: the core ledger would journal a row no emitter-side
                 // anchor check ever validated. Honest absence beats a card we
                 // cannot guarantee lands.
-                log.warn("草案类型 {} 暂无发射形态，诚实缺席 tool={}", objectType, toolName);
+                log.warn("Draft type {} has no emission shape yet; proposal omitted tool={}", objectType, toolName);
                 yield null;
             }
         };
@@ -142,7 +142,7 @@ final class DraftProposalShapes {
         boolean createNamed = toolName != null && toolName.endsWith(".create");
         if (updateNamed || (!createNamed && caseId > 0)) {
             if (caseId <= 0 || baseVersion <= 0) {
-                log.warn("用例编辑草案缺 caseId/baseVersion 锚，无法安全落地，诚实缺席 caseId={} baseVersion={}",
+                log.warn("Case-edit draft lacks caseId/baseVersion anchors, cannot land safely; proposal omitted caseId={} baseVersion={}",
                         caseId, baseVersion);
                 return null;
             }
@@ -152,7 +152,7 @@ final class DraftProposalShapes {
         }
         String title = body.path("title").asText("");
         if (title.isBlank()) {
-            log.warn("用例新建草案缺标题，无法落地，诚实缺席");
+            log.warn("Case-create draft lacks a title, cannot land; proposal omitted");
             return null;
         }
         return new WriteProposal(toolName, "CASE_WRITE", "新建用例：" + title.trim(),
@@ -174,7 +174,7 @@ final class DraftProposalShapes {
         int targetVersion = body.path("targetVersion").asInt(0);
         int baseVersion = body.path("baseVersion").asInt(0);
         if (caseId <= 0 || targetVersion < 1 || baseVersion <= 0) {
-            log.warn("回滚草案缺 caseId/targetVersion/baseVersion 锚，无法安全落地，诚实缺席 "
+            log.warn("Rollback draft lacks caseId/targetVersion/baseVersion anchors, cannot land safely; proposal omitted "
                     + "caseId={} targetVersion={} baseVersion={}", caseId, targetVersion, baseVersion);
             return null;
         }
@@ -195,7 +195,7 @@ final class DraftProposalShapes {
         String domain = body.path("domain").asText("");
         String content = body.path("content").asText("");
         if (name.isBlank() || domain.isBlank() || content.isBlank()) {
-            log.warn("提示词模板草案缺 name/domain/content 必填项，无法落地，诚实缺席 name={} domain={}",
+            log.warn("Prompt-template draft lacks required name/domain/content, cannot land; proposal omitted name={} domain={}",
                     name.isBlank() ? "" : name, domain.isBlank() ? "" : domain);
             return null;
         }
@@ -216,7 +216,7 @@ final class DraftProposalShapes {
         String skillBody = body.path("body").asText("");
         int type = body.path("type").asInt(0);
         if (name.isBlank() || skillBody.isBlank() || type <= 0) {
-            log.warn("技能草案缺 name/type/body 必填项，无法落地，诚实缺席 name={} type={}",
+            log.warn("Skill draft lacks required name/type/body, cannot land; proposal omitted name={} type={}",
                     name.isBlank() ? "" : name, type);
             return null;
         }
@@ -239,16 +239,16 @@ final class DraftProposalShapes {
         int expectedVersion = body.path("expectedVersion").asInt(0);
         String action = body.path("action").asText("");
         if (caseId <= 0 || expectedVersion <= 0 || !REVIEW_ACTION_LABELS.containsKey(action)) {
-            log.warn("评审决议草案缺 caseId/expectedVersion 或动作不合法，无法落地，诚实缺席 caseId={} action={}",
+            log.warn("Review-decision draft lacks caseId/expectedVersion or the action is invalid, cannot land; proposal omitted caseId={} action={}",
                     caseId, action);
             return null;
         }
         if (!"pass".equals(action) && !body.path("feedbackTypes").isArray()) {
-            log.warn("评审决议草案（{}）缺少问题类型列表，确认必失败，诚实缺席 caseId={}", action, caseId);
+            log.warn("Review-decision draft ({}) lacks the issue-type list; confirmation would fail; proposal omitted caseId={}", action, caseId);
             return null;
         }
         if (!"pass".equals(action) && body.path("feedbackTypes").isEmpty()) {
-            log.warn("评审决议草案（{}）问题类型为空列表，确认必失败，诚实缺席 caseId={}", action, caseId);
+            log.warn("Review-decision draft ({}) has an empty issue-type list; confirmation would fail; proposal omitted caseId={}", action, caseId);
             return null;
         }
         return new WriteProposal(toolName, "CASE_REVIEW",
@@ -274,12 +274,12 @@ final class DraftProposalShapes {
         JsonNode envIds = body.path("envIds");
         JsonNode scope = body.path("caseScope");
         if (name.isBlank() || !envIds.isArray() || envIds.isEmpty()) {
-            log.warn("计划草案缺 name 或 envIds 必填项，无法落地，诚实缺席 name={} envIds={}",
+            log.warn("Plan draft lacks required name or envIds; confirmation would fail; proposal omitted name={} envIds={}",
                     name.isBlank() ? "" : name, envIds.toString());
             return null;
         }
         if (scope.isMissingNode() || scope.isNull() || isEmptyScopeRule(scope)) {
-            log.warn("计划草案范围规则无任何维度限定，确认必失败，诚实缺席 name={}", name);
+            log.warn("Plan draft scope rules carry no dimension constraint; confirmation would fail; proposal omitted name={}", name);
             return null;
         }
         return new WriteProposal(toolName, "PLAN_WRITE",
@@ -311,7 +311,7 @@ final class DraftProposalShapes {
         String name = body.path("name").asText("");
         JsonNode caseIds = body.path("caseIds");
         if (name.isBlank() || !hasItems(caseIds)) {
-            log.warn("批次草案缺批次名或未勾选任何用例，确认必失败，诚实缺席 name={} caseIds={}",
+            log.warn("Batch draft lacks the batch name or has no cases selected; confirmation would fail; proposal omitted name={} caseIds={}",
                     name.isBlank() ? "" : name, caseIds.toString());
             return null;
         }
@@ -337,7 +337,7 @@ final class DraftProposalShapes {
         if (rangeType == 1) {
             long planId = body.path("planId").asLong(0L);
             if (planId <= 0) {
-                log.warn("报告草案按计划生成未选计划，确认必失败，诚实缺席 tool={}", toolName);
+                log.warn("Report draft set to by-plan without a chosen plan; confirmation would fail; proposal omitted tool={}", toolName);
                 return null;
             }
             anchor = "所选计划 #" + planId;
@@ -345,12 +345,12 @@ final class DraftProposalShapes {
             String start = body.path("startTime").asText("");
             String end = body.path("endTime").asText("");
             if (start.isBlank() || end.isBlank()) {
-                log.warn("报告草案按时间范围生成缺起止日期，确认必失败，诚实缺席 tool={}", toolName);
+                log.warn("Report draft set to by-time-range without start/end dates; confirmation would fail; proposal omitted tool={}", toolName);
                 return null;
             }
             anchor = "时间窗 " + start + " ~ " + end;
         } else {
-            log.warn("报告草案范围类型不合法（1=计划 2=时间范围），确认必失败，诚实缺席 tool={} rangeType={}",
+            log.warn("Report draft range type invalid (1=plan 2=time range); confirmation would fail; proposal omitted tool={} rangeType={}",
                     toolName, rangeType);
             return null;
         }
@@ -373,13 +373,13 @@ final class DraftProposalShapes {
     private static WriteProposal apitestShape(String toolName, JsonNode body, String raw) {
         long collectionId = body.path("collectionId").asLong(0L);
         if (collectionId <= 0) {
-            log.warn("接口集默认配置草案缺 collectionId 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("API-collection default-config draft lacks the collectionId anchor; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         boolean hasHeaders = !body.path("headersJson").asText("").isBlank();
         boolean hasAuth = !body.path("authJson").asText("").isBlank();
         if (!hasHeaders && !hasAuth) {
-            log.warn("接口集默认配置草案既无默认请求头也无默认认证配置，无事可存，诚实缺席 tool={} collectionId={}",
+            log.warn("API-collection default-config draft carries neither default headers nor default auth config; nothing to store; proposal omitted tool={} collectionId={}",
                     toolName, collectionId);
             return null;
         }
@@ -404,7 +404,7 @@ final class DraftProposalShapes {
         String name = body.path("name").asText("").trim();
         String url = body.path("url").asText("").trim();
         if (name.isEmpty() || url.isEmpty()) {
-            log.warn("契约拉取草案缺 name/url 锚，确认必失败，诚实缺席 tool={} nameBlank={} urlBlank={}",
+            log.warn("Contract-pull draft lacks name/url anchors; confirmation would fail; proposal omitted tool={} nameBlank={} urlBlank={}",
                     toolName, name.isEmpty(), url.isEmpty());
             return null;
         }
@@ -430,7 +430,7 @@ final class DraftProposalShapes {
     private static WriteProposal perfLaunchShape(String toolName, JsonNode body, String raw) {
         long scenarioId = body.path("scenarioId").asLong(0L);
         if (scenarioId <= 0) {
-            log.warn("压测发起草案缺 scenarioId 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Pressure-run draft lacks the scenarioId anchor; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "PERF_LAUNCH",
@@ -458,7 +458,7 @@ final class DraftProposalShapes {
         String startsAt = body.path("startsAt").asText("").trim();
         String endsAt = body.path("endsAt").asText("").trim();
         if (deviceId <= 0 || startsAt.isEmpty() || endsAt.isEmpty()) {
-            log.warn("设备预约草案缺 deviceId/时间窗锚，确认必失败，诚实缺席 tool={} deviceId={} window={}~{}",
+            log.warn("Device-reservation draft lacks deviceId/time-window anchors; confirmation would fail; proposal omitted tool={} deviceId={} window={}~{}",
                     toolName, deviceId, startsAt, endsAt);
             return null;
         }
@@ -488,7 +488,7 @@ final class DraftProposalShapes {
     private static WriteProposal popupRuleLearnShape(String toolName, JsonNode body, String raw) {
         long taskId = body.path("taskId").asLong(0L);
         if (taskId <= 0) {
-            log.warn("弹窗规则学习草案缺 taskId 锚，确认必失败，诚实缺席 tool={} taskId={}",
+            log.warn("Popup-rule-learning draft lacks the taskId anchor; confirmation would fail; proposal omitted tool={} taskId={}",
                     toolName, taskId);
             return null;
         }
@@ -519,7 +519,7 @@ final class DraftProposalShapes {
         String name = body.path("name").asText("").trim();
         String spaceKey = body.path("spaceKey").asText("").trim();
         if (name.isEmpty() || spaceKey.isEmpty()) {
-            log.warn("Mock 空间草案缺 name/spaceKey 锚，确认必失败，诚实缺席 tool={} nameBlank={} keyBlank={}",
+            log.warn("Mock-space draft lacks name/spaceKey anchors; confirmation would fail; proposal omitted tool={} nameBlank={} keyBlank={}",
                     toolName, name.isEmpty(), spaceKey.isEmpty());
             return null;
         }
@@ -544,8 +544,8 @@ final class DraftProposalShapes {
             int baseVersion = body.path("baseVersion").asInt(0);
             if (stubId <= 0 || baseVersion <= 0 || name.isEmpty()
                     || method.isEmpty() || pathPattern.isEmpty()) {
-                log.warn("Mock 规则编辑草案缺 stubId/baseVersion/name/method/pathPattern 锚，"
-                        + "确认必失败，诚实缺席 tool={} stubId={} baseVersion={}",
+                log.warn("Mock-rule edit draft lacks stubId/baseVersion/name/method/pathPattern anchors, "
+                        + "confirmation would fail; proposal omitted tool={} stubId={} baseVersion={}",
                         toolName, stubId, baseVersion);
                 return null;
             }
@@ -560,8 +560,8 @@ final class DraftProposalShapes {
         // three fields the save chain refuses without.
         long spaceId = body.path("spaceId").asLong(0L);
         if (spaceId <= 0 || name.isEmpty() || method.isEmpty() || pathPattern.isEmpty()) {
-            log.warn("Mock 规则新建草案缺 spaceId/name/method/pathPattern 锚，确认必失败，"
-                    + "诚实缺席 tool={} spaceId={} nameBlank={} methodBlank={} pathBlank={}",
+            log.warn("Mock-rule create draft lacks spaceId/name/method/pathPattern anchors; confirmation would fail; "
+                    + "proposal omitted tool={} spaceId={} nameBlank={} methodBlank={} pathBlank={}",
                     toolName, spaceId, name.isEmpty(), method.isEmpty(), pathPattern.isEmpty());
             return null;
         }
@@ -592,7 +592,7 @@ final class DraftProposalShapes {
             }
         }
         if (usable == 0) {
-            log.warn("AI 生成批次草案没有任何非空需求条目，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("AI-generation batch draft has no non-empty requirement items; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "AIGEN_BATCH_WRITE",
@@ -619,7 +619,7 @@ final class DraftProposalShapes {
         String title = body.path("title").asText("").trim();
         if (toolName != null && toolName.endsWith(".create")) {
             if (title.isEmpty()) {
-                log.warn("缺陷新建草案缺 title 锚，确认必失败，诚实缺席 tool={}", toolName);
+                log.warn("Defect-create draft lacks the title anchor; confirmation would fail; proposal omitted tool={}", toolName);
                 return null;
             }
             return new WriteProposal(toolName, "DEFECT_WRITE",
@@ -632,8 +632,8 @@ final class DraftProposalShapes {
         long defectId = body.path("defectId").asLong(0L);
         int baseVersion = body.path("version").asInt(0);
         if (defectId <= 0 || baseVersion <= 0) {
-            log.warn("缺陷{}草案缺 defectId/version 锚，确认必失败，诚实缺席 tool={} defectId={} version={}",
-                    toolName != null && toolName.endsWith(".transition") ? "流转" : "编辑",
+            log.warn("Defect {} draft lacks defectId/version anchors; confirmation would fail; proposal omitted tool={} defectId={} version={}",
+                    toolName != null && toolName.endsWith(".transition") ? "transition" : "edit",
                     toolName, defectId, baseVersion);
             return null;
         }
@@ -641,11 +641,11 @@ final class DraftProposalShapes {
             int toStatus = body.path("toStatus").asInt(0);
             String reason = body.path("closedReason").asText("").trim();
             if (toStatus < 2 || toStatus > 6) {
-                log.warn("缺陷流转草案目标状态不在状态机范围，诚实缺席 tool={} toStatus={}", toolName, toStatus);
+                log.warn("Defect-transition draft target status is outside the state machine; proposal omitted tool={} toStatus={}", toolName, toStatus);
                 return null;
             }
             if ((toStatus == 5 || toStatus == 6) && reason.isEmpty()) {
-                log.warn("缺陷关闭/重新打开草案缺原因，确认必失败，诚实缺席 tool={} toStatus={}",
+                log.warn("Defect close/reopen draft lacks a reason; confirmation would fail; proposal omitted tool={} toStatus={}",
                         toolName, toStatus);
                 return null;
             }
@@ -656,7 +656,7 @@ final class DraftProposalShapes {
                     defectId, baseVersion, raw);
         }
         if (title.isEmpty()) {
-            log.warn("缺陷编辑草案缺 title 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Defect-edit draft lacks the title anchor; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "DEFECT_WRITE",
@@ -698,7 +698,7 @@ final class DraftProposalShapes {
             long envId = body.path("envId").asLong(0L);
             int type = body.path("type").asInt(0);
             if (name.isEmpty() || content.isEmpty() || envId <= 0 || type < 1 || type > 3) {
-                log.warn("造数脚本新建草案缺 name/content/envId 锚或类型不在 1/2/3，确认必失败，诚实缺席 tool={}",
+                log.warn("Data-factory create draft lacks name/content/envId anchors or the type is not in 1/2/3; confirmation would fail; proposal omitted tool={}",
                         toolName);
                 return null;
             }
@@ -712,12 +712,12 @@ final class DraftProposalShapes {
         }
         long factoryId = body.path("factoryId").asLong(0L);
         if (factoryId <= 0) {
-            log.warn("造数脚本编辑草案缺 factoryId 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Data-factory edit draft lacks the factoryId anchor; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         if (name.isEmpty() && body.path("content").asText("").trim().isEmpty()
                 && !body.hasNonNull("status")) {
-            log.warn("造数脚本编辑草案没有任何可落字段，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Data-factory edit draft has no updatable fields; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "DATA_FACTORY_WRITE",
@@ -753,7 +753,7 @@ final class DraftProposalShapes {
         String goal = body.path("goalText").asText("").trim();
         String startUrl = body.path("startUrl").asText("").trim();
         if (goal.isEmpty() || startUrl.isEmpty()) {
-            log.warn("探索发起草案缺 goalText/startUrl 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Exploration-run draft lacks goalText/startUrl anchors; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         String goalShown = goal.length() > 60 ? goal.substring(0, 60) + "…" : goal;
@@ -785,7 +785,7 @@ final class DraftProposalShapes {
         int baseVersion = body.path("baseVersion").asInt(0);
         String reason = body.path("reason").asText("").trim();
         if (caseId <= 0 || baseVersion <= 0 || reason.isEmpty()) {
-            log.warn("隔离草案缺 caseId/baseVersion/reason 锚，确认必失败，诚实缺席 tool={} caseId={} baseVersion={}",
+            log.warn("Quarantine draft lacks caseId/baseVersion/reason anchors; confirmation would fail; proposal omitted tool={} caseId={} baseVersion={}",
                     toolName, caseId, baseVersion);
             return null;
         }
@@ -818,7 +818,7 @@ final class DraftProposalShapes {
             long requirementId = body.path("requirementId").asLong(0L);
             int baseVersion = body.path("baseVersion").asInt(0);
             if (requirementId <= 0 || baseVersion <= 0) {
-                log.warn("需求点编辑草案缺 requirementId/baseVersion 锚，确认必失败，诚实缺席 tool={} requirementId={} baseVersion={}",
+                log.warn("Requirement-edit draft lacks requirementId/baseVersion anchors; confirmation would fail; proposal omitted tool={} requirementId={} baseVersion={}",
                         toolName, requirementId, baseVersion);
                 return null;
             }
@@ -829,7 +829,7 @@ final class DraftProposalShapes {
                     requirementId, baseVersion, raw);
         }
         if (title.isEmpty()) {
-            log.warn("需求点新建草案缺 title 锚，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Requirement-create draft lacks the title anchor; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "REQUIREMENT_WRITE",
@@ -864,7 +864,7 @@ final class DraftProposalShapes {
         String stateName = body.path("stateName").asText("").trim();
         JsonNode entries = body.path("entries");
         if (token.isEmpty() || stateName.isEmpty() || !entries.isArray()) {
-            log.warn("登录态登记草案缺 stagingToken/stateName 锚或条目列表不可用，确认必失败，诚实缺席 "
+            log.warn("Login-state registration draft lacks stagingToken/stateName anchors or the item list is unavailable; confirmation would fail; proposal omitted "
                     + "tool={} tokenBlank={} nameBlank={}", toolName, token.isEmpty(), stateName.isEmpty());
             return null;
         }
@@ -906,12 +906,12 @@ final class DraftProposalShapes {
                 token = readable.get(0);
                 staged = stagedNames.names(token);
                 canonicalByNormalized = nameDomain(staged);
-                log.warn("登录态登记草案转录暂存凭证指向已失效槽，本回合存在唯一活暂存槽，"
-                        + "重挂活凭证后出卡 tool={} liveToken={}", toolName, token);
+                log.warn("Login-state draft transcribed staging token points to an expired slot while this round holds one live staging slot;"
+                        + " re-attach the live token before emitting the card tool={} liveToken={}", toolName, token);
             }
         }
         if (canonicalByNormalized.isEmpty()) {
-            log.warn("登录态登记草案的暂存槽名域不可读或已过期，确认必失败，诚实缺席 tool={}", toolName);
+            log.warn("Login-state draft staging-slot name domain unreadable or expired; confirmation would fail; proposal omitted tool={}", toolName);
             return null;
         }
         // Piece D3 kept: EVERY aligned candidate rides the snapshot (unticked
@@ -968,13 +968,13 @@ final class DraftProposalShapes {
                 if (suffixHits == 1) {
                     canonical = suffixCandidate;
                 } else if (suffixHits > 1) {
-                    log.warn("登录态登记草案转录名折叠后缀命中多个暂存名，剔除不硬选 "
+                    log.warn("Login-state draft transcribed-name folded suffix hits multiple staging names; drop instead of forcing a pick "
                             + "tool={} transcribed={} hits={}", toolName, name, suffixHits);
                     continue;
                 }
             }
             if (canonical == null) {
-                log.warn("登录态登记草案剔除暂存名域之外的转录名 tool={} transcribed={}", toolName, name);
+                log.warn("Login-state draft drops transcribed names outside the staging-name domain tool={} transcribed={}", toolName, name);
                 continue;
             }
             alignedRows.add(canonical);
@@ -983,7 +983,7 @@ final class DraftProposalShapes {
             }
         }
         if (alignedRows.isEmpty()) {
-            log.warn("登录态登记草案转录名全部不在暂存名域内，卡片无可勾选项，诚实缺席 tool={}", toolName);
+            log.warn("Login-state draft transcribed names all fall outside the staging-name domain; the card has nothing selectable; proposal omitted tool={}", toolName);
             return null;
         }
         com.fasterxml.jackson.databind.node.ObjectNode payload = reader.createObjectNode();
@@ -1000,7 +1000,7 @@ final class DraftProposalShapes {
         try {
             payloadJson = reader.writeValueAsString(payload);
         } catch (JsonProcessingException impossibleForATreeBuiltHere) {
-            log.warn("登录态登记草案载荷重序列化失败，诚实缺席 tool={}", toolName);
+            log.warn("Login-state draft payload re-serialization failed; proposal omitted tool={}", toolName);
             return null;
         }
         return new WriteProposal(toolName, "LOGIN_STATE_WRITE",
@@ -1103,7 +1103,7 @@ final class DraftProposalShapes {
         if (fromTagId > 0) {
             long toTagId = body.path("toTagId").asLong(0L);
             if (toTagId <= 0) {
-                log.warn("标签合并草案缺 toTagId 锚，无法安全落地，诚实缺席 fromTagId={}", fromTagId);
+                log.warn("Tag-merge draft lacks the toTagId anchor, cannot land safely; proposal omitted fromTagId={}", fromTagId);
                 return null;
             }
             return new WriteProposal(toolName, "TAG_WRITE",
@@ -1114,7 +1114,7 @@ final class DraftProposalShapes {
         if (tagId > 0) {
             String newName = body.path("newName").asText("");
             if (newName.isBlank()) {
-                log.warn("标签改名草案缺 newName，无法落地，诚实缺席");
+                log.warn("Tag-rename draft lacks newName, cannot land; proposal omitted");
                 return null;
             }
             return new WriteProposal(toolName, "TAG_WRITE",
@@ -1123,7 +1123,7 @@ final class DraftProposalShapes {
         }
         String name = body.path("name").asText("");
         if (name.isBlank()) {
-            log.warn("标签新建草案缺名称，无法落地，诚实缺席");
+            log.warn("Tag-create draft lacks a name, cannot land; proposal omitted");
             return null;
         }
         return new WriteProposal(toolName, "TAG_WRITE", "新建标签：" + name.trim(),

@@ -49,7 +49,7 @@ def test_tier_requirements_are_matrix_sums_not_literals():
 def test_render_tiers_text_carries_generated_numbers():
     text = resource_tiers.render_tiers_text()
     req = resource_tiers.tier_requirements("standard")
-    assert "轻量体验" in text and "标准上手" in text and "完整功能" in text
+    assert "Lightweight" in text and "Standard" in text and "Full" in text
     # numbers shown to the user must equal the programmatic sums (GB, 1 decimal)
     assert resource_tiers._gb(req["disk_mb"]) in text
     assert resource_tiers._gb(req["mem_mb"]) in text
@@ -101,7 +101,7 @@ def test_ask_junk_falls_back_human_no_crash(tmp_path, capsys):
     answers = resource_tiers.ask(input_text="铂金版\n", answers_path=str(answers_file))
     assert answers["tier"] == resource_tiers.DEFAULT_TIER
     out = capsys.readouterr().out
-    assert "铂金版" in out and "默认" in out  # names the bad input, then continues
+    assert "铂金版" in out and "default" in out  # names the bad input, then continues
 
 
 # ------------------------------------------------------- component matrix plan
@@ -142,7 +142,7 @@ def test_verify_sha256_pass_and_human_failure_path(tmp_path):
     msg = str(exc.value)
     # R63 three elements: names the file, the two digests, and where to fix
     assert "engine-bundle.tgz" in msg and "0" * 64 in msg and good[:8] in msg
-    assert "installkit.mirror-base-url" in msg or "重新下载" in msg
+    assert "installkit.mirror-base-url" in msg or "re-download" in msg.lower()
 
 
 def test_matrix_artifacts_declare_sha256_fields():
@@ -186,7 +186,7 @@ def test_install_sh_failure_teaching_written_to_install_log(tmp_path):
     for f in sorted(logs.glob("*.log")):
         log_text += f.read_text(encoding="utf-8")
     # the step that failed must teach: resume command + repair hint + log path
-    assert "教学" in log_text or "断点续跑" in log_text, proc.stdout[-2000:] + proc.stderr[-2000:]
+    assert "guide:" in log_text or "resume from the checkpoint" in log_text, proc.stdout[-2000:] + proc.stderr[-2000:]
     assert "install.sh --scenario=first" in log_text
     assert "--scenario=repair" in log_text
 

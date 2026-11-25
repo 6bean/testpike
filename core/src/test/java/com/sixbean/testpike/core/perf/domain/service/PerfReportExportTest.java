@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * Load-report export contract test .
@@ -57,15 +58,11 @@ class PerfReportExportTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "压测导出测试项目_" + uniq, "PERFEXP" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-导出测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) "
-                + "VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "压测导出测试项目_", "PERFEXP", "性能-导出测", 1,
+                "http://perf-target.local/api", 1000, null);
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach

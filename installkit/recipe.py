@@ -21,7 +21,7 @@ def commands_for(recipe, action, host, mirror_base_url=None, target_pin=None):
     hosts = _hosts_view(recipe)
     if host not in hosts:
         raise ValueError(messages.t("recipe.host_not_covered", host=host,
-                                    covered="、".join(sorted(hosts)) or "无"))
+                                    covered=", ".join(sorted(hosts)) or "none"))
     spec = hosts[host] or {}
     if action == "probe":
         return list(spec.get("probe") or [])
@@ -54,13 +54,13 @@ def manual_steps(recipe):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="recipe.py", description="配方消费只读 CLI（体检/装/卸命令预览）")
+    parser = argparse.ArgumentParser(prog="recipe.py", description="read-only recipe CLI (probe / install / uninstall command preview)")
     parser.add_argument("action", choices=["probe", "install", "uninstall", "upgrade", "manual"])
-    parser.add_argument("--recipe-file", required=True, help="api /internal 口拉回并落盘的配方 JSON")
+    parser.add_argument("--recipe-file", required=True, help="recipe JSON pulled from the api /internal endpoint and saved to disk")
     parser.add_argument("--host", default="linux")
     parser.add_argument("--mirror-base-url", default=None)
     parser.add_argument("--target-pin", default=None,
-                        help="反向钉（回滚=把配方版本钉整体替换为该目标版本）")
+                        help="reverse pin (rollback = replace the recipe's version pin wholesale with this target version)")
     args = parser.parse_args(argv)
     recipe = json.loads(open(args.recipe_file, encoding="utf-8").read() or "{}")
     if args.action == "manual":

@@ -15,31 +15,52 @@ export function useProjectPageContext() {
 
   if (auth.user?.userId != null && ctx.selectedIds.length === 0) ctx.loadForUser()
 
-  const resolved = resolveProjectRouteParam(
-    route.query.projectId as string | (string | null)[] | undefined,
-    ctx.selectedIds,
-  )
-  projectId.value = resolved.projectId
-  if (resolved.writeBack && resolved.projectId != null) {
-    void router.replace(withProjectQuery(route.query, resolved.projectId))
-  }
+  /** Resolve the page-scoped project view from the URL-first priority chain and land it.
+   *  Runs at setup AND whenever the route's projectId query changes: Vue Router
+   *  reuses this component for same-path navigations (space A of one project to
+   *  space B of another via deep link), so a one-shot setup read would keep the
+   *  page slicing the stale project and the workbench would honestly report the
+   *  new space as "not in the current project" (vision-gate repro). Idempotent:
+   *  re-applying the same value takes the rule-1 path without any write-back. */
+  function applyRouteParam(): void {
+    const resolved = resolveProjectRouteParam(
+      route.query.projectId as string | (string | null)[] | undefined,
+      ctx.selectedIds,
+    )
+    projectId.value = resolved.projectId
+    if (resolved.writeBack && resolved.projectId != null) {
+      void router.replace(withProjectQuery(route.query, resolved.projectId))
+    }
 
-  // Deep-linked project missing from the locally-hydrated visible domain (a
-  // project created after the last /users/me snapshot — SPA hash navigation
-  // never re-fetches it): refresh the visible domain once through the existing
-  // loadMe single source before the context decides. Without this the forced
-  // prune (watch auth.projects -> pruneToVisible) drops a perfectly valid
-  // ?projectId and the page lies "no visible projects" ( door-2 E2E root
-  // cause, browser-reproved). A still-invalid id (deleted/not a member) stays
-  // pruned — honest absence, no privilege widening (H1 guard unchanged
-  // server-side; this only refreshes the read-only visibility snapshot).
-  if (resolved.projectId != null && !auth.projects.some((p) => p.projectId === resolved.projectId)) {
-    void auth
-      .loadMe()
-      .catch(() => {
-        /* network failure keeps the stale snapshot; the prune path stays honest */
-      })
+    // Deep-linked project missing from the locally-hydrated visible domain (a
+    // project created after the last /users/me snapshot — SPA hash navigation
+    // never re-fetches it): refresh the visible domain once through the existing
+    // loadMe single source before the context decides. Without this the forced
+    // prune (watch auth.projects -> pruneToVisible) drops a perfectly valid
+    // ?projectId and the page lies "no visible projects" ( door-2 E2E root
+    // cause, browser-reproved). A still-invalid id (deleted/not a member) stays
+    // pruned — honest absence, no privilege widening (H1 guard unchanged
+    // server-side; this only refreshes the read-only visibility snapshot).
+    if (resolved.projectId != null && !auth.projects.some((p) => p.projectId === resolved.projectId)) {
+      void auth
+        .loadMe()
+        .catch(() => {
+          /* network failure keeps the stale snapshot; the prune path stays honest */
+        })
+    }
   }
+  applyRouteParam()
+  // Re-apply only when a NEW explicit project lands in the query. Transitions
+  // to "no query" must not trigger the rule-2 fallback write-back here: a page
+  // that deliberately strips the param via syncToContext (deselect posture)
+  // would otherwise have the param instantly re-added from the global context,
+  // and header-driven follow already lands through the selectedIds watch.
+  watch(
+    () => route.query.projectId,
+    (v) => {
+      if (v != null) applyRouteParam()
+    },
+  )
 
   /** Page-level (re)selection: write the store single source + sync the query.
    *  A single id always lands FIRST in the selection = the "in-page switch syncs

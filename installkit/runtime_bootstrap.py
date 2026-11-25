@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import doctor
 import pkg_probe
 
-MINIMUM_PAT = re.compile(r">?=?\s*(\d+)\.(\d+)")
+MINIMUM_PAT = re.compile(r">?=\s*(\d+)\.(\d+)")
 
 
 def parse_version(raw):
@@ -91,7 +91,7 @@ def _nvm_windows_plan(minimum):
 def bootstrap_plan(pm, minimum, win_lts_behind=False):
     pass
     if pm not in pkg_probe.PREREQ_CMD:
-        raise ValueError("未登记的包管理画像「%s」——支持 %s，其余发行版请按官方文档人工装 node 后重跑"
+        raise ValueError("unregistered package-manager profile '%s' — supported: %s; for other distributions install node manually per its official docs, then re-run"
                          % (pm, " / ".join(pkg_probe.PREREQ_CMD)))
     if minimum is None:
         return [pkg_probe.install_command(pm, "node")]
@@ -137,23 +137,23 @@ def cmd_check(args):
     pass
     minimum = requirement_from_recipes(args.state_dir)
     version = current_node_version()
-    need_text = "node>=%d.%d" % minimum if minimum else "node 在位即可"
-    print("运行时需求：%s（来源=引擎配方 runtime_requires 声明）" % need_text)
+    need_text = "node>=%d.%d" % minimum if minimum else "any node version is fine"
+    print("Runtime requirement: %s (source: engine recipe runtime_requires)" % need_text)
     if version is None:
-        print("缺运行时 node——本机 PATH 探测不到 node 命令")
+        print("node runtime missing — the node command cannot be found on this machine's PATH")
     elif satisfies(version, minimum):
-        print("运行时 node v%d.%d.%d 已满足" % version)
+        print("node runtime v%d.%d.%d satisfies the requirement" % version)
     else:
-        print("运行时 node v%d.%d.%d 版本不足（需 >=%d.%d）" % (version + minimum))
+        print("node runtime v%d.%d.%d is below the required version (>=%d.%d)" % (version + minimum))
     pm = _resolve_pm(args)
     if version is not None and satisfies(version, minimum):
         return 0
     if pm is None:
-        print("包管理画像未知——请按本机发行版官方文档人工安装 node 后重检")
+        print("package-manager profile unknown — install node manually per your distribution's official docs, then re-check")
         return 0
     for cmd in bootstrap_plan(pm, minimum):
-        print("  补齐命令：%s" % cmd)
-    print("  补齐执行：installkit/install.sh 装机位点会自动带 --yes 跑；人工=逐条复制上方命令")
+        print("  refill command: %s" % cmd)
+    print("  how to apply: installkit/install.sh runs these automatically with --yes during install; manually = copy each command above and run it")
     return 0
 
 
@@ -162,7 +162,7 @@ def cmd_ensure(args):
     minimum = requirement_from_recipes(args.state_dir)
     version = current_node_version()
     if version is not None and satisfies(version, minimum):
-        print("运行时已满足（node v%d.%d.%d），零补齐" % version)
+        print("Runtime already satisfied (node v%d.%d.%d) — zero refill" % version)
         return 0
     pm = _resolve_pm(args)
     try:
@@ -171,46 +171,46 @@ def cmd_ensure(args):
         print(str(exc), file=sys.stderr)
         return 2
     if not args.yes:
-        print("运行时缺位或版本不足，将执行以下补齐命令（未带 --yes=只计划不代跑）：")
+        print("Runtime missing or too old; the refill commands below would run (without --yes this is plan-only, nothing is executed):")
         for cmd in plan:
             print("  %s" % cmd)
-        print("确认后重跑同一命令并加 --yes，或逐条复制上方命令人工执行")
+        print("After confirming, re-run the same command with --yes, or copy each command above and run them manually")
         return 0
     for cmd in plan:
-        print("执行补齐：%s" % cmd)
+        print("Applying refill: %s" % cmd)
         proc = _run_plan_cmd(cmd)
         if proc.returncode != 0:
-            print("补齐命令失败（退出码 %s）——原因见上方输出；修复后重跑同一命令即从本步续"
+            print("refill command failed (exit code %s) — see the output above for the cause; after fixing it, re-run the same command and it resumes from this step"
                   % proc.returncode, file=sys.stderr)
             return proc.returncode
     after = current_node_version()
     if after is None:
-        print("补齐命令已跑完但 node 仍探测不到——请重开终端后重跑体检（PATH 需新会话生效）")
+        print("refill commands finished but node is still not detectable — open a new terminal and re-run the check (PATH takes effect in a new session)")
         return 0
     if satisfies(after, minimum):
-        print("运行时补齐完成（node v%d.%d.%d）" % after)
+        print("Runtime refill complete (node v%d.%d.%d)" % after)
     else:
-        need_text = "node>=%d.%d" % minimum if minimum else "在位即可"
-        print("补齐命令已跑完但本机 node 仍为 v%d.%d.%d（需求 %s）——可能需要重开 shell 使 PATH 生效，重开后再跑一次体检复核"
+        need_text = "node>=%d.%d" % minimum if minimum else "any version is fine"
+        print("refill commands finished but this machine's node is still v%d.%d.%d (required %s) — PATH may need a fresh shell; reopen it and run the check again to confirm"
               % (after + (need_text,)))
     return 0
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="runtime_bootstrap.py",
-                                     description="引擎运行时 bootstrap（需求=配方声明，装法=画像命令表）")
+                                     description="engine runtime bootstrap (requirement = recipe declaration, install method = profile command table)")
     sub = parser.add_subparsers(dest="command", required=True)
-    p_check = sub.add_parser("check", help="只读报告：配方 runtime 需求 vs 本机探测")
-    p_needs = sub.add_parser("needs", help="位点闸：本次装机/换装是否有运行时需求（S1/S4 消费）")
-    p_ensure = sub.add_parser("ensure", help="缺位/不足时按画像补齐（无 --yes 只出计划）")
+    p_check = sub.add_parser("check", help="read-only report: recipe runtime requirement vs local probe")
+    p_needs = sub.add_parser("needs", help="stage gate: does this install/upgrade need the runtime stage (consumed by S1/S4)")
+    p_ensure = sub.add_parser("ensure", help="apply the profile refill plan when the runtime is missing or too old (without --yes only prints the plan)")
     for p in (p_check, p_ensure):
-        p.add_argument("--state-dir", required=True, help="配方 recipe-*.json 所在状态目录")
+        p.add_argument("--state-dir", required=True, help="directory holding the recipe-*.json state files")
         p.add_argument("--assume-pm", default=None,
-                       help="显式包管理画像（apt/dnf/apk/brew/winget/choco；缺省自动判定）")
-    p_ensure.add_argument("--yes", action="store_true", help="显式同意执行补齐命令")
+                       help="explicit package-manager profile (apt/dnf/apk/brew/winget/choco; auto-detected by default)")
+    p_ensure.add_argument("--yes", action="store_true", help="explicit consent to execute the refill commands")
     p_needs.add_argument("--state-dir", required=True)
     p_needs.add_argument("--answers-file", default="",
-                         help="S1 问答答案 JSON（engines 非空=需要运行时位点）")
+                         help="S1 wizard answers JSON (non-empty engines = the runtime stage is needed)")
     args = parser.parse_args(argv)
     if args.command == "check":
         return cmd_check(args)

@@ -429,7 +429,7 @@ public class ChatRunOrchestrator {
                 }
             }
         } catch (RuntimeException doorDown) {
-            log.warn("草案路由门不可达，本轮不出卡不改回答 sessionId={} reason={}",
+            log.warn("Draft routing gate unreachable, no proposal card and no answer change this turn sessionId={} reason={}",
                     sessionId, doorDown.getMessage());
             return false;
         }
@@ -492,7 +492,7 @@ public class ChatRunOrchestrator {
         try {
             return coreGateway.getStagedLoginStateNames(token);
         } catch (RuntimeException probeDown) {
-            log.warn("登录态暂存名域探测失败，本轮草案诚实缺席 reason={}", probeDown.getMessage());
+            log.warn("Staged login name-domain probe failed, draft proposal omitted this turn reason={}", probeDown.getMessage());
             return java.util.List.of();
         }
     }
@@ -999,7 +999,7 @@ public class ChatRunOrchestrator {
             try {
                 pending = coreGateway.pendingInjects(sessionId, cursor.get());
             } catch (RuntimeException doorDown) {
-                log.warn("转向读取门不可达，本轮界按无注入继续 sessionId={} reason={}",
+                log.warn("Steering read gate unreachable, this turn continues without injection sessionId={} reason={}",
                         sessionId, doorDown.getMessage());
                 return java.util.List.of();
             }
@@ -1024,7 +1024,7 @@ public class ChatRunOrchestrator {
 
     /** Switch off = honest refusal in the ledger, then the turn is sealed as error. */
     private void refuseDisabled(AiChatRunMessage message) {
-        log.info("对话执行开关未开启，诚实拒跑 sessionId={} messageId={}",
+        log.info("Chat execution switch is off, run refused sessionId={} messageId={}",
                 message.sessionId(), message.assistantMessageId());
         coreGateway.appendChatFrame(message.sessionId(), message.assistantMessageId(), "error",
                 DenialGuidanceFrame.switchClosed("在线 AI 对话", KEY_EXEC_ENABLED), null);
@@ -1063,7 +1063,7 @@ public class ChatRunOrchestrator {
         try {
             return coreGateway.sessionTotalTokens(sessionId);
         } catch (RuntimeException doorDown) {
-            log.warn("会话预算账门不可达，本轮放行 sessionId={} reason={}",
+            log.warn("Session budget ledger gate unreachable, this turn is let through sessionId={} reason={}",
                     sessionId, doorDown.getMessage());
             return -1L;
         }
@@ -1082,7 +1082,7 @@ public class ChatRunOrchestrator {
         String usage = consumed >= 0
                 ? "已消耗 " + consumed + " tokens"
                 : "已消耗量本次未能读取";
-        log.info("会话 token 预算超限，诚实拒跑 sessionId={} messageId={}",
+        log.info("Session token budget exceeded, run refused sessionId={} messageId={}",
                 message.sessionId(), message.assistantMessageId());
         coreGateway.appendChatFrame(message.sessionId(), message.assistantMessageId(), "error",
                 "本次提问未执行：该会话的 token 用量已超过预算上限（" + usage + "）。"
@@ -1248,7 +1248,7 @@ public class ChatRunOrchestrator {
                     com.sixbean.testpike.aiservice.llm.pipeline.GoalEchoGate.TEMPLATE_DOMAIN,
                     com.sixbean.testpike.aiservice.llm.pipeline.GoalEchoGate.PUBLISHED_STATUS);
         } catch (RuntimeException e) {
-            log.warn("目标回显模板读路径不可用，本轮回退内置回显条款（不影响对话执行）: {}", e.toString());
+            log.warn("Goal echo template read path unavailable, built-in echo clause used this turn (chat execution unaffected): {}", e.toString());
         }
         return "\n\n" + com.sixbean.testpike.aiservice.llm.pipeline.GoalEchoGate.headClause(
                 publishedRow == null ? null : publishedRow.content());
@@ -1287,7 +1287,7 @@ public class ChatRunOrchestrator {
                     com.sixbean.testpike.aiservice.aichat.domain.component
                             .GoalAttributionGate.PUBLISHED_STATUS);
         } catch (RuntimeException e) {
-            log.warn("目标归属模板读路径不可用，本轮回退内置归属条款（不影响对话执行）: {}", e.toString());
+            log.warn("Goal ownership template read path unavailable, built-in ownership clause used this turn (chat execution unaffected): {}", e.toString());
         }
         return "\n\n" + com.sixbean.testpike.aiservice.aichat.domain.component
                 .GoalAttributionGate.headClause(publishedRow == null ? null : publishedRow.content());
@@ -1419,7 +1419,7 @@ public class ChatRunOrchestrator {
         ChatRepairDraft draft = repairProposalGenerator.generate(projectId,
                 diagnosis.caseId(), diagnosis.errorDetail());
         if (!draft.valid()) {
-            log.info("对话修复草案诚实缺席 sessionId={} messageId={} reason={}",
+            log.info("Chat repair proposal omitted sessionId={} messageId={} reason={}",
                     sessionId, assistantMessageId, draft.invalidReason());
             return;
         }
@@ -1757,7 +1757,7 @@ public class ChatRunOrchestrator {
         try {
             allowed = reActRunner.allowedCapabilities(projectId, actorId);
         } catch (RuntimeException doorFault) {
-            log.warn("扩展建议交集复校不可达，本轮不附建议 reason={}", doorFault.getMessage());
+            log.warn("Extension suggestion intersection recheck gate unreachable, no suggestions attached this turn reason={}", doorFault.getMessage());
             return "";
         }
         var kept = com.sixbean.testpike.aiservice.tool.domain.component.SuggestTool
@@ -1802,7 +1802,7 @@ public class ChatRunOrchestrator {
             }
             throw cause;
         }
-        log.warn("对话运行失败已入账 sessionId={} messageId={} reason={}",
+        log.warn("Chat run failure booked sessionId={} messageId={} reason={}",
                 sessionId, assistantMessageId, reason);
     }
 }

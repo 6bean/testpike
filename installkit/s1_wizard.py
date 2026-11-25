@@ -13,19 +13,19 @@ DEFAULT_ENGINES = "mobilewright,minium"
 
 QUESTIONS = (
     Question("role",
-             "这台机器的角色？1=平台服务器（跑平台+中间件+浏览器执行器，默认）　2=纯执行器机（只跑引擎干活）",
+             "Role of this machine? 1=platform server (runs platform + middleware + browser executor, default)  2=executor-only box (runs the engines to do the work)",
              "choice"),
     Question("engines",
-             "要装哪些 App 自动化引擎？逗号分隔，默认=%s（其余引擎配方后续版本补全）" % DEFAULT_ENGINES,
+             "Which app automation engines to install? Comma-separated, default=%s (recipes for the remaining engines ship in later versions)" % DEFAULT_ENGINES,
              "csv"),
     Question("mirror_base_url",
-             "内网镜像源基址？（公司 Nexus 根地址，留空=官方源；默认读平台配置键）",
+             "Internal mirror registry base URL? (company Nexus root; leave empty for the official registry; the default is read from the platform config key)",
              "text"),
     Question("install_dir",
-             "引擎与运行时安装到哪个目录？（默认 ~/.testpike-runtime，无需 root）",
+             "Directory for engines and runtimes? (default ~/.testpike-runtime, no root required)",
              "text"),
     Question("autostart",
-             "开机自启？y=注册系统服务/NVM 启动项　n=不自启（默认 n）",
+             "Start on boot? y=register the system service / NVM startup entry  n=no autostart (default n)",
              "yesno"),
 )
 
@@ -45,7 +45,7 @@ def _read_line(stream):
 
 def _ask(stream, question, default_display, default_value=None):
     pass
-    print("%s［默认：%s］" % (question.prompt, default_display))
+    print("%s [default: %s]" % (question.prompt, default_display))
     line = _read_line(stream)
     if line is None or line == "":
         return default_display if default_value is None else default_value
@@ -55,9 +55,9 @@ def _ask(stream, question, default_display, default_value=None):
 def _choice(line, mapping, default, label):
     value = mapping.get(line.strip().lower())
     if value is None:
-        print("　↳「%s」不是可选项，已按默认「%s」继续（仅提示，装机不中断）" % (line, default))
+        print("  ↳ '%s' is not one of the offered options; continuing with the default '%s' (notice only, the installation is not interrupted)" % (line, default))
         return default
-    print("　↳ %s=%s" % (label, value))
+    print("  ↳ %s=%s" % (label, value))
     return value
 
 
@@ -67,16 +67,16 @@ def run(input_text=None, answers_path=None, mirror_default="", home=os.path.expa
     answers = {}
 
     line = _ask(stream, QUESTIONS[0], "1")
-    answers["role"] = _choice(line, ROLE_MAP, "platform", "角色")
+    answers["role"] = _choice(line, ROLE_MAP, "platform", "role")
 
     line = _ask(stream, QUESTIONS[1], DEFAULT_ENGINES)
     picked = [e.strip() for e in line.split(",") if e.strip()]
     if not picked:
         picked = DEFAULT_ENGINES.split(",")
     answers["engines"] = picked
-    print("　↳ 引擎=%s" % "、".join(picked))
+    print("  ↳ engines=%s" % ", ".join(picked))
 
-    line = _ask(stream, QUESTIONS[2], mirror_default or "（官方源）",
+    line = _ask(stream, QUESTIONS[2], mirror_default or "(official registry)",
                 default_value=mirror_default)
     answers["mirror_base_url"] = line
 
@@ -85,7 +85,7 @@ def run(input_text=None, answers_path=None, mirror_default="", home=os.path.expa
 
     line = _ask(stream, QUESTIONS[4], "n")
     answers["autostart"] = line.strip().lower() in ("y", "yes")
-    print("　↳ 开机自启=%s" % ("是" if answers["autostart"] else "否"))
+    print("  ↳ autostart=%s" % ("yes" if answers["autostart"] else "no"))
 
     if answers_path:
         with open(answers_path, "w", encoding="utf-8") as fh:
@@ -95,15 +95,15 @@ def run(input_text=None, answers_path=None, mirror_default="", home=os.path.expa
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="s1_wizard.py",
-                                     description="S1 首装五题问答（全默认值可一路回车，非交互=全默认）")
-    parser.add_argument("--answers-file", required=True, help="答案 JSON 落盘路径（后续位点消费）")
+                                     description="Five S1 first-install questions (press Enter to accept every default; non-interactive = all defaults)")
+    parser.add_argument("--answers-file", required=True, help="Path of the answers JSON file (consumed by later checkpoints)")
     parser.add_argument("--mirror-default", default="",
-                        help="题3 默认镜像源（CLI --mirror-base-url 或平台键透传值；留空=官方源）")
+                        help="Default for question 3: mirror base URL passed through from CLI --mirror-base-url or the platform config key (empty = official registry)")
     args = parser.parse_args(argv)
     answers = run(answers_path=args.answers_file, mirror_default=args.mirror_default)
-    print("问答完成：角色=%s 引擎=%s 镜像源=%s 目录=%s" % (
-        answers["role"], "、".join(answers["engines"]),
-        answers["mirror_base_url"] or "官方源", answers["install_dir"]))
+    print("Questions complete: role=%s engines=%s mirror=%s dir=%s" % (
+        answers["role"], ", ".join(answers["engines"]),
+        answers["mirror_base_url"] or "official registry", answers["install_dir"]))
     return 0
 
 

@@ -71,8 +71,9 @@ def test_management_unreachable_fails_loudly_with_named_exit_and_zero_credential
     assert not ok, "管理台不可达禁假绿（应用档随后必 unhealthy，红必须落在装机步=断点续跑）"
     joined = " ".join(notes)
     assert "/tp-slot4" in joined, "指路必点名 vhost 值（R63 原因要素）"
-    assert "15672" in joined or "管理" in joined, "指路必点名管理台入口（R63 修法要素）"
-    assert "重跑" in joined, "指路必给可照做的出路命令（R63 假路即缺陷）"
+    assert "15672" in joined or "management" in joined.lower(), \
+        "指路必点名管理台入口（R63 修法要素）"
+    assert "re-run" in joined, "指路必给可照做的出路命令（R63 假路即缺陷）"
     assert monkey_password not in joined, "红线4：凭据禁入屏显文案"
 
 
@@ -122,10 +123,10 @@ def _compose_args(tmp_path):
 def test_guide_honestly_reports_app_already_booted_on_projected_tier():
     lines = s1_bootstrap.four_services_guide(tier="standard")
     joined = " ".join(lines)
-    assert "已随 compose 应用档拉起" in joined, \
+    assert "with the compose app profile" in joined, \
         "档位已投影 app profile 时禁再首推源码跑法（=看着要手起、实际已起的错位）"
     assert "docker compose ps" in joined, "已拉起形态必给核对入口（R63 照做可达）"
-    assert "开发者选项" in joined, "源码跑法降为开发者选项须明标"
+    assert "Developer option" in joined, "source-run path is clearly downgraded to the developer option"
 
 
 def test_slot_stack_boot_window_path_reconciles_vhost_before_first_service():
@@ -152,7 +153,17 @@ def test_guide_leads_factory_compose_path_on_default_tier():
     joined = " ".join(s1_bootstrap.four_services_guide())
     assert "docker compose --profile app up -d" in joined, \
         "默认档位净机指引首推=出厂 compose 交付路径（票⑭）"
-    assert "开发者选项" in joined and "java -jar" in joined, \
+    assert "Developer option" in joined and "java -jar" in joined, \
         "源码跑法保留但降级为开发者选项，不丢既有能力句"
     for banned in ("systemctl stop", "docker stop", "kill -9"):
         assert banned not in joined
+
+
+def test_mq_vhost_source_ships_english_only():
+    """The installer reconciler ships English-only operator text (no i18n track)."""
+    src = Path(mq_vhost.__file__).read_text(encoding="utf-8")
+    offenders = [line for line in src.splitlines()
+                 if any("\u4e00" <= ch <= "\u9fff" for ch in line)]
+    assert not offenders, (
+        "install surface must not carry CJK operator text; offending lines: %s"
+        % offenders[:3])

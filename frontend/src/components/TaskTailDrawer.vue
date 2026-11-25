@@ -3,7 +3,10 @@
  now, generation / batch detail consume the same component later. -->
   <div class="task-tail" data-test="task-tail-drawer">
     <div class="task-tail-head">
-      <span class="task-tail-title" data-test="task-tail-title">{{ t('document.tailTitle') }}</span>
+      <!-- Head wording follows the observed mode: the live tail says
+           "real time", a finished job replay says "history replay" so a
+           sealed run is never labelled as streaming. -->
+      <span class="task-tail-title" data-test="task-tail-title">{{ live ? t('document.tailTitle') : t('document.tailTitleReplay') }}</span>
       <span
         v-for="level in LEVELS"
         :key="level"
@@ -49,7 +52,7 @@
         :type="following ? 'default' : 'primary'"
         data-test="task-tail-jump-latest"
         @click="resumeFollow"
-      >{{ t('document.tailJumpLatest') }}</el-button>
+      >{{ live ? t('document.tailJumpLatest') : t('document.tailJumpEnd') }}</el-button>
     </div>
     <div
       ref="listEl"

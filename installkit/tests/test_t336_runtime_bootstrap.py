@@ -161,7 +161,7 @@ def test_cli_check_reports_human_without_sudo_execution(tmp_path, capsys):
     assert rc == 0
     text = capsys.readouterr().out
     assert "node" in text, "报告必须点名运行时"
-    assert "已满足" in text or "nvm" in text
+    assert "satisfies" in text or "nvm" in text
 
 
 def test_ensure_without_yes_flag_refuses_silent_install(tmp_path, monkeypatch):

@@ -53,7 +53,7 @@
           :disabled="!spaces.length"
           @change="onSpaceChange"
         >
-          <el-option v-for="s in spaces" :key="s.id" :label="spaceLabel(s)" :value="s.id" />
+          <el-option v-for="s in spaces" :key="s.id" :label="mockSpaceLabel(s)" :value="s.id" />
         </el-select>
         <div class="filter-bar-actions" data-test="mock-recording-filter-actions">
           <el-button :icon="Refresh" :loading="loadingBoxes" data-test="mock-recording-refresh" @click="loadBoxes">
@@ -330,11 +330,6 @@ function onSortChange({ prop, order }: { prop: string; order: string | null }): 
   void loadBoxes()
 }
 
-function spaceLabel(s: MockSpaceItem): string {
-  const alias = s.alias ? `（${s.alias}）` : ''
-  return `${s.name}${alias}`
-}
-
 function timeText(v: string | null): string {
   return v ? v.replace('T', ' ').slice(0, 19) : '—'
 }
@@ -535,6 +530,7 @@ async function confirmImport(): Promise<void> {
 // by a dialog draft, so only the space picker this page shows has to converge
 // when a Mock-space draft lands (silent option re-read, no prompts).
 import { useObjectSync } from '@/composables/useObjectSync'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
 
 useObjectSync({
   watch: ['MOCK_SPACE_WRITE'],

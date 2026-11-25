@@ -273,14 +273,52 @@ def _dropped_columns(files: list[Path]) -> set[tuple[str, str]]:
     return {k for k, d in drop_v.items() if d > add_v.get(k, -1)}
 
 
+def _probe_context(files: list[Path]):
+    """(dropped objects, dropped columns, final CHECK timeline) for a file set.
+
+    One computation shared by every ledger consumer, so the skipped count and
+    the data-only roster can never disagree with each other."""
+    return _dropped_objects(files), _dropped_columns(files), _constraint_timeline(files)
+
+
+def _file_probes(path: Path, ctx) -> tuple[list[str], list[tuple[str, str]], list]:
+    """What one migration offers the ledger to probe: objects, columns, checks.
+    Empty for every slot means the file is a data backfill — verifiable by
+    shape never."""
+    dropped, dropped_cols, cons_final = ctx
+    names, cols = migration_probes(path, dropped, dropped_cols)
+    return names, cols, cons_final.get(_vnum(path.name), [])
+
+
+def data_only_migrations(since: int = 0) -> list[str]:
+    """Names of migrations that carry no probeable schema object (pure
+    UPDATE/INSERT backfills against existing rows).
+
+    Why this exists: the ledger counted them as `skipped` and moved on, so a
+    slot that never replayed a data migration still printed a clean summary —
+    that is how a governance backfill sat unapplied in this chain's slot and
+    only surfaced as an unrelated gate red one round later. Naming them makes
+    the blind spot an action item: replay the listed file through the single
+    apply channel, then re-read this ledger.
+
+    Reading the `since` filter: file names that do not parse as a plain
+    version number (letter-suffixed legacy seeds such as the llm sys_config
+    insert) are ordered last by the existing rule and therefore fall inside
+    every `since` window — a listed file of that shape is never a filter bug.
+    """
+    all_files = sorted(MIGRATION_DIR.glob("V*__*.sql"), key=lambda p: _vnum(p.name))
+    ctx = _probe_context(all_files)
+    return [p.name for p in all_files
+            if _vnum(p.name) >= since and not any(_file_probes(p, ctx))]
+
+
 def replay_ledger(db: str, since: int = 0) -> tuple[int, list[str], int]:
     """(applied_count, unapplied_names, skipped_count) for migrations whose
     objects can be probed. Migrations with no recognisable object are
-    skipped (counted, never silently dropped)."""
+    skipped (counted, never silently dropped); the roster of that count is
+    `data_only_migrations`, printed by the replay-ledger subcommand."""
     all_files = sorted(MIGRATION_DIR.glob("V*__*.sql"), key=lambda p: _vnum(p.name))
-    dropped = _dropped_objects(all_files)
-    dropped_cols = _dropped_columns(all_files)
-    cons_final = _constraint_timeline(all_files)
+    ctx = _probe_context(all_files)
     files = [p for p in all_files if _vnum(p.name) >= since]
     snap = snapshot(db)
     known_tables = {ln.split("|")[1] for ln in snap if ln.startswith("T|")}
@@ -297,8 +335,7 @@ def replay_ledger(db: str, since: int = 0) -> tuple[int, list[str], int]:
                 known_cons[(parts[1], parts[2])] = parts[4]
     applied, unapplied, skipped = 0, [], 0
     for path in files:
-        names, cols = migration_probes(path, dropped, dropped_cols)
-        cons = cons_final.get(_vnum(path.name), [])
+        names, cols, cons = _file_probes(path, ctx)
         if not names and not cols and not cons:
             skipped += 1
             continue
@@ -393,8 +430,21 @@ def main(argv: list[str]) -> int:
                 print("APPLY each file through the single channel, then re-run this "
                       f"ledger: tools/ops/apply_slot_migration.sh "
                       f"<db/migration/Vxxx__name.sql> --db {db}")
+            data_only = data_only_migrations(since)
+            if data_only:
+                # Newest entries are the actionable ones for a slot cut from a
+                # recent snapshot, so the tail of the roster is what gets shown.
+                shown = ", ".join(data_only[-15:])
+                older = len(data_only) - min(len(data_only), 15)
+                print(f"WARN data-only migrations the ledger cannot verify by "
+                      f"shape (n={len(data_only)}{f', {older} older not listed' if older else ''}): "
+                      f"{shown}")
+                print(f"     replay each into this slot through "
+                      f"tools/ops/apply_slot_migration.sh <file> --db {db} when the "
+                      f"slot predates it, then re-run this ledger")
             print(f"REPLAY_LEDGER db={db} applied={applied} "
-                  f"unapplied={len(unapplied)} skipped={skipped}")
+                  f"unapplied={len(unapplied)} skipped={skipped} "
+                  f"data_only={len(data_only)}")
             return 1 if unapplied else 0
         print(f"unknown subcommand: {cmd}", file=sys.stderr)
         return 2

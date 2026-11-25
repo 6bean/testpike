@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * B-10 report-face TLS tier note .
@@ -67,17 +68,15 @@ class PerfReportTlsTierNoteTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "TLS档位报告测试项目_" + uniq, "PFRTLS" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '测试-档位报告', 2, 'https://perf-report-tls.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
-                        + "allowed_modes) VALUES (?, ?, 100, CAST(? AS jsonb))",
-                projectId, envId, "[\"SHADOW_TABLE\"]");
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-rtls-ex-",
+                "GATLING", "K6");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "TLS档位报告测试项目_", "PFRTLS", "测试-档位报告", 2,
+                "https://perf-report-tls.local/api", 100, "[\"SHADOW_TABLE\"]");
+        projectId = seeded[0];
+        envId = seeded[1];
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
     }
@@ -90,6 +89,7 @@ class PerfReportTlsTierNoteTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-rtls-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFRTLS%')");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
@@ -109,10 +109,6 @@ class PerfReportTlsTierNoteTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFRTLS%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PFRTLS%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private void restoreSeed(String key, String value) {

@@ -42,8 +42,10 @@ def env_val(key, env_file=None, default=None):
                 return s.split("=", 1)[1].strip().strip('"').strip("'")
     if default is not None:
         return default
-    raise SystemExit("缺少凭据 %s——请在项目根 .env 配置（或导出同名环境变量）后再跑样例；"
-                     "装机器永不代填口令" % key)
+    raise SystemExit("Missing credential %s -- configure it in the project-root "
+                     ".env file (or export an environment variable with the same "
+                     "name), then re-run the seeder; the installer never fills "
+                     "passwords on your behalf" % key)
 
 
 def project_payload():
@@ -269,8 +271,9 @@ def perf_scenario_payload(project_id, env_id):
 def _need(resp, what):
     j = resp.json()
     if j.get("code") != "0":
-        raise SystemExit("%s 失败: HTTP %s %s %s" % (what, resp.status_code,
-                                                     j.get("code"), j.get("msg")))
+        raise SystemExit("%s failed: HTTP %s, code=%s, msg=%s"
+                         % (what, resp.status_code,
+                            j.get("code"), j.get("msg")))
     return j.get("data")
 
 
@@ -299,10 +302,11 @@ def _delete_item(c, h, path, label, item_id, removed, skipped, params=None):
         removed.append("%s#%s" % (label, item_id))
         return True
     if str(j.get("code")) == CONFLICT_GATE_CODE:
-        skipped.append("%s#%s：%s" % (label, item_id, j.get("msg")))
+        skipped.append("%s#%s: %s" % (label, item_id, j.get("msg")))
         return False
-    raise SystemExit("删除%s 失败: HTTP %s %s %s" % (label, resp.status_code,
-                                                    j.get("code"), j.get("msg")))
+    raise SystemExit("Deleting %s failed: HTTP %s, code=%s, msg=%s"
+                     % (label, resp.status_code,
+                        j.get("code"), j.get("msg")))
 
 
 def _rows(data):
@@ -461,8 +465,10 @@ def ensure_journey(base_url):
                                params={"keyword": DEMO_EXECUTOR_USERNAME, "size": 10}), "用户列表"))
     tester_id = next((u["id"] for u in tester if u.get("username") == DEMO_EXECUTOR_USERNAME), None)
     if tester_id is None:
-        raise SystemExit("出厂演示账号 %s 不在——首装库未跑 V220 迁移或账号被删，"
-                         "旅程④无法分配执行人（禁静默降级）" % DEMO_EXECUTOR_USERNAME)
+        raise SystemExit("Factory demo account %s is missing -- the database was "
+                         "created without the V220 migration or the account was "
+                         "deleted; journey step 4 cannot assign an executor and "
+                         "will not fall back silently" % DEMO_EXECUTOR_USERNAME)
     members = _rows(_need(c.get("/projects/%s/members" % pid, headers=h), "项目成员列表"))
     if not any(m.get("userId") == tester_id for m in members):
         _need(c.post("/projects/%s/members" % pid, headers=h,
@@ -705,49 +711,65 @@ def main(argv=None):
         c_removed, c_skipped = purge_centers(args.base_url)
         removed = j_removed + c_removed
         skipped = j_skipped + c_skipped
-        print("清除完成：删除 %d 项，跳过保留 %d 项（只命中 %s 前缀与 demo- 码面）"
+        print("Purge done: %d item(s) deleted, %d kept (matches only the %s "
+              "name prefix and demo- code names)"
               % (len(removed), len(skipped), DEMO_CLEAN_PREFIX))
         for item in removed:
             print("  - %s" % item)
         if skipped:
-            print("跳过保留件（其运行记录等追溯数据未清理，处理后重跑本命令即可补齐）：")
+            print("Skipped items (their run records and other trace data were "
+                  "not cleaned; remove those first, then re-run this command "
+                  "to finish the purge):")
             for item in skipped:
                 print("  ! %s" % item)
         return 0
 
     if args.journey:
         info = ensure_journey(args.base_url)
-        print("五分钟旅程就绪：项目=%s 环境=%s 接口集合=%s 请求=%s 编排剧本集=%s(四跳=%s) "
-              "APP用例=%s 造数池=%s 计划=%s 批次=%s（新建 %d 件）"
+        print("Five-minute journey ready: project=%s env=%s api collection=%s "
+              "request=%s flow collection=%s (4 hops=%s) app case=%s "
+              "data factory=%s plan=%s batch=%s (%d item(s) created)"
               % (info["project"], info["env"], info["collection"], info["request"],
                  info["flowCollection"], len(info["flowRequests"]),
                  info["appCase"], info["dataFactory"], info["plan"], info["batch"],
                  info["created"]))
-        print("体验动线：项目「%s」→ 接口测试发一条请求看断言 → 接口测试「流程」页签看四跳编排"
-              "（登录→建单→轮询→分页拉取：前置条件+循环全谱）→ 用例库看 APP/移动端样例 → "
-              "造数池跑一次出数 → 测试计划「%s」发布批次后在批次详情看 CI 徽章（公开链接形如 %s/open/badge/<token>.svg）。"
+        print("Guided tour: under project 「%s」 open 「接口测试」 and send one "
+              "request to see the assertion -> open the 「流程」 tab of "
+              "「接口测试」 to watch the 4-hop flow (login -> create order -> "
+              "poll status -> empty page fetch: precondition + loop coverage) -> "
+              "check the APP/mobile sample in 「用例库」 -> run the pool once in "
+              "「造数池」 -> publish a batch of 「测试计划」 「%s」 and view the CI "
+              "badge on the batch detail page (public link looks like "
+              "%s/open/badge/<token>.svg)."
               % (DEMO_PROJECT_NAME, DEMO_PLAN_NAME, args.api_base.rstrip("/")))
         return 0
 
     if args.centers:
         info = ensure_centers(args.base_url)
-        detail = "，".join("%s=项目%s/用例%s" % (s["name"], info["centers"][s["code"]]["project"],
-                                                info["centers"][s["code"]]["request"])
+        detail = ", ".join("%s=project %s/case %s"
+                           % (s["name"], info["centers"][s["code"]]["project"],
+                              info["centers"][s["code"]]["request"])
                            for s in DEMO_CENTER_PROJECTS)
-        print("中台缩微剧本就绪（新建 %d 件）：%s；项目集=「%s」" % (info["created"], detail,
-                                                            DEMO_PROGRAM_NAME))
-        print("体验动线：项目列表进「订单中心」/「库存中心」→ 接口测试选中心可跑用例调试运行（打内置夹具站即出断言）"
-              "→ 性能测试起压「%s」（5RPS×10s 打夹具站登录页，种子只存不自动起压）"
-              "→ 项目集「%s」看两中心同集组织关系。"
-              "（调试运行与起压由执行器承接，执行器随「完整功能」档安装；默认档可发起并排队派发）"
+        print("Mini scenario packs ready (%d item(s) created): %s; program = "
+              "「%s」" % (info["created"], detail, DEMO_PROGRAM_NAME))
+        print("Guided tour: from the project list open 「订单中心」 or "
+              "「库存中心」 -> pick the center's runnable case in 「接口测试」 "
+              "and use debug run. Debug run and load start are carried by the "
+              "executor, which ships with the 「Full」 tier; the default "
+              "tier can still submit and queue the dispatch. Then start load "
+              "for 「%s」 in 「性能测试」 (5 RPS x 10s against the fixture-site "
+              "login page; the seed stores it, load never starts on its own) "
+              "and view how both centers share one program in 「项目集」 「%s」."
               % (DEMO_PERF_SCENARIO_NAME, DEMO_PROGRAM_NAME))
         return 0
 
     pid, cid = ensure_sample(args.base_url)
-    print("样例就绪：项目 id=%s 用例 id=%s" % (pid, cid))
-    print("下一步（前端）：项目列表进入「%s」→ 选中样例用例 → 点「AI 生成脚本」→ 试运行 → 看报告"
-          % DEMO_PROJECT_NAME)
-    print("想一次看全产品能力：再跑一遍加 --journey（API 用例/APP 用例/造数池/回归计划四件，幂等）")
+    print("Sample ready: project id=%s case id=%s" % (pid, cid))
+    print("Next (frontend): open project 「%s」 from the project list -> select "
+          "the sample case -> click 「AI 生成脚本」 -> dry-run it -> view the "
+          "report" % DEMO_PROJECT_NAME)
+    print("To see the full capability set at once: run again with --journey "
+          "(API case / APP case / data factory / regression plan, idempotent)")
     return 0
 
 

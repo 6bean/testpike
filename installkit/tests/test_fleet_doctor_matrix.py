@@ -117,17 +117,16 @@ def test_red_row_renders_reason_with_literal_fix_entry():
 def test_version_red_points_at_the_upgrade_center():
     matrix = fd.build_matrix([node(name="ex-v", version="1.2.0", gold_version="1.4.0")])
     text = "\n".join(fd.render_lines(matrix))
-    assert "升级中心" in text
+    assert "Upgrade Center" in text
 
 
-def test_reasons_render_on_both_language_tracks():
+def test_reasons_render_in_english():
+    """Reason texts come from the English-only message table with placeholders filled."""
     facts = node(name="ex-l", enrolled=False, queue_reachable=False)
-    zh = checks_by_key(fd.inspect_node(facts))
-    os.environ["INSTALLKIT_LANG"] = "en"
-    try:
-        en = checks_by_key(fd.inspect_node(facts))
-    finally:
-        os.environ.pop("INSTALLKIT_LANG", None)
+    checks = checks_by_key(fd.inspect_node(facts))
     for key in ("identity", "queue"):
-        assert zh[key]["reason"] and en[key]["reason"]
-        assert zh[key]["reason"] != en[key]["reason"]
+        reason = checks[key]["reason"]
+        assert reason, f"{key} reason must render"
+        assert not any("\u4e00" <= ch <= "\u9fff" for ch in reason), \
+            "install-surface reasons ship English only"
+        assert "ex-l" in reason, "the reason names the node it is about"

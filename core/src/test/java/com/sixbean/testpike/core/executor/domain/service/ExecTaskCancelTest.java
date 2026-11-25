@@ -70,6 +70,12 @@ class ExecTaskCancelTest {
     @BeforeEach
     @AfterEach
     void cleanTables() {
+        // tp_data_pool_item is not covered by the name-family sweep: rows pinned to
+        // this suite's fixture projects are removed explicitly, both before and
+        // after each case, so an aborted run can never leak a row into the next
+        // run's unique (env_id, type, value_hash) insert
+        jdbcTemplate.update("DELETE FROM tp_data_pool_item WHERE project_id IN "
+                + "(SELECT id FROM tp_project WHERE name = '取消项目')");
         com.sixbean.testpike.core.support.SharedDbFixtureSweep.byProjectNameFamily(
                 jdbcTemplate, List.of(), FIXTURE_PROJECT_NAMES);
         jdbcTemplate.update("DELETE FROM tp_executor WHERE name LIKE 'ex-cancel-%'");
@@ -127,8 +133,12 @@ class ExecTaskCancelTest {
     void cancel_释放执行器容量与数据池占用() {
         long exId = registerExecutor("ex-cancel-2", 1);
         ExecTaskInfo task = runningTask(exId);
+        // the pool row must sit on the fixture project's own env: the previous probe
+        // picked the globally smallest env id, which belongs to another project and
+        // let a leaked earlier row collide on uq_pool_env_type_hash
         Long envId = jdbcTemplate.queryForObject(
-                "SELECT id FROM tp_project_env ORDER BY id LIMIT 1", Long.class);
+                "SELECT id FROM tp_project_env WHERE project_id = ? ORDER BY id LIMIT 1",
+                Long.class, task.projectId());
         jdbcTemplate.update("INSERT INTO tp_data_pool_item (project_id, env_id, type, value, " +
                 "value_hash, status, locked_by) VALUES (?, ?, 'account', 'u1', 'h1', 2, ?)",
                 task.projectId(), envId, task.id());

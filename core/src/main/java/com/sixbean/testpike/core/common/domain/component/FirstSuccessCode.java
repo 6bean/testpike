@@ -15,17 +15,25 @@ public final class FirstSuccessCode {
     private FirstSuccessCode() {
     }
 
-    /** Lowest 2xx key of a response-code map, 200 when none is declared. */
-    public static int pick(Map<String, String> responseSchemas) {
-        int best = -1;
+    /** Lowest declared 2xx key (same rule as {@link #pick}), null when none. */
+    public static String pickKey(Map<String, String> responseSchemas) {
+        String best = null;
+        int bestParsed = -1;
         for (String code : responseSchemas.keySet()) {
             if (code != null && code.length() == 3 && code.startsWith("2")) {
                 int parsed = Integer.parseInt(code);
-                if (best < 0 || parsed < best) {
-                    best = parsed;
+                if (bestParsed < 0 || parsed < bestParsed) {
+                    bestParsed = parsed;
+                    best = code;
                 }
             }
         }
-        return best < 0 ? 200 : best;
+        return best;
+    }
+
+    /** Lowest 2xx key of a response-code map, 200 when none is declared. */
+    public static int pick(Map<String, String> responseSchemas) {
+        String best = pickKey(responseSchemas);
+        return best == null ? 200 : Integer.parseInt(best);
     }
 }

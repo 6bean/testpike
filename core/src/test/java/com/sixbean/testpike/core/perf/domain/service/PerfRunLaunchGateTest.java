@@ -3,6 +3,7 @@ package com.sixbean.testpike.core.perf.domain.service;
 import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import com.sixbean.testpike.core.perf.api.dto.PerfApprovalInput;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
@@ -61,6 +62,10 @@ class PerfRunLaunchGateTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-gate-ex-",
+                "GATLING", "K6");
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
         projectId = FixtureInserts.insertReturningId(jdbcTemplate,
@@ -81,6 +86,7 @@ class PerfRunLaunchGateTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-gate-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFGATE%')");
         jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "

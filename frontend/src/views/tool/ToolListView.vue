@@ -282,11 +282,11 @@
           <el-form-item v-if="!editingId" :label="t('tool.submitNowLabel')">
             <el-switch v-model="form.submitNow" data-test="tool-form-submit-now" />
           </el-form-item>
-          <el-form-item v-if="editingId" label=" ">
-            <span class="text-secondary edit-hint" data-test="tool-form-edit-hint">
-              {{ t('tool.editHint') }}
-            </span>
-          </el-form-item>
+          <FormSideEffectHint
+            v-if="editingId"
+            :text="t('tool.editHint')"
+            test-id="tool-form-edit-hint"
+          />
         </el-form>
         <template #footer>
           <el-button @click="formVisible = false">{{ t('common.cancel') }}</el-button>
@@ -579,6 +579,7 @@ import ProjectSelect from '@/components/ProjectSelect.vue'
 import TableSkeleton from '@/components/TableSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ColumnSettings from '@/components/ColumnSettings.vue'
+import FormSideEffectHint from '@/components/FormSideEffectHint.vue'
 import { useColumnConfig, type ColumnDef } from '@/composables/useColumnConfig'
 import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import ToolMarketView from './ToolMarketView.vue'
@@ -1328,9 +1329,6 @@ watch(followTick, () => {
 <style scoped>
 .tool-name {
   font-weight: 600;
-}
-.edit-hint {
-  font-size: 12px;
 }
 .genkit-opt-desc {
   float: right;

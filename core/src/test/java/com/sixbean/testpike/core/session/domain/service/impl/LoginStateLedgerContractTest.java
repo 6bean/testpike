@@ -78,7 +78,10 @@ class LoginStateLedgerContractTest {
         assertEquals(Set.of("id", "project_id", "state_name", "role_scope", "account_label",
                 "kind", "credential_id", "state_object_key", "scope_origins", "extra_auth_refs",
                 "source_kind",
-                "expires_at", "last_verified_at", "status", "remark", "created_at", "updated_at"),
+                "expires_at", "last_verified_at", "status", "remark", "created_at", "updated_at",
+                "keepalive_enabled", "keepalive_interval_minutes", "keepalive_url",
+                "last_keepalive_at", "last_keepalive_verdict", "keepalive_fail_streak",
+                "keepalive_stop_reason"),
                 columns);
     }
 

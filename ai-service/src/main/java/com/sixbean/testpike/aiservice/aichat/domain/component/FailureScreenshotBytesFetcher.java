@@ -59,14 +59,14 @@ public class FailureScreenshotBytesFetcher {
                     HttpResponse.BodyHandlers.ofInputStream());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("截图下载被中断", interrupted);
+            throw new IllegalStateException("Screenshot download interrupted", interrupted);
         } catch (IOException ioFailure) {
-            throw new IllegalStateException("截图下载失败：" + ioFailure.getMessage(), ioFailure);
+            throw new IllegalStateException("Screenshot download failed: " + ioFailure.getMessage(), ioFailure);
         }
         try (InputStream body = response.body()) {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("截图下载失败：存储服务返回状态码 "
-                        + response.statusCode() + "（预签名地址可能已过期，有效期 15 分钟）");
+                throw new IllegalStateException("Screenshot download failed: storage service returned status code "
+                        + response.statusCode() + " (presigned URL may have expired, validity window 15 minutes)");
             }
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             byte[] chunk = new byte[READ_CHUNK];
@@ -75,14 +75,14 @@ public class FailureScreenshotBytesFetcher {
             while ((read = body.read(chunk)) != -1) {
                 total += read;
                 if (total > maxBytes) {
-                    throw new IllegalStateException("截图超过大小上限 " + maxBytes
-                            + " 字节，已放弃读图，可在系统设置调小或提高上限后重试");
+                    throw new IllegalStateException("Screenshot exceeds size limit " + maxBytes
+                            + " bytes, reading abandoned; shrink the image or raise the limit in system settings and retry");
                 }
                 buffer.write(chunk, 0, read);
             }
             return buffer.toByteArray();
         } catch (IOException ioFailure) {
-            throw new IllegalStateException("截图读取失败：" + ioFailure.getMessage(), ioFailure);
+            throw new IllegalStateException("Screenshot read failed: " + ioFailure.getMessage(), ioFailure);
         }
     }
 }

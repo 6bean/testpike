@@ -25,6 +25,10 @@ package com.sixbean.testpike.core.mock.api.dto;
  *                      means someone else saved between read and submit, so
  *                      the update is refused with the plain-word conflict.
  *                      Null on create (no row to race against).
+ * @param enrichedBy  AI enrichment job anchor (job:{id}) recorded when an
+ *                      enrichment draft lands, or when a filed rule is improved
+ *                      through the ordinary update gate; null leaves the stored
+ *                      trace untouched on update (never clobbered by a plain edit).
  */
 public record MockStubInput(
         String name,
@@ -40,7 +44,8 @@ public record MockStubInput(
         String source,
         String sourceRef,
         Boolean enabled,
-        Integer expectedVersion) {
+        Integer expectedVersion,
+        String enrichedBy) {
 
     /**
  * 13-arg compatibility constructor: pre-V240 callers (curl fast-create,
@@ -52,6 +57,21 @@ public record MockStubInput(
                          String scenarioName, String requiredState, String newState,
                          String source, String sourceRef, Boolean enabled) {
         this(name, priority, method, pathMatchType, pathPattern, matchersJson, responseJson,
-                scenarioName, requiredState, newState, source, sourceRef, enabled, null);
+                scenarioName, requiredState, newState, source, sourceRef, enabled, null, null);
+    }
+
+    /**
+     * 14-arg compatibility constructor (V669): pre-enrichment-provenance callers
+     * (edit segment canonical form, hit promote) send no enrichment anchor — the
+     * slot rides on null, which the update gate reads as "leave the trace alone".
+     */
+    public MockStubInput(String name, Integer priority, String method, String pathMatchType,
+                         String pathPattern, String matchersJson, String responseJson,
+                         String scenarioName, String requiredState, String newState,
+                         String source, String sourceRef, Boolean enabled,
+                         Integer expectedVersion) {
+        this(name, priority, method, pathMatchType, pathPattern, matchersJson, responseJson,
+                scenarioName, requiredState, newState, source, sourceRef, enabled,
+                expectedVersion, null);
     }
 }

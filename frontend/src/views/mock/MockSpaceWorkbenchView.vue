@@ -75,7 +75,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -89,6 +89,8 @@ import { openHelp } from '@/composables/useHelpDrawer'
 import { useProjectPageContext } from '@/composables/useProjectPageContext'
 import { useAuthStore } from '@/stores/auth'
 import { bizErrorMsg } from '@/utils/bizError'
+import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
+import { setBreadcrumbTitle } from '@/composables/useBreadcrumb'
 import { listSpaces, type MockSpaceItem } from '@/api/mock'
 
 const { t } = useI18n()
@@ -161,5 +163,17 @@ watch(projectId, () => {
 })
 onMounted(() => {
   void loadSpaces()
+})
+
+// The current breadcrumb rung reads as the opened space (a detail page may
+// name the entity it shows), built by the single label source. Cleared on
+// leave so a stale space name never lingers on another page's crumb.
+watch(
+  selectedSpace,
+  (space) => setBreadcrumbTitle('MockSpaceWorkbench', mockSpaceLabel(space)),
+  { immediate: true },
+)
+onUnmounted(() => {
+  setBreadcrumbTitle('MockSpaceWorkbench', null)
 })
 </script>

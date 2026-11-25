@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.sixbean.testpike.core.session.fixture.CaseSessionFixtures;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -111,6 +112,7 @@ class SessionAuthRejectionWritebackTest {
 
         fixtures.purgeSnapshots(projectId);
         fixtures.purgeProjectFixtures(projectId);
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "ex-scs-");
     }
 
     @Test

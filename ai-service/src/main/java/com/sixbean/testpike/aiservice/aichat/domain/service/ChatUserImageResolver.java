@@ -226,7 +226,7 @@ public class ChatUserImageResolver {
                 String observation = handle.result().content() == null
                         ? "" : handle.result().content().strip();
                 if (observation.isEmpty()) {
-                    throw new IllegalStateException("视觉模型对该图片未给出可读描述");
+                    throw new IllegalStateException("Vision model returned no readable description for this image");
                 }
                 read++;
                 block.append("【图片《").append(label).append("》观察】")
@@ -235,7 +235,7 @@ public class ChatUserImageResolver {
                 appendHandleNote(block, attachment.objectKey());
             } catch (RuntimeException legFailure) {
                 // Enhancement leg: name the failed image, keep the good legs.
-                log.warn("对话用户图读图降级 projectId={} key={} err={}",
+                log.warn("Chat user image reading degraded projectId={} key={} err={}",
                         projectId, attachment.objectKey(), legFailure.getMessage());
                 failureLines.add(label + "：" + legFailure.getMessage());
                 block.append("【图片《").append(label).append("》未读取成功】")
@@ -251,7 +251,7 @@ public class ChatUserImageResolver {
         if (panelBlock.length() > 0) {
             block.append(panelBlock);
         }
-        log.info("对话用户图读图完成 projectId={} 成功 {} 枚 失败 {} 枚",
+        log.info("Chat user image reading done projectId={} success={} failed={}",
                 projectId, read, failureLines.size());
         return ChatUserImageEvidence.attached(block.toString().strip(), read, roundStagingTokens);
     }
@@ -283,7 +283,7 @@ public class ChatUserImageResolver {
                 byte[] image = bytesFetcher.fetch(url, maxBytes);
                 OcrFallbackOutcome outcome = fallbackReader.read(image, minLines);
                 if (outcome == null) {
-                    throw new IllegalStateException("OCR 降级读取无返回");
+                    throw new IllegalStateException("OCR fallback reading returned nothing");
                 }
                 if (outcome.textDense()) {
                     read++;
@@ -300,7 +300,7 @@ public class ChatUserImageResolver {
                     appendHandleNote(block, attachment.objectKey());
                 }
             } catch (RuntimeException legFailure) {
-                log.warn("对话用户图 OCR 降级读取失败 projectId={} key={} err={}",
+                log.warn("Chat user image OCR fallback reading failed projectId={} key={} err={}",
                         projectId, attachment.objectKey(), legFailure.getMessage());
                 failureLines.add(label + "：" + legFailure.getMessage());
                 block.append("【图片《").append(label).append("》未如实提取】")
@@ -314,7 +314,7 @@ public class ChatUserImageResolver {
                     + "）；视觉模型未配置（系统设置-" + KEY_MODEL
                     + "），配置后自动改走图像理解；本次回答仅基于提问文字。");
         }
-        log.info("对话用户图 OCR 降级读取完成 projectId={} 成功 {} 枚 未如实提取 {} 枚",
+        log.info("Chat user image OCR fallback reading done projectId={} success={} unextracted={}",
                 projectId, read, failureLines.size());
         return ChatUserImageEvidence.attached(OcrTextFallbackReader.degradedNotice(KEY_MODEL)
                 + "\n" + block.toString().strip(), read, List.of());
@@ -392,9 +392,9 @@ public class ChatUserImageResolver {
                     .append(" 处值型 token 在 OCR 初值而视觉转录未见原形（")
                     .append(String.join("、", missed.subList(0, Math.min(5, missed.size()))))
                     .append("）：值型字段以 OCR 初值为基准，视觉描述作语义校正。\n");
-            log.warn("对话贴图双岗分歧 计数={} 值型标识={}", missed.size(), String.join(",", missed));
+            log.warn("Chat image vision/OCR divergence count={} keys={}", missed.size(), String.join(",", missed));
         } catch (RuntimeException assistFailure) {
-            log.warn("对话贴图 OCR 初值支降级（视觉轮不受影响）：{}", assistFailure.getMessage());
+            log.warn("Chat image OCR initial-value leg degraded (vision turn unaffected): {}", assistFailure.getMessage());
         }
     }
 

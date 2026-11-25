@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * Residual-cleanup guide assembly tests (GB-4, ): the report's residualGuide
@@ -47,18 +48,11 @@ class PerfReportResidualGuideTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "残留巡检测试项目_" + uniq, "PERFREPG" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                + "VALUES (?, '性能-残留测', 1, 'http://perf-target.local/api')", projectId);
-        envId = lastId("tp_project_env");
-        // The launch gate's whitelist door checks declared isolation modes against
-        // allowed_modes, so the fixture registers the full roster (declare-and-admit).
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, "
-                + "allowed_modes) VALUES (?, ?, 1000, "
-                + "'[\"SHADOW_TABLE\",\"NS_ACCOUNT\",\"HEADER_MARK\"]'::jsonb)", projectId, envId);
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "残留巡检测试项目_", "PERFREPG", "性能-残留测", 1,
+                "http://perf-target.local/api", 1000, "[\"SHADOW_TABLE\",\"NS_ACCOUNT\",\"HEADER_MARK\"]");
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach
@@ -80,10 +74,6 @@ class PerfReportResidualGuideTest {
         }
     }
 
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1",
-                Long.class);
-    }
 
     private long newScenario(String isolationMode, Long datasetId) {
         return perfScenarioService.create(projectId, new PerfScenarioInput(

@@ -246,7 +246,7 @@ class AiGenOriginalTextInjectionTest {
             verify(rig.gateway(), org.mockito.Mockito.never())
                     .getSysConfig(BudgetPolicy.KEY_SUMMARY_MAX_TOKENS);
             // R43 exclusion-branch pair: a successful injection is NOT a gap
-            assertTrue(sink.warnsContaining("原文区块注入缺口").isEmpty(),
+            assertTrue(sink.warnsContaining("Original-block injection gap").isEmpty(),
                     "injected block must not be counted as an injection gap");
         }
     }
@@ -290,9 +290,9 @@ class AiGenOriginalTextInjectionTest {
 
             String prompt = stage1Prompt(rig);
             assertEquals(legacy, prompt, "zero injection keeps the prompt bytes unchanged");
-            assertFalse(sink.warnsContaining("原文区块注入缺口").isEmpty(),
+            assertFalse(sink.warnsContaining("Original-block injection gap").isEmpty(),
                     "取块>0 且 注入=0 must raise the counted gap WARN");
-            assertTrue(sink.warnsContaining("原文区块注入缺口").get(0)
+            assertTrue(sink.warnsContaining("Original-block injection gap").get(0)
                     .contains(String.valueOf(REQUIREMENT_ID)), "gap line names the requirement");
         }
     }

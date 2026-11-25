@@ -153,6 +153,34 @@ def main() -> int:
     print("OK 3c: CHECK re-definition detected by definition compare; fixed shape "
           "clean; later drop exempt")
 
+    # 3d. data-only roster (r44 blind spot: a pure-UPDATE migration introduces
+    # no object to probe, so the ledger counted it under `skipped` and a slot
+    # that had never replayed it still printed a clean summary). Two-way
+    # fixture: a backfill-only file MUST be named, an object-bearing file MUST
+    # NOT be, the `since` filter MUST apply to the roster too, and the roster
+    # length MUST equal the skipped count the ledger reports for the same set.
+    d4 = Path(_tf.mkdtemp(prefix="ssd-dataonly-fx-"))
+    (d4 / "V500__obj.sql").write_text("CREATE TABLE tp_ssd_demo2 (id bigint);")
+    (d4 / "V501__backfill.sql").write_text(
+        "UPDATE tp_ssd_demo2 SET id = id WHERE id > 0;\n")
+    old_dir4, ssd.MIGRATION_DIR = ssd.MIGRATION_DIR, d4
+    try:
+        roster = ssd.data_only_migrations(since=0)
+        if roster != ["V501__backfill.sql"]:
+            fail(f"data-only roster wrong (got {roster})")
+        if ssd.data_only_migrations(since=502):
+            fail("since filter did not drop the data-only file from the roster")
+        _, unapplied4, skipped4 = ssd.replay_ledger(PROBE_A, since=0)
+        if skipped4 != len(roster):
+            fail(f"roster and skipped count disagree (roster={roster} skipped={skipped4})")
+        if not any("V500__obj.sql" in u for u in unapplied4):
+            fail(f"object-bearing fixture file was not demanded: {unapplied4}")
+    finally:
+        ssd.MIGRATION_DIR = old_dir4
+        _sh.rmtree(d4, ignore_errors=True)
+    print("OK 3d: data-only migration named, object-bearing file exempt, "
+          "since filter honoured, roster == skipped count")
+
     # 4. CLI surface returns the documented exit codes
     r = subprocess.run([sys.executable, str(HERE / "schema_snapshot_diff.py"),
                         "diff", PROBE_A, PROBE_B], capture_output=True, text=True)
@@ -201,6 +229,28 @@ def main() -> int:
     if "apply_slot_migration.sh" not in (ssd.__doc__ or ""):
         fail("module usage text does not name the apply channel")
     print("OK 4c: unapplied ledger points at the single apply channel")
+
+    # 4d. the data-only roster must reach the operator through the CLI, and
+    # must be able to stay quiet: the positive side is the live migration tree
+    # (roster non-empty by construction here), the negative side a --since
+    # beyond every file. A branch that can only ever fire, or never fire, is a
+    # silent no-op rather than a signal.
+    expect_warn = bool(ssd.data_only_migrations(since=0))
+    r = subprocess.run([sys.executable, str(HERE / "schema_snapshot_diff.py"),
+                        "replay-ledger", "--db", PROBE_A],
+                       capture_output=True, text=True)
+    if ("WARN data-only" in r.stdout) != expect_warn:
+        fail(f"data-only WARN disagrees with the roster "
+             f"(expect={expect_warn}, out={r.stdout[-300:]})")
+    if "data_only=" not in r.stdout:
+        fail("ledger summary does not carry the data-only count")
+    r = subprocess.run([sys.executable, str(HERE / "schema_snapshot_diff.py"),
+                        "replay-ledger", "--db", PROBE_A, "--since", "V9999999999"],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or "WARN data-only" in r.stdout:
+        fail(f"an empty file window still warned (rc={r.returncode}, "
+             f"out={r.stdout[-200:]})")
+    print("OK 4d: data-only WARN fires on the live roster, quiet on an empty window")
 
     # teardown: drop probes and prove zero residue
     for db in (PROBE_A, PROBE_B, PROBE_EMPTY):

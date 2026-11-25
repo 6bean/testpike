@@ -219,7 +219,11 @@ class SpecSubscriptionServiceTest {
         SubscriptionScanResult r = subscriptionService.scanDue();
         assertEquals(1, r.unchanged());
         assertEquals(0, r.updated());
-        Long specCount = jdbcTemplate.queryForObject("SELECT count(*) FROM tp_api_spec", Long.class);
+        // Scope to this run's project: other suites legitimately insert rows into
+        // tp_api_spec inside the same JVM, a global count is not run-owned (R37).
+        Long specCount = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_api_spec WHERE project_id = ? AND name = 'pet-api'",
+                Long.class, projectId);
         assertEquals(1L, specCount);
         Long notifCount = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_notification WHERE event_type = 'SPEC_CHANGE_DETECTED'", Long.class);
@@ -317,17 +321,13 @@ class SpecSubscriptionServiceTest {
                 "SELECT count(*) FROM tp_spec_subscription WHERE id = ?", Long.class, sub.id());
         assertEquals(0L, rows);
 
-        forceDueNow();
+        forceDue(sub.id());
         SubscriptionScanResult r = subscriptionService.scanDue();
         assertEquals(0, r.scanned(), "删除后零扫描");
 
         ServiceException nf = assertThrows(ServiceException.class,
                 () -> subscriptionService.delete(1L, sub.id()));
         assertEquals(BizErrorCode.NOT_FOUND, nf.getCode());
-    }
-
-    private void forceDueNow() {
-        jdbcTemplate.update("UPDATE tp_spec_subscription SET last_check_at = now() - interval '2 hours'");
     }
 
     
@@ -361,7 +361,11 @@ class SpecSubscriptionServiceTest {
 
         SubscriptionScanResult again = subscriptionService.scanDue();
         assertEquals(0, again.scanned(), "间隔窗口内不重复拉");
-        Long specCount = jdbcTemplate.queryForObject("SELECT count(*) FROM tp_api_spec", Long.class);
+        // Project-scoped count: foreign tp_api_spec rows from sibling suites in the
+        // same JVM must not inflate this assertion (R37 shared-db fixture design).
+        Long specCount = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tp_api_spec WHERE project_id = ? AND name = 'pet-api'",
+                Long.class, projectId);
         assertEquals(1L, specCount, "第二次扫零 fetch 零新版本");
     }
 

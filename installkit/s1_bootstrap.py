@@ -20,10 +20,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_FILE = "docker-compose.yml"
 
 SERVICE_GUIDE = (
-    ("admin", "8081", "面向用户管理接口"),
-    ("api", "8082", "体系外对接入口（执行器/装机脚本只走这里）"),
-    ("core", "8083", "服务层（调度/配置/审计）"),
-    ("ai-service", "18084", "AI 编排（仅内部）"),
+    ("admin", "8081", "user-facing management API"),
+    ("api", "8082", "external integration entry (executors/installer scripts talk to this one only)"),
+    ("core", "8083", "service layer (scheduling/config/audit)"),
+    ("ai-service", "18084", "AI orchestration (internal only)"),
 )
 
 
@@ -120,18 +120,18 @@ def stage_failure_note(tail):
 
 def four_services_guide(tier=None):
     pass
-    source_lines = ["      cd %s && mvn spring-boot:run，或常驻=java -jar target/%s.jar 挂 systemd 单元"
+    source_lines = ["      cd %s && mvn spring-boot:run, or run it resident: java -jar target/%s.jar under a systemd unit"
                     % (name, name) for name, port, purpose in SERVICE_GUIDE]
     if "app" in resource_tiers.compose_profiles(tier):
-        lines = ["四服务已随 compose 应用档拉起（admin/api/core/ai-service，档位投影自动起，脚本不代跑也永不停它们）：",
-                 "  - 状态核对：docker compose ps；就绪判定：curl http://127.0.0.1:<admin宿主端口>/actuator/health"]
-        lines.append("  - 开发者选项（源码调试跑法，非出厂交付路径；先停掉对应 compose 服务再起）：")
+        lines = ["The four services are already up with the compose app profile (admin/api/core/ai-service; started by the tier projection — this script never runs or stops them for you):",
+                 "  - Status check: docker compose ps; readiness probe: curl http://127.0.0.1:<admin host port>/actuator/health"]
+        lines.append("  - Developer option (run from source for debugging, not the shipped delivery path; stop the matching compose service first):")
         lines.extend(source_lines)
         return lines
-    lines = ["四服务启动指引（脚本不代跑：检测到端口被占用时绝不停他人服务，请确认后自行启动）：",
-             "  - 出厂交付路径（推荐一行起服）：cd 仓库根 && docker compose --profile app up -d，"
-             "就绪判定 curl http://127.0.0.1:<admin宿主端口>/actuator/health（宿主端口=装机 .env 的 APP_ADMIN_HOST_PORT，未改=8081）"]
-    lines.append("  - 开发者选项（源码跑法，逐服务）：")
+    lines = ["How to start the four services (this script never starts them for you: when a port is occupied it will not touch someone else's service — confirm and start it yourself):",
+             "  - Shipped delivery path (recommended one-line start): cd to the repo root && docker compose --profile app up -d, "
+             "then check readiness with curl http://127.0.0.1:<admin host port>/actuator/health (host port = APP_ADMIN_HOST_PORT in the install .env, default 8081)"]
+    lines.append("  - Developer option (run from source, per service):")
     lines.extend(source_lines)
     return lines
 
@@ -178,33 +178,33 @@ def admin_ready(base_url, timeout=5.0):
 def cmd_compose(args):
     stages = compose_stages(args.answers_file, repo_root=args.repo_root or None)
     if not stages:
-        print("本机角色=纯执行器机：跳过 compose 拉起——"
-              "这台机只需装引擎运行时并注册为执行器（扩容入池用 --scenario=scale-out）")
+        print("This machine's role is executor-only: skipping the compose bring-up — "
+              "this node only needs the engine runtime installed and registered as an executor (use --scenario=scale-out to join the pool)")
         return 0
     root = args.repo_root or str(REPO_ROOT)
     compose_file = os.path.join(root, COMPOSE_FILE)
     if not os.path.exists(compose_file):
-        print("compose 拉起失败：%s 不在——请在 testPike 仓库内运行本脚本"
-              "（或 --repo-root 指到仓库根）" % compose_file, file=sys.stderr)
+        print("compose bring-up failed: %s not found — run this script inside the testPike repository "
+              "(or point --repo-root at the repo root)" % compose_file, file=sys.stderr)
         return 1
-    print("拉起中间件（postgres/redis/rabbitmq/seaweedfs；已在位=幂等直接绿）…")
+    print("Bringing up middleware (postgres/redis/rabbitmq/seaweedfs; already in place = idempotent pass)...")
     # Image delivery is decided here, not by hoping compose can reach the hub:
     # a host with a blocked registry gets the accelerator detour before the
     # first pull is attempted (missing images only, nothing local is touched).
     if not relay_stage_images(compose_file):
-        print("中间件镜像未能备齐——请按上方给出的出路处理后重跑同一命令。", file=sys.stderr)
+        print("middleware images were not delivered — follow the recovery options printed above, then re-run the same command.", file=sys.stderr)
         return 1
     rc, tail = _run_stage(stages[0]["cmd"])
     if rc != 0:
-        print("compose 拉起失败（退出码 %s）——上方 docker 输出即原因；"
-              "修复后重跑同一命令即从断点续跑" % rc, file=sys.stderr)
+        print("compose bring-up failed (exit code %s) — the docker output above is the reason; "
+              "after fixing it, re-run the same command and it resumes from the breakpoint" % rc, file=sys.stderr)
         note = stage_failure_note(tail)
         if note:
             print(note, file=sys.stderr)
         return rc
-    print("中间件就绪。")
+    print("Middleware ready.")
     if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
-        print("MQ vhost 对账：compose 替身模式跳过（测试形态无真消息队列）")
+        print("MQ vhost reconcile: skipped in compose substitute mode (test shape has no real message broker)")
     else:
         ok, notes = mq_vhost.ensure_vhost()
         for line in notes:
@@ -214,8 +214,8 @@ def cmd_compose(args):
     for stage in stages[1:]:
         rc, tail = _run_stage(stage["cmd"])
         if rc != 0:
-            print("档位服务拉起失败（退出码 %s）——上方 docker 输出即原因；"
-                  "修复后重跑同一命令即从断点续跑" % rc, file=sys.stderr)
+            print("tier service bring-up failed (exit code %s) — the docker output above is the reason; "
+                  "after fixing it, re-run the same command and it resumes from the breakpoint" % rc, file=sys.stderr)
             note = stage_failure_note(tail)
             if note:
                 print(note, file=sys.stderr)
@@ -230,9 +230,9 @@ def cmd_seed_demo(args):
     pass
     url = resolve_admin_base_url(args.base_url)
     if not admin_ready(url):
-        print("admin 服务未就绪（%s：不可达、非本产品端点或账号不符）——本次跳过自动播种，"
-              "装机流程照常继续。" % url)
-        print("四服务就绪后重跑下面这条命令即自动播种（同名复用幂等，重复执行不产生重复数据）：")
+        print("admin service not ready (%s: unreachable, not this product's endpoint, or account mismatch) — "
+              "skipping the automatic seed this run; installation continues normally." % url)
+        print("Once the four services are ready, re-run the command below to seed automatically (reuse-by-name is idempotent; repeating it produces no duplicate data):")
         print("  " + seed_demo_command(url))
         return 0
     try:
@@ -240,17 +240,17 @@ def cmd_seed_demo(args):
         journey = demo_seed.ensure_journey(url)
         centers = demo_seed.ensure_centers(url)
     except (Exception, SystemExit) as exc:
-        print("demo data 播种未完成：%s（已建条目同名复用，演示数据非装机前置，不阻断装机流程）"
+        print("demo data seeding did not complete: %s (entries already created are reused by name; demo data is not an installation prerequisite and never blocks it)"
               % exc, file=sys.stderr)
-        print("修复上方原因后重跑同一命令即续播（幂等：已建条目直接复用）："
+        print("After fixing the cause above, re-run the same command to resume seeding (idempotent: existing entries are reused directly):"
               + seed_demo_command(url), file=sys.stderr)
         return 0
-    print("demo data 自动播种完成：样例项目（id=%s）+样例用例（id=%s）、五分钟旅程新建 %d 件、"
-          "中台缩微剧本（订单/库存双中心+演示性能场景）新建 %d 件。"
+    print("demo data auto-seeding complete: sample project (id=%s) + sample case (id=%s), five-minute journey created %d items, "
+          "mid-platform miniature scenarios (order/inventory centers + demo performance scenario) created %d items."
           % (pid, cid, journey.get("created", 0), centers.get("created", 0)))
-    print("体验动线：打开前端项目列表 → 进样例项目一键「AI 生成→执行→报告」；列表同时可见"
-          "五分钟旅程件与「订单中心」「库存中心」（各带一条可跑接口用例，订单中心另挂一条"
-          "演示性能场景，压测目标=内置夹具靶站）。")
+    print("Experience path: open the frontend project list, enter the sample project and use one-click AI generate -> execute -> report; "
+          "the list also shows the five-minute journey items, the Order Center and the Inventory Center "
+          "(each carries one runnable API case; the Order Center additionally has a demo performance scenario whose target is the built-in fixture site).")
     return 0
 
 
@@ -262,11 +262,11 @@ def cmd_storage(args):
     # Without the skip the gate hangs 60s on the S3 probe and then hard-fails
     # the whole s1 scenario in test shape (and on fresh CI runners).
     if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
-        print("对象存储对账：compose 替身模式跳过（测试形态无真存储网关）")
+        print("object storage reconcile: skipped in compose substitute mode (test shape has no real storage gateway)")
         return 0
     answers = load_answers(args.answers_file)
     if answers.get("role", "platform") != "platform":
-        print("本机角色非平台：对象存储面由平台节点承载，跳过。")
+        print("This machine's role is not platform: the object-storage surface is carried by the platform node — skipping.")
         return 0
     root = args.repo_root or str(REPO_ROOT)
     try:
@@ -274,12 +274,12 @@ def cmd_storage(args):
         # must resolve identically here and in docker-compose.yml interpolation
         env = host_ports.overlay(host_ports.read_dotenv(root))
     except OSError:
-        print("对象存储检查失败：找不到仓库 .env（请在本仓库内运行）", file=sys.stderr)
+        print("object storage check failed: repo .env not found (run this inside the repository)", file=sys.stderr)
         return 1
     missing = [k for k in ("S3_ENDPOINT", "S3_BUCKET", "DB_USERNAME", "DB_PASSWORD",
                            "SWF_META_DB_NAME") if not env.get(k)]
     if missing:
-        print("对象存储检查失败：.env 缺键 %s（cp .env.example .env 后补齐）" % missing,
+        print("object storage check failed: .env missing keys %s (run cp .env.example .env, then fill them in)" % missing,
               file=sys.stderr)
         return 1
     pg = os.environ.get("TP_CONTAINER_PG") or instance_names.name("postgres")
@@ -288,7 +288,7 @@ def cmd_storage(args):
     q = _run_cap(["docker", "exec", pg, "psql", "-U", user, "-d", "postgres", "-tA", "-c",
                   "SELECT 1 FROM pg_database WHERE datname='%s'" % db])
     if q.returncode != 0:
-        print("对象存储检查失败：PostgreSQL 容器 %s 不可达（先跑 compose 位点）" % pg,
+        print("object storage check failed: PostgreSQL container %s is unreachable (run the compose stage first)" % pg,
               file=sys.stderr)
         return 1
     if q.stdout.strip() != "1":
@@ -296,7 +296,7 @@ def cmd_storage(args):
                       "CREATE DATABASE \"%s\" OWNER \"%s\" TEMPLATE template0 "
                       "LC_COLLATE 'C' LC_CTYPE 'C' ENCODING 'UTF8'" % (db, user)])
         if c.returncode != 0:
-            print("对象存储检查失败：元数据库 %s 创建失败——%s" % (db, c.stderr.strip()[-200:]),
+            print("object storage check failed: metadata database %s creation failed — %s" % (db, c.stderr.strip()[-200:]),
                   file=sys.stderr)
             # Route the raw vendor output through the failure-guide single source
             # so a duplicate-database race teaches keep-or-rename instead of only
@@ -306,14 +306,14 @@ def cmd_storage(args):
             if guide:
                 print(guide, file=sys.stderr)
             return 1
-        print("元数据库 %s 已补建（程序同实例独立库）" % db)
+        print("metadata database %s created (a separate database in the same instance)" % db)
     else:
-        print("元数据库 %s 在位" % db)
+        print("metadata database %s already in place" % db)
     # 2) gateway container (compose single source; idempotent)
     rc = _execute(["docker", "compose", "-f", os.path.join(root, COMPOSE_FILE),
                    "up", "-d", "seaweedfs", "seaweedfs-ui-auth"])
     if rc != 0:
-        print("对象存储检查失败：seaweedfs 网关/管理台鉴权代理拉起失败（compose 输出即原因）",
+        print("object storage check failed: seaweedfs gateway/console auth proxy failed to start (the compose output above is the reason)",
               file=sys.stderr)
         return 1
     # 3) S3 endpoint answers (any HTTP status incl. 403 proves the signature path is live)
@@ -330,7 +330,7 @@ def cmd_storage(args):
         except OSError:
             time.sleep(2)
     else:
-        print("对象存储检查失败：%s 60 秒内无应答——查 docker logs %s"
+        print("object storage check failed: %s did not answer within 60 seconds — check docker logs %s"
               % (env["S3_ENDPOINT"], instance_names.name("seaweedfs")), file=sys.stderr)
         return 1
     # 3b) management-console auth gate: the Basic-Auth proxy must answer 401 anonymously
@@ -346,19 +346,19 @@ def cmd_storage(args):
     except OSError:
         pass
     if ui_code != "401":
-        print("对象存储检查失败：管理台鉴权代理(%s)未返回 401，实际=%s —— 检查 "
-              "%s 容器与 SWF_UI_USER/SWF_UI_PASSWORD" % (ui_port, ui_code or "无应答",
+        print("object storage check failed: console auth proxy (%s) did not return 401, actual=%s — check the "
+              "%s container and SWF_UI_USER/SWF_UI_PASSWORD" % (ui_port, ui_code or "no answer",
               instance_names.name("seaweedfs-ui-auth")),
               file=sys.stderr)
         return 1
-    print("管理台鉴权在位：匿名 401（登录口 http://localhost:%s / :%s，凭据 .env SWF_UI_*）"
+    print("console auth in place: anonymous requests get 401 (login at http://localhost:%s / :%s, credentials from .env SWF_UI_*)"
           % (ui_port, env.get("SWF_UI_MASTER_PROXY_HOST_PORT", "9001")))
     # 4) legacy provider value repair (guarded; authoritative semantics = V533 migration)
     _run_cap(["docker", "exec", pg, "psql", "-U", user, "-d", env.get("TP_MAIN_DB", "testpike"),
               "-c", "UPDATE tp_sys_config SET config_value='s3' "
                     "WHERE config_key='storage.provider' AND config_value='minio'"])
-    print("对象存储就绪：S3 网关应答、桶「%s」由应用首用自动创建；storage.provider=s3 "
-          "可在系统设置页热更改回 local/aliyun-oss。" % env["S3_BUCKET"])
+    print("object storage ready: the S3 gateway answers; bucket '%s' is created automatically on first app use; "
+          "storage.provider=s3 can be hot-switched back to local/aliyun-oss on the system settings page." % env["S3_BUCKET"])
     return 0
 
 
@@ -368,16 +368,16 @@ def _run_cap(cmd):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="s1_bootstrap.py",
-                                     description="S1 首装拉起位点实装件（compose 计划/四服务指引/demo data 自动播种）")
+                                     description="S1 first-install bring-up implement (compose plan / four-services guide / demo data auto-seed)")
     sub = parser.add_subparsers(dest="command", required=True)
-    p_compose = sub.add_parser("compose", help="按角色拉起中间件+透出四服务指引")
+    p_compose = sub.add_parser("compose", help="bring up middleware per role and print the four-services guide")
     p_compose.add_argument("--answers-file", required=True)
     p_compose.add_argument("--repo-root", default=str(REPO_ROOT))
     p_compose.set_defaults(func=cmd_compose)
-    p_seed = sub.add_parser("seed-demo", help="demo data 自动播种（幂等；admin 不可达时诚实降级给重跑命令）")
+    p_seed = sub.add_parser("seed-demo", help="demo data auto-seed (idempotent; degrades honestly with a re-runnable command when admin is unreachable)")
     p_seed.add_argument("--base-url", default="")
     p_seed.set_defaults(func=cmd_seed_demo)
-    p_store = sub.add_parser("storage", help="对象存储面一键检查/自修（SeaweedFS+PG 元数据）")
+    p_store = sub.add_parser("storage", help="object-storage one-shot check/self-repair (SeaweedFS + PG metadata)")
     p_store.add_argument("--answers-file", required=True)
     p_store.add_argument("--repo-root", default=str(REPO_ROOT))
     p_store.set_defaults(func=cmd_storage)

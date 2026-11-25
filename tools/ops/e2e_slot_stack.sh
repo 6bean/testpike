@@ -324,6 +324,30 @@ ensure_executor_runner_settled() { # ensure_executor_runner + the preflight sett
   return 0
 }
 
+derive_runner_posture() { # $1 = log tag; stdin = the spectrum's node list (R40 single source)
+  # Runner posture derived from declared nodes, never asserted by hand: the
+  # queue regex lives only in the preflight tool, so every launch re-reads the
+  # specs. yes  -> this chain's executor station must be live (queue-feeding
+  # acts otherwise journal empty candidate pools and burn whole windows on
+  # false reds); no -> the designed queue-free opt-out is exported;
+  # unknown -> no waiver and no auto-launch: the preflight grades the runner
+  # strictly and names the gap in seconds instead of burning the cap.
+  # Caller owns the failure anchor (rc 1 = station launch/health failed).
+  local tag="${1:-$WINDOW_TAG}" need
+  need=$(/usr/bin/python3 "$REPO_ROOT/tools/verification/e2e_window_preflight.py" \
+    --repo-root "$REPO_ROOT" --queue-need --node-list /dev/stdin \
+    | sed -n 's/^PREFLIGHT-QUEUE-NEED=//p')
+  say "$tag: stage=runner-posture queue-need=${need:-unknown}"
+  if [ "${need:-}" = "yes" ]; then
+    ensure_executor_runner || return 1
+  elif [ "${need:-}" = "no" ]; then
+    export TP_PREFLIGHT_RUNNER_REQUIRED=0
+  else
+    say "$tag: WARN queue-need unreadable — runner graded strictly this window"
+  fi
+  return 0
+}
+
 ensure_frontend_preview() { # vite preview of the built bundle on the slot vite port
   # The proxy map in vite.config routes /api and /open to this slot's backends
   # — a bare static file server has no proxy and every relative API call would

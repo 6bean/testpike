@@ -340,6 +340,164 @@ def scan_w6_locale(root: str) -> list[str]:
     return hits
 
 
+# ── Sixth gate: Java runtime operator text must ship in English ─────────────
+# Logger calls and internal exception throws reach operators through logs and
+# stack traces, so they belong to the English release surface. Exception
+# families whose message is mapped onto the bilingual UI (ServiceException
+# with a business error code, BizException, ValidationException per the
+# pending classification note) keep the Chinese track and are exempt here;
+# that wording is governed by the screen gates instead. The stock count is a
+# ratchet that only shrinks, lowered batch by batch as domains are cleaned;
+# newly added lines are blocked outright by the incremental check below.
+_HAN = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]")
+_JAVA_MAIN = re.compile(r"^(?:core|admin|api|ai-service|common)/src/main/")
+_LOG_OPEN = re.compile(
+    r"\b(?:log|logger|LOG|LOGGER)\s*\.\s*(?:trace|debug|info|warn|error)\s*\(")
+_THROW_OPEN = re.compile(r"\bthrow\s+new\s+([A-Za-z_$][A-Za-z0-9_$]*Exception)\s*\(")
+_UI_MAPPED_EXCEPTIONS = {"ServiceException", "BizException", "ValidationException"}
+_JAVA_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+# Baseline frozen at gate wiring (2026-11-25) using this gate's own counting
+# rule: one hit per offending call statement, multi-line argument continuations
+# joined into the statement. Probe-derived line counts differ by design and
+# were deliberately not reused here.
+JAVA_RUNTIME_CJK_BASELINE = 850  # gate's own rule; ratchet shrinks with each cleaned batch
+
+
+def _call_statement(lines: list[str], idx: int, col: int, max_lines: int = 24) -> str:
+    """Join source text from an opening parenthesis until the call closes
+    (paren balance tracked outside string literals) so concatenated literal
+    fragments on continuation lines are judged as part of one call."""
+    out: list[str] = []
+    depth = 0
+    i, c = idx, col
+    while i < len(lines) and (i - idx) < max_lines:
+        seg = lines[i][c:]
+        out.append(seg)
+        in_str = esc = False
+        for ch in seg:
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return " ".join(out)
+        i += 1
+        c = 0
+    return " ".join(out)
+
+
+def _scan_java_runtime_text(rel: str, text: str) -> list[str]:
+    """Runtime-text hits for one Java file: CJK inside a string literal of a
+    logger call or a non-exempt exception throw. Comments never match because
+    only quoted literals are inspected."""
+    hits: list[str] = []
+    lines = text.splitlines()
+    seen: set[int] = set()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith(("//", "*", "/*")):
+            continue
+        marks = []
+        m = _LOG_OPEN.search(line)
+        if m:
+            marks.append(("log-call", m.end() - 1, None))
+        t = _THROW_OPEN.search(line)
+        if t and t.group(1) not in _UI_MAPPED_EXCEPTIONS:
+            marks.append(("throw-" + t.group(1), t.end() - 1, None))
+        for kind, open_col, _ in marks:
+            if i in seen:
+                continue
+            stmt = _call_statement(lines, i, open_col)
+            if any(_HAN.search(lit) for lit in _JAVA_STRING.findall(stmt)):
+                hits.append(f"{rel}:{i + 1}: {kind} carries CJK runtime text: "
+                            f"…{stripped[:72]}…")
+                seen.add(i)
+    return hits
+
+
+def scan_java_runtime_cjk(root: str) -> list[str]:
+    hits: list[str] = []
+    for rel in _tracked_text_files(root):
+        if not rel.endswith(".java") or not _JAVA_MAIN.match(rel):
+            continue
+        path = os.path.join(root, rel)
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        hits.extend(_scan_java_runtime_text(rel, text))
+    return hits
+
+
+def scan_java_runtime_cjk_diff(root: str) -> list[str]:
+    """Incremental block: a diff line that opens a logger call or a non-exempt
+    exception throw with CJK inside fails outright. Continuation fragments of
+    multi-line calls are covered by the full-scan ratchet (adding one without
+    removing another raises the count above the frozen baseline)."""
+    d = subprocess.run(["git", "-C", root, "diff", "-U0", "HEAD"],
+                       capture_output=True, text=True, errors="replace").stdout
+    hits: list[str] = []
+    cur = "?"
+    for ln in d.splitlines():
+        if ln.startswith("+++ b/"):
+            cur = ln[6:]
+            continue
+        if not cur.endswith(".java") or not _JAVA_MAIN.match(cur):
+            continue
+        if not ln.startswith("+") or ln.startswith("+++"):
+            continue
+        seg = ln[1:]
+        if not _HAN.search(seg):
+            continue
+        if _LOG_OPEN.search(seg):
+            hits.append(f"{cur}: new log call carries CJK: …{seg.strip()[:72]}…")
+            continue
+        t = _THROW_OPEN.search(seg)
+        if t and t.group(1) not in _UI_MAPPED_EXCEPTIONS:
+            hits.append(f"{cur}: new {t.group(1)} message carries CJK: "
+                        f"…{seg.strip()[:72]}…")
+    return hits
+
+
+def _java_runtime_selftest() -> None:
+    """Two-way fixture (R43③): every predicate and exemption branch must prove
+    it fires, and clean English lines plus comments must not."""
+    # Build real CJK literals at runtime so this gate file itself never ships a
+    # Chinese string in its own diff (definition surface stays clean).
+    han = "\u4e2d\u6587"
+    fixture = "\n".join([
+        "class Probe {",
+        f'    void dirty() {{ log.info("task {han} finished", id); }}',
+        f'    void cont() {{ log.warn("retry {han}"',
+        '        + " skipped", id); }',
+        f'    void exc() {{ throw new IllegalStateException("{han} state"); }}',
+        f'    void ui() {{ throw new ServiceException("code {han}", 50003); }}',
+        f'    void vd() {{ throw new ValidationException("value {han}"); }}',
+        '    void clean() { log.info("plain english line", id); }',
+        f'    // comment about {han} must not count',
+        '}',
+    ])
+    hits = _scan_java_runtime_text("probe/X.java", fixture)
+    assert len(hits) == 3, f"java runtime scan missed hits (expected 3, got {len(hits)}): {hits}"
+    assert any("log-call" in h for h in hits), "single-line logger hit not caught"
+    assert any("IllegalStateException" in h for h in hits), "throw hit not caught"
+    assert not any("ServiceException" in h for h in hits), "UI-mapped family was not exempted"
+    assert not any("ValidationException" in h for h in hits), "pending-family was not exempted"
+    assert not any("plain english" in h for h in hits), "clean line false positive"
+    assert not any("comment about" in h for h in hits), "comment false positive"
+
+
 def _ledger_bans(root: str) -> list[tuple[str, str]]:
     """Ledger-driven ban regexes (R55: the word list lives in the data file;
     registering a coined variant there must extend the gate with no code edit).
@@ -487,27 +645,28 @@ def selftest() -> int:
     # ledger surface is wired, an empty fixture section is a hard failure.
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     bans = _ledger_bans(repo_root)
-    assert bans, "台账禁词集为空=数据面静默空转（先修 tools/term_lint_ledger.json 再读账）"
+    assert bans, "ledger ban list is empty = the data face matches nothing (fix tools/term_lint_ledger.json before trusting this gate)"
     try:
         with open(os.path.join(repo_root, _LEDGER_REL), encoding="utf-8") as fh:
             st_fix = json.load(fh)["selftest"]
     except (ValueError, OSError, KeyError) as exc:
-        raise SystemExit(f"台账 selftest 夹具面缺失({exc})=检出能力无从自证")
+        raise SystemExit(f"ledger selftest fixtures missing ({exc}) = detection capability cannot be proven")
     # Gather every registered bite_* family instead of a hardcoded list: the
     # generation family sat in the data file un-probed while the ban itself
     # had drifted to its canonical replacement word, and the gate stayed green
     # (R43: fixture coverage follows the ledger, never a frozen key list).
     probes = [s for k, v in st_fix.items() if k.startswith("bite_") for s in v]
-    assert any(k.startswith("bite_") for k in st_fix), "bite 夹具面为空=必检支路空转"
+    assert any(k.startswith("bite_") for k in st_fix), "bite fixture list is empty = the required probe never runs"
     for s in probes:
-        assert _coined_hit(s, "fixture/consumer.ts", bans), f"自造词探针未命中=闸空转: {s}"
+        assert _coined_hit(s, "fixture/consumer.ts", bans), f"coined-term probe missed = gate never runs: {s}"
     for s in st_fix["clean"]:
-        assert _coined_hit(s, "fixture/consumer.ts", bans) is None, f"豁免面误杀: {s}"
+        assert _coined_hit(s, "fixture/consumer.ts", bans) is None, f"exemption face false positive: {s}"
     # Definition surface exemption: the very same banned word inside the gate
     # files must not self-flag (registering a word could never otherwise land).
-    assert _coined_hit(probes[0], _LEDGER_REL, bans) is None, "定义面豁免失效=登记即自红"
-    print(f"TERM-LINT SELFTEST PASS（链名排除命中={sorted(toks)[:3]}；"
-          f"CamelCase 与多字母后缀任务号仍计入；比喻词豁免面双向用例在位；空集即报错）")
+    assert _coined_hit(probes[0], _LEDGER_REL, bans) is None, "definition-surface exemption broken = registering a word flags itself"
+    _java_runtime_selftest()
+    print(f"TERM-LINT SELFTEST PASS (chain-name exclusion hits={sorted(toks)[:3]}; "
+          f"CamelCase and letter-suffixed task codes still counted; two-way exemption fixtures in place; empty set raises)")
     return 0
 
 
@@ -533,45 +692,59 @@ def main(argv=None) -> int:
     if len(seed_hits) > LEGACY_SEED_BOOKKEEP_BASELINE:
         bk_hits.extend(
             [h for h in seed_hits]
-            + [f"种子/夹具簿记码存量 {len(seed_hits)} > 基线 {LEGACY_SEED_BOOKKEEP_BASELINE}"
-               f"（棘轮禁涨：T402 洗值批随批下调基线，禁新增此型种子描述）"])
+            + [f"seed/fixture bookkeeping-code debt {len(seed_hits)} > baseline {LEGACY_SEED_BOOKKEEP_BASELINE} "
+               f"(the baseline only shrinks: lower it in the same batch as the cleanup, never add new entries of this type)"])
     else:
-        print(f"SEED-BOOKKEEP 棘轮账：存量 {len(seed_hits)}/{LEGACY_SEED_BOOKKEEP_BASELINE}"
-              f"（T402 洗值批同批下调基线）")
+        print(f"SEED-BOOKKEEP legacy debt: {len(seed_hits)}/{LEGACY_SEED_BOOKKEEP_BASELINE}"
+              f" (the baseline shrinks in the same batch as each cleanup)")
     w6_hits = scan_w6_locale(root)
     cd_hits = scan_coined_diff(root)
     id_hits = scan_identifier_bookkeeping(root)
+    j_hits = scan_java_runtime_cjk(root)
+    jd_hits = scan_java_runtime_cjk_diff(root)
+    j_over = (len(j_hits) > JAVA_RUNTIME_CJK_BASELINE)
+    if not j_over:
+        print(f"JAVA-RUNTIME-CJK legacy debt: {len(j_hits)}/{JAVA_RUNTIME_CJK_BASELINE}"
+              f" (the baseline shrinks in the same batch as each domain cleanup)")
     legacy_n = count_legacy_ident_names(root)
     if _CHAIN_TOKEN_WARN:
-        print("TERM-LINT WARN：" + " / ".join(_CHAIN_TOKEN_WARN))
+        print("TERM-LINT WARN: " + " / ".join(_CHAIN_TOKEN_WARN))
     if legacy_n > LEGACY_IDENT_BASELINE:
-        id_hits.append(f"存量旧派簿记码文件名 {legacy_n} > 基线 {LEGACY_IDENT_BASELINE}"
-                       f"（棘轮禁涨：清偿存量或改名新名，禁新增此型）")
+        id_hits.append(f"legacy bookkeeping-code file names {legacy_n} > baseline {LEGACY_IDENT_BASELINE}"
+                       f" (the baseline only shrinks: clean up stock or rename to capability names, never add new files of this type)")
     if all_hits:
-        print(f"TERM-LINT FAIL：{len(all_hits)} 处自造比喻词（2026-09-28 铁律）")
+        print(f"TERM-LINT FAIL: {len(all_hits)} coined metaphor terms found (rule 2026-09-28)")
         for h in all_hits[:200]:
             print(h)
         if len(all_hits) > 200:
-            print(f"…另 {len(all_hits) - 200} 处未列出")
+            print(f"... {len(all_hits) - 200} more not listed")
     if bk_hits:
-        print(f"TERM-LINT FAIL：{len(bk_hits)} 处屏显文案以内部簿记码开头（2026-10-18 铁律，编号只进注释/文档不进界面）")
+        print(f"TERM-LINT FAIL: {len(bk_hits)} screen strings start with internal bookkeeping codes (rule 2026-10-18: task numbers belong in comments/docs, never in the UI)")
         for h in bk_hits[:100]:
             print(h)
     if w6_hits:
-        print(f"TERM-LINT FAIL：{len(w6_hits)} 处用户可见文案含内部治理语（W6 铁律 2026-10-24：「人话/拒件/裁决/单源」类内部叙述禁上屏，界面只写操作信息——默认值/区间/超限后果/原因在哪看）")
+        print(f"TERM-LINT FAIL: {len(w6_hits)} user-visible strings carry internal governance wording (rule 2026-10-24: process self-narration must not reach the screen; UI text shows operation info only - defaults, ranges, rejection consequences, where to read causes)")
         for h in w6_hits[:100]:
             print(h)
     if cd_hits:
-        print(f"TERM-LINT FAIL：{len(cd_hits)} 处新增行含自造词汇（2026-10-18 铁律：刀族/blade/钉进钉死——改说「切片/阶段、登记/固化」等行业语；历史存量不追溯）")
+        print(f"TERM-LINT FAIL: {len(cd_hits)} new diff lines use coined vocabulary (rule 2026-10-18: replace invented metaphors with industry terms or plain descriptions; existing stock is not rewritten retroactively)")
         for h in cd_hits[:100]:
             print(h)
     if id_hits:
-        print(f"TERM-LINT FAIL：{len(id_hits)} 处标识符/新增文件名携带内部簿记码（2026-10-24 铁律：类名/文件名/方法名=能力名，任务号/迁移号/用例码只进盘上 docs 追溯锚，禁入代码面）")
+        print(f"TERM-LINT FAIL: {len(id_hits)} identifiers or new file names carry internal bookkeeping codes (rule 2026-10-24: class/file/method names describe capability; task, migration and case numbers stay in on-disk docs)")
         for h in id_hits[:100]:
             print(h)
-    if all_hits or bk_hits or cd_hits or id_hits or w6_hits:
+    if jd_hits:
+        print(f"TERM-LINT FAIL: {len(jd_hits)} new Java lines add CJK runtime text (rule 2026-11-24: operator-visible logger and exception text ships in English; UI-mapped message families keep the bilingual track and are exempt)")
+        for h in jd_hits[:100]:
+            print(h)
+    if j_over:
+        print(f"TERM-LINT FAIL: Java CJK runtime-text stock {len(j_hits)} > baseline {JAVA_RUNTIME_CJK_BASELINE} (rule 2026-11-24: the ratchet only shrinks; lower the baseline in the same batch as each cleanup, never add new offenders of this type)")
+        for h in j_hits[:100]:
+            print(h)
+    if all_hits or bk_hits or cd_hits or id_hits or w6_hits or jd_hits or j_over:
         return 1
-    print(f"TERM-LINT PASS（比喻词闸+屏显簿记码闸+W6 界面治理语闸+自造词增量闸+标识符簿记码闸；存量旧派文件名基线 {legacy_n}/{LEGACY_IDENT_BASELINE}）")
+    print(f"TERM-LINT PASS (coinage scan + screen bookkeeping-code scan + UI governance-word scan + diff coinage scan + identifier bookkeeping scan + Java runtime-text scan; legacy file-name baseline {legacy_n}/{LEGACY_IDENT_BASELINE})")
     return 0
 
 

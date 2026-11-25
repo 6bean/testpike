@@ -309,6 +309,75 @@ public final class SharedDbFixtureSweep {
     }
 
     /**
+     * Claim-window hygiene census (fresh-install core gate triage): ids of
+     * still-pending exec tasks whose project sits inside the current test
+     * JVM's run window. Projects are auto-increment rows, so a primary key
+     * above the suite-start floor can only be a fixture project created by
+     * this run — factory-shipped rows and live-service rows of shipped
+     * projects can never match (R37). The class-end guard
+     * {@code ExecClaimWindowGuard} consumes this instead of spelling its
+     * own SQL (R40), and the window-end gate re-reads the same shape.
+     */
+    public static List<Long> pendingTaskIdsAboveProjectFloor(JdbcTemplate jdbc, long projectFloor) {
+        return jdbc.queryForList(
+                "SELECT id FROM tp_exec_task WHERE status = 1 AND project_id > ? ORDER BY id",
+                Long.class, projectFloor);
+    }
+
+    /**
+     * Sweep fixture-registered executor rows by name prefix (single source
+     * per R40). tp_executor is the shared fleet registry: it has no project
+     * column, so {@link #byProject} never reaches it, and claim-family suites
+     * register run-scoped executors under fixed per-suite prefixes. Rows that
+     * outlive their class keep sitting in the candidate pool
+     * {@code ExecTaskServiceImpl.claim} scans inside the same JVM (r20 CI
+     * fresh-install triage: representative classes isolate green, full suite
+     * red). Deletes stay confined to the listed prefixes — factory-shipped
+     * and live-service executor rows can never match (R37).
+     */
+    public static void executorsByNamePrefixes(JdbcTemplate jdbc, String... prefixes) {
+        for (String prefix : prefixes) {
+            jdbc.update("DELETE FROM tp_executor WHERE name LIKE ?", prefix + "%");
+        }
+    }
+
+    /**
+     * Seed one capability-bearing fixture executor (single source per R40,
+     * the create counterpart of {@link #executorsByNamePrefixes}). A
+     * fresh-install database ships tp_executor empty and no executor process
+     * heartbeats into it, so the perf engine-routing gate
+     * (PerfEngineRoutingSupport.explainNoCapablePerfExecutorForEnvelope)
+     * rejects every launch whenever another suite's leftover row is online
+     * without an engine face — "online 1, capable 0" (r22 fresh-install
+     * triage: the green-on-dev answer was the persistent runner filling that
+     * seat, physically absent on CI). The row is written with the same column
+     * shape ExecutorServiceImpl.register persists (status online, fresh
+     * heartbeat, capabilities JSONB, protocol version inside the compat
+     * window), which keeps the gate deterministic without any runner process.
+     * The name is prefix + run-unique token: concurrent suites never collide
+     * on it, and teardown through the prefix channel only ever removes this
+     * fixture family — never factory or live-service rows (R37).
+     *
+     * @param engines capability-face engines, e.g. "K6", "GATLING"
+     * @return the executor row id (RETURNING anchor, no max(id) race)
+     */
+    public static long seedCapableExecutor(JdbcTemplate jdbc, String namePrefix,
+            String... engines) {
+        StringBuilder face = new StringBuilder("[");
+        for (int i = 0; i < engines.length; i++) {
+            face.append(i > 0 ? "," : "").append('"').append(engines[i]).append('"');
+        }
+        String uniq = Long.toString(System.nanoTime() % 1_000_000_000L);
+        Long id = jdbc.queryForObject(
+                "INSERT INTO tp_executor (name, end_types, browsers, capacity, running_cnt,"
+                        + " status, version, capabilities, last_heartbeat)"
+                        + " VALUES (?, 'web,app', 'chromium', 2, 0, 1, '1.0.0',"
+                        + " jsonb_build_object('engines', CAST(? AS jsonb)), now()) RETURNING id",
+                Long.class, namePrefix + uniq, face.append(']').toString());
+        return id;
+    }
+
+    /**
      * R37 teardown for suites that seed a handful of rows and can track their
      * primary keys: deletes exactly the tracked ids — no blanket table wipe,
      * no sequence reset (the generation-family postmortem: a per-test
@@ -544,24 +613,40 @@ public final class SharedDbFixtureSweep {
      */
     /**
      * Seed the perf-suite fixture shape (single source for the four perf suites:
-     * project + one env + whitelist row). INSERT ... RETURNING pins our own ids on
-     * the shared dev database -- a SELECT max(id) could anchor onto a concurrent
-     * suite's insert. Returns {projectId, envId}.
+     * project + one env + a 1000-mode whitelist row). INSERT ... RETURNING pins
+     * our own ids on the shared dev database -- a SELECT max(id) could anchor
+     * onto a concurrent suite's insert. Returns {projectId, envId}.
      */
     public static long[] seedPerfFixtureProject(JdbcTemplate jdbc, String namePrefix,
             String codePrefix, String envName, String baseUrl) {
+        return seedPerfFixtureProject(jdbc, namePrefix, codePrefix, envName, 1,
+                baseUrl, 1000, null);
+    }
+
+    /**
+     * Full perf-seed entry (R40 single source, covers every perf-suite variant):
+     * project row + env row with an explicit env type, plus an optional
+     * tp_perf_whitelist row. {@code maxConcurrency <= 0} skips the whitelist
+     * insert (suites that test the no-whitelist denial path seed no row);
+     * {@code allowedModes} nulls to the empty array, matching the shape the
+     * launch gate reads. Returns {projectId, envId} from RETURNING anchors.
+     */
+    public static long[] seedPerfFixtureProject(JdbcTemplate jdbc, String namePrefix,
+            String codePrefix, String envName, int envType, String baseUrl,
+            int maxConcurrency, String allowedModes) {
         String uniq = Long.toString(System.nanoTime() % 1_000_000_000L);
-        String projectName = namePrefix + uniq;
-        String projectCode = codePrefix + uniq;
         long projectId = jdbc.queryForObject(
                 "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1) RETURNING id",
-                Long.class, projectName, projectCode);
+                Long.class, namePrefix + uniq, codePrefix + uniq);
         long envId = jdbc.queryForObject(
                 "INSERT INTO tp_project_env (project_id, name, env_type, base_url)"
-                        + " VALUES (?, ?, 1, ?) RETURNING id",
-                Long.class, projectId, envName, baseUrl);
-        jdbc.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency,"
-                + " allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+                        + " VALUES (?, ?, ?, ?) RETURNING id",
+                Long.class, projectId, envName, envType, baseUrl);
+        if (maxConcurrency > 0) {
+            jdbc.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency,"
+                            + " allowed_modes) VALUES (?, ?, ?, CAST(? AS jsonb))",
+                    projectId, envId, maxConcurrency, allowedModes == null ? "[]" : allowedModes);
+        }
         return new long[] {projectId, envId};
     }
 

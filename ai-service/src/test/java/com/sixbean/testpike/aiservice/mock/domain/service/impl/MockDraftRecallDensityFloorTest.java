@@ -48,7 +48,7 @@ class MockDraftRecallDensityFloorTest {
     private static final long SPACE_ID = 9L;
     private static final long PROJECT_ID = 3L;
     private static final String KEY_FLOOR = "ai.mock.recall-density-floor-per-ktoken";
-    private static final String WARN_MARKER = "Mock 起草密度下限闸";
+    private static final String WARN_MARKER = "Mock drafting density floor gate";
 
     private final CoreGateway coreGateway = mock(CoreGateway.class);
     private final LlmFallbackChain llmChain = mock(LlmFallbackChain.class);
@@ -56,7 +56,7 @@ class MockDraftRecallDensityFloorTest {
     private final MockDraftArtifactGateway artifactGateway =
             mock(MockDraftArtifactGateway.class);
     private final MockDraftGenServiceImpl service = new MockDraftGenServiceImpl(
-            coreGateway, llmChain, llmRouter, artifactGateway, new ObjectMapper());
+            coreGateway, llmChain, llmRouter, artifactGateway, new ObjectMapper(), null);
 
     private ListAppender<ILoggingEvent> appender;
 
@@ -122,7 +122,7 @@ class MockDraftRecallDensityFloorTest {
         String line = appender.list.stream()
                 .map(ILoggingEvent::getFormattedMessage)
                 .filter(m -> m.startsWith(WARN_MARKER)).findFirst().orElse("");
-        assertTrue(line.contains("实收=1") && line.contains("条数下限="),
+        assertTrue(line.contains("received=1") && line.contains("min-items="),
                 "the WARN line carries the actual/expected numbers: " + line);
     }
 

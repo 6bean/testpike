@@ -91,8 +91,9 @@ class ChatSessionManagementTest {
     @Test
     void unknownSessionIdIsRefusedWithBusinessNotFoundThroughBothDoors() {
         long userId = newUserId(tag("t625u"));
-        long unknownSession = jdbcTemplate.queryForObject(
-                "SELECT coalesce(max(id), 0) + 1000 FROM tp_ai_chat_session", Long.class);
+        // Ghost band verified empty on the live dev db; a literal keeps the
+        // probe deterministic without reading the global session max.
+        long unknownSession = 999_999_999L;
 
         ServiceException read = assertThrows(ServiceException.class,
                 () -> sessionService.findById(unknownSession));

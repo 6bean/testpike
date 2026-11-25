@@ -42,7 +42,7 @@ public final class GoalPlanLedgerStore {
         } catch (RuntimeException doorDown) {
             // Fail-soft read (the storage rule above): "no ledger" beats a
             // thrown dialog turn; the reason is journaled, never swallowed.
-            log.warn("目标账本读取门不可达，按无账继续 sessionId={} version={} reason={}",
+            log.warn("Goal plan ledger read gate unreachable, continuing without ledger sessionId={} version={} reason={}",
                     sessionId, planVersion, doorDown.getMessage());
             return null;
         }

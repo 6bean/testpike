@@ -54,7 +54,7 @@ public final class HfBpeTokenEstimator implements TokenEstimator {
  
     public static HfBpeTokenEstimator fromFile(Path tokenizerJson, String engineId) {
         if (!Files.exists(tokenizerJson)) {
-            throw new IllegalStateException("HF 词表缺失，拒绝启动假绿引擎: " + tokenizerJson);
+            throw new IllegalStateException("HF tokenizer vocabulary missing, refusing to start a falsely-green estimator: " + tokenizerJson);
         }
         try (InputStream in = Files.newInputStream(tokenizerJson)) {
             return load(new ObjectMapper().readTree(in), engineId);
@@ -67,23 +67,23 @@ public final class HfBpeTokenEstimator implements TokenEstimator {
     public static HfBpeTokenEstimator fromResource(String classpathResource, String engineId) {
         try (InputStream in = HfBpeTokenEstimator.class.getResourceAsStream(classpathResource)) {
             if (in == null) {
-                throw new IllegalStateException("HF 词表资源缺失: " + classpathResource);
+                throw new IllegalStateException("HF tokenizer vocabulary resource missing: " + classpathResource);
             }
             return load(new ObjectMapper().readTree(in), engineId);
         } catch (IOException e) {
-            throw new IllegalStateException("HF 词表加载失败: " + classpathResource, e);
+            throw new IllegalStateException("HF tokenizer vocabulary load failed: " + classpathResource, e);
         }
     }
 
     private static HfBpeTokenEstimator load(JsonNode root, String engineId) {
         JsonNode model = root.path("model");
         if (!"BPE".equals(model.path("type").asText())) {
-            throw new IllegalStateException("E11 仅支持 model.type=BPE（实际="
-                    + model.path("type").asText() + "）；真字符级 SentencePiece 留 sp-char 位");
+            throw new IllegalStateException("E11 supports only model.type=BPE (actual="
+                    + model.path("type").asText() + ") ; true character-level SentencePiece support is deferred to the sp-char plan");
         }
         JsonNode vocab = model.path("vocab");
         if (!vocab.isObject() || vocab.isEmpty()) {
-            throw new IllegalStateException("tokenizer.json 缺 model.vocab");
+            throw new IllegalStateException("tokenizer.json missing model.vocab");
         }
         int vocabSize = vocab.size();
         byte[][] idToBytes = new byte[vocabSize][];
@@ -93,7 +93,7 @@ public final class HfBpeTokenEstimator implements TokenEstimator {
             var e = it.next();
             int id = e.getValue().asInt();
             if (id < 0 || id >= vocabSize) {
-                throw new IllegalStateException("vocab id 越界: " + id + " vocabSize=" + vocabSize);
+                throw new IllegalStateException("vocab id out of range: " + id + " vocabSize=" + vocabSize);
             }
             byte[] bytes = tokenToBytes(e.getKey());
             idToBytes[id] = bytes;
@@ -334,7 +334,7 @@ public final class HfBpeTokenEstimator implements TokenEstimator {
         for (byte b : seg) {
             Integer id = bytesToId.get(new ByteSeq(new byte[]{b}));
             if (id == null) {
-                throw new IllegalStateException("词表缺单字节 token 0x" + Integer.toHexString(b & 0xFF));
+                throw new IllegalStateException("vocabulary missing single-byte token 0x" + Integer.toHexString(b & 0xFF));
             }
             ids[len++] = id;
         }
@@ -384,7 +384,7 @@ public final class HfBpeTokenEstimator implements TokenEstimator {
             char c = token.charAt(i);
             int b = c < UNICODE_TO_BYTE.length ? UNICODE_TO_BYTE[c] : -1;
             if (b < 0) {
-                throw new IllegalStateException("token 字符不在 GPT-2 byte 表: U+" + Integer.toHexString(c));
+                throw new IllegalStateException("token character not in the GPT-2 byte table: U+" + Integer.toHexString(c));
             }
             out[i] = (byte) b;
         }

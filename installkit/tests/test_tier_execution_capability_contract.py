@@ -111,23 +111,24 @@ def test_matrix_declares_tier_executor_capability_to_proof():
 
 def test_lightweight_blurb_does_not_promise_case_execution():
     blurb = resource_tiers.TIERS["lightweight"]["blurb"]
-    assert not re.search(r"体验[^，。]*执行", blurb), (
+    assert not re.search(r"execution[^;]*(out of the box|included|works)", blurb, re.I), (
         "lightweight has no executor component; blurb over-promises: %r" % blurb)
-    assert "完整功能" in blurb or "执行器" in blurb, (
+    assert "Full" in blurb or "executor" in blurb.lower(), (
         "the capability gap must point at the tier that closes it")
 
 
 def test_full_blurb_names_executor_as_the_execution_source():
-    assert "执行器" in resource_tiers.TIERS["full"]["blurb"]
+    assert "executor" in resource_tiers.TIERS["full"]["blurb"].lower()
 
 
 def test_center_guide_line_states_executor_dependency_honestly():
     src = open(os.path.join(INSTALLKIT, "demo_seed.py"), encoding="utf-8").read()
     lines = src.splitlines()
-    starts = [i for i, ln in enumerate(lines) if "体验动线：项目列表进" in ln]
+    starts = [i for i, ln in enumerate(lines)
+              if "Guided tour: from the project list" in ln]
     assert starts, "centers guide line must exist"
     # the sentence is a multi-part print(...) continuation, gather until the
     # formatting tail so the tier note cannot hide on a continuation line
     block = " ".join(lines[starts[0]:starts[0] + 6])
-    assert "完整功能" in block, (
+    assert "Full" in block, (
         "the run-your-way journey copy must name the tier that carries the executor")

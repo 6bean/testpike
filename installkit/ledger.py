@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-pass
+# -*- coding: utf-8 -*-
+"""Install ledger: records what this host self-installed, uninstalls only that."""
 import argparse
 import json
 import sys
@@ -23,7 +24,6 @@ LEDGER_NAME = "installed.json"
 
 
 def load_installed(state_dir):
-    pass
     path = Path(state_dir) / LEDGER_NAME
     if not path.exists():
         return {}, None
@@ -37,7 +37,6 @@ def load_installed(state_dir):
 
 
 def save_installed(state_dir, entries):
-    pass
     state = Path(state_dir)
     state.mkdir(parents=True, exist_ok=True)
     doc = {"entries": entries, "updated_at": now_stamp()}
@@ -51,7 +50,6 @@ def entry_key(engine, host):
 
 
 def default_pin(state_dir, engine):
-    pass
     for code, recipe, _ in collect_recipes(state_dir):
         if code == engine and isinstance(recipe, dict):
             return str(recipe.get("version_pin") or "")
@@ -59,7 +57,6 @@ def default_pin(state_dir, engine):
 
 
 def _resolve_host(args):
-    pass
     host = args.host or default_host()
     if host not in HOSTS:
         print(messages.t("host.not_in_domain", host=host,
@@ -85,7 +82,7 @@ def cmd_record(args):
         "engine": args.engine, "host": host, "version_pin": pin,
         "recorded_at": now_stamp()}
     save_installed(args.state_dir, entries)
-    print(f"已记账 {args.engine}|{host}（钉={pin or '未钉'}）")
+    print(f"recorded {args.engine}|{host} (pin={pin or 'none'})")
     return 0
 
 
@@ -101,14 +98,14 @@ def cmd_remove(args):
     if key in entries:
         del entries[key]
         save_installed(args.state_dir, entries)
-        print(f"已销账 {key}")
+        print(f"removed ledger entry {key}")
     else:
-        print(f"账上无 {key}——installkit 未在此宿主装过该引擎（账外件永不触碰）")
+        print(f"no ledger entry for {key} — installkit never installed this "
+              "engine on this host (things outside the ledger are never touched)")
     return 0
 
 
 def load_report(state_dir):
-    pass
     path = Path(state_dir) / "doctor-report.json"
     if not path.exists():
         return None, messages.t("ledger.report_missing")
@@ -122,7 +119,6 @@ def load_report(state_dir):
 
 
 def refill_plan(state_dir, host):
-    pass
     report, err = load_report(state_dir)
     if err:
         raise ValueError(err)
@@ -135,7 +131,7 @@ def refill_plan(state_dir, host):
     for code, recipe, _parse_error in collect_recipes(state_dir):
         row = rows.get(code)
         if row and row.get("status") == "missing":
-            missing.append((code, f"缺件（{row.get('reason') or '体检探测不过'}）"))
+            missing.append((code, f"missing (probe: {row.get('reason') or 'failed'})"))
             continue
         if isinstance(recipe, dict):
             recipe_pin = str(recipe.get("version_pin") or "")
@@ -143,7 +139,7 @@ def refill_plan(state_dir, host):
             if key in entries and recipe_pin:
                 booked = str(entries[key].get("version_pin") or "")
                 if booked and booked != recipe_pin:
-                    drifted.append((code, f"钉漂移（账={booked} 配方={recipe_pin}）"))
+                    drifted.append((code, f"pin drift (ledger={booked} recipe={recipe_pin})"))
     return missing + drifted
 
 
@@ -162,7 +158,6 @@ def cmd_refill_plan(args):
 
 
 def uninstall_plan(state_dir, host):
-    pass
     entries, err = load_installed(state_dir)
     if err:
         raise ValueError(err)
@@ -196,35 +191,38 @@ def cmd_list(args):
         json.dump(rows, sys.stdout, ensure_ascii=False)
         return 0
     if not rows:
-        print("装机账为空——本机尚无 installkit 自装的引擎件")
+        print("install ledger is empty — nothing has been self-installed on this host")
         return 0
     for e in rows:
-        print(f"{e.get('engine')}|{e.get('host')} 钉={e.get('version_pin') or '未钉'}"
-              f" 记于 {e.get('recorded_at') or '?'}")
+        print(f"{e.get('engine')}|{e.get('host')} pin={e.get('version_pin') or 'none'}"
+              f" recorded {e.get('recorded_at') or '?'}")
     return 0
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="ledger.py",
-                                     description="装机账（只登记本机自装的件，卸载以此为界）")
+                                     description="Install ledger (records only what this host "
+                                                 "self-installed; uninstalls are bounded by it)")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    p_rec = sub.add_parser("record", help="装毕记账（(engine,host) 覆盖写）")
-    p_rm = sub.add_parser("remove", help="卸载成功销账（账外件诚实声明）")
+    p_rec = sub.add_parser("record", help="book an engine after install ((engine,host) overwrite)")
+    p_rm = sub.add_parser("remove", help="clear the entry after uninstall (honest note when absent)")
     for p in (p_rec, p_rm):
         p.add_argument("--state-dir", required=True)
         p.add_argument("--engine", required=True)
-        p.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
-    p_rec.add_argument("--pin", default=None, help="钉版本（缺省取状态目录配方 version_pin）")
-    p_list = sub.add_parser("list", help="列账（--json 结构化供脚本消费）")
+        p.add_argument("--host", default=None, help="host profile key (auto-detected by default)")
+    p_rec.add_argument("--pin", default=None,
+                       help="version pin (defaults to the recipe version_pin in the state dir)")
+    p_list = sub.add_parser("list", help="list entries (--json for scripted consumers)")
     p_list.add_argument("--state-dir", required=True)
     p_list.add_argument("--json", action="store_true")
-    p_plan = sub.add_parser("refill-plan", help="体检报告×装机账→补装需求 diff")
+    p_plan = sub.add_parser("refill-plan",
+                            help="doctor report x install ledger -> refill diff")
     p_plan.add_argument("--state-dir", required=True)
-    p_plan.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
+    p_plan.add_argument("--host", default=None, help="host profile key (auto-detected by default)")
     p_un = sub.add_parser("uninstall-plan",
-                          help="本宿主自装引擎清单（卸载只删账内自装件）")
+                          help="engines self-installed on this host (uninstall removes ledger entries only)")
     p_un.add_argument("--state-dir", required=True)
-    p_un.add_argument("--host", default=None, help="宿主画像键（缺省自动判定）")
+    p_un.add_argument("--host", default=None, help="host profile key (auto-detected by default)")
     args = parser.parse_args(argv)
     return {"record": cmd_record, "remove": cmd_remove, "list": cmd_list,
             "refill-plan": cmd_refill_plan,

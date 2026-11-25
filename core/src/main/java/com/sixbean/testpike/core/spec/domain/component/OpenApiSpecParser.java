@@ -121,12 +121,16 @@ public class OpenApiSpecParser {
         Map<String, String> requestBodyInfo = readContentSchema(requestBody, root);
 
         Map<String, String> responseSchemas = new TreeMap<>();
+        Map<String, String> responseSchemaTrees = new TreeMap<>();
         Map<String, Object> responses = asMap(op.get("responses"));
         if (responses != null) {
             for (Map.Entry<String, Object> re : responses.entrySet()) {
                 Map<String, String> one = readContentSchema(asMap(re.getValue()), root);
                 if (!one.isEmpty()) {
                     responseSchemas.put(re.getKey(), one.get("schema"));
+                }
+                if (one.get("tree") != null) {
+                    responseSchemaTrees.put(re.getKey(), one.get("tree"));
                 }
             }
         }
@@ -142,13 +146,15 @@ public class OpenApiSpecParser {
         ApiEndpoint base = new ApiEndpoint(method.toUpperCase(Locale.ROOT), path, key,
                 operationId, title, description, tags, List.copyOf(parameters),
                 requestBodyInfo.get("contentType"), requestBodyInfo.get("schema"),
-                Map.copyOf(responseSchemas), readSecurityRefs(op.get("security")),
+                Map.copyOf(responseSchemas), Map.copyOf(responseSchemaTrees),
+                readSecurityRefs(op.get("security")),
                 deprecated, null);
         return new ApiEndpoint(base.method(), base.path(), base.endpointKey(),
                 base.operationId(), base.title(), base.description(), base.tags(),
                 base.parameters(),
                 base.requestContentType(), base.requestSchema(), base.responseSchemas(),
-                base.securityRefs(), base.deprecated(), structureHash(base));
+                base.responseSchemaTrees(), base.securityRefs(), base.deprecated(),
+                structureHash(base));
     }
 
     
@@ -243,6 +249,10 @@ public class OpenApiSpecParser {
             out.put("contentType", chosen);
             out.put("schema", schema.get("type") != null
                     ? str(schema.get("type")) : refName(schema));
+            Map<String, Object> inlined = SchemaTreeInliner.inline(schema, root);
+            if (inlined != null) {
+                out.put("tree", JSON.toJSONString(inlined));
+            }
         }
         return out;
     }
@@ -263,7 +273,7 @@ public class OpenApiSpecParser {
         return current;
     }
 
-    private static Map<String, Object> lookupRef(String ref, Map<String, Object> root) {
+    static Map<String, Object> lookupRef(String ref, Map<String, Object> root) {
         if (!ref.startsWith("#/")) {
             return null;
         }

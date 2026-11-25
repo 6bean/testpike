@@ -14,6 +14,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * GB-2: the project-wide run ledger window behind the load-test run
@@ -49,14 +51,11 @@ class PerfRunProjectLedgerTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "运行台账测试项目_" + uniq, "PERFLEDGER" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-运行台账', 1, 'http://perf-target.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "运行台账测试项目_", "PERFLEDGER", "性能-运行台账", 1,
+                "http://perf-target.local/api", 0, null);
+        projectId = seeded[0];
+        envId = seeded[1];
     }
 
     @AfterEach
@@ -72,10 +71,6 @@ class PerfRunProjectLedgerTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFLEDGER%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFLEDGER%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private long newScenario(String name) {
@@ -140,9 +135,8 @@ class PerfRunProjectLedgerTest {
         assertThat(clamped.pageSize()).as("oversized window clamps to the shared cap").isEqualTo(500);
 
         long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
+        long otherProject = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
                 "台账他项目_" + uniq, "PLGOTHER" + uniq);
-        long otherProject = lastId("tp_project");
         var foreign = perfRunService.listProjectPaged(otherProject, 1, 20, null, null, null, null);
         assertThat(foreign.total()).as("another project's slice stays empty").isZero();
         jdbcTemplate.update("DELETE FROM tp_project WHERE id = ?", otherProject);

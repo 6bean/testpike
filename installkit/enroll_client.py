@@ -60,11 +60,13 @@ def _post_json(base_url, path, body, timeout=15):
         except ValueError:
             payload = {}
         if not payload.get("msg"):
-            print("平台应答异常（HTTP %d）——请确认 api 服务在位后重试" % err.code, file=sys.stderr)
+            print("Platform answered abnormally (HTTP %d) — confirm the api service is "
+                  "running, then retry" % err.code, file=sys.stderr)
             return None
         return payload
     except (urllib.error.URLError, OSError, TimeoutError):
-        print("平台不可达：%s——请检查 base-url 与网络后重跑同一命令（位点续跑不会重复入池）"
+        print("Platform unreachable: %s — check the base-url and the network, then rerun "
+              "the same command (checkpoint resume never duplicates the enrollment)"
               % base_url, file=sys.stderr)
         return None
 
@@ -82,7 +84,7 @@ def _fail(payload):
         return 1
     if str(payload.get("code")) == "0":
         return 0
-    msg = payload.get("msg") or "平台拒绝（未返回原因）"
+    msg = payload.get("msg") or "The platform rejected this call (no reason returned)"
     print(msg, file=sys.stderr)
     return 1
 
@@ -93,7 +95,7 @@ def cmd_enroll(args):
     rc = _fail(payload)
     if rc == 0:
         data = (payload or {}).get("data") or {}
-        print("已入池：角色=%s 作用域=%s" % (data.get("role"), data.get("projectScope") or "全部项目"))
+        print("Enrolled: role=%s scope=%s" % (data.get("role"), data.get("projectScope") or "all projects"))
     return rc
 
 
@@ -101,8 +103,9 @@ def cmd_fetch_mirror(args):
     pass
     payload = _get(args.base_url, "/internal/cluster/installkit-config")
     if payload is None or str(payload.get("code")) != "0":
-        reason = (payload or {}).get("msg") or "平台不可达或配置口应答异常"
-        print("%s——镜像键拉取失败，问答按官方源继续（可 --mirror-base-url 显式指定）"
+        reason = (payload or {}).get("msg") or "The platform is unreachable or the config endpoint answered abnormally"
+        print("%s — mirror key fetch failed; the wizard continues with the official "
+              "source (pass --mirror-base-url to override explicitly)"
               % reason, file=sys.stderr)
         return 1
     data = payload.get("data") or {}
@@ -116,7 +119,7 @@ def cmd_heartbeat(args):
                     extra={"step": args.step, "stepStatus": args.step_status,
                            "message": args.message})
     if payload is not None and str(payload.get("code")) == "0":
-        print("打点已上报")
+        print("Heartbeat step reported")
         return 0
     return _fail(payload)
 
@@ -126,8 +129,9 @@ def cmd_fetch_recipe(args):
     quoted = urllib.parse.quote(args.engine)
     payload = _get(args.base_url, "/internal/cluster/engine-recipe?code=" + quoted)
     if payload is None:
-        print(f"平台不可达或应答异常：{args.base_url}——请确认 api 服务在位后重试"
-              "（配方缺失禁凭空猜安装命令）", file=sys.stderr)
+        print(f"Platform unreachable or answered abnormally: {args.base_url} — confirm the "
+              "api service is running, then retry (a missing recipe must never be guessed "
+              "into an install command)", file=sys.stderr)
         return 1
     if str(payload.get("code")) != "0":
         return _fail(payload)
@@ -158,19 +162,20 @@ def cmd_poll(args):
     for cmd in commands:
         ctype = str(cmd.get("commandType") or "")
         if ctype not in ("scale-in", "node-remove"):
-            print(f"命令「{cmd.get('id')}」型={ctype or '未知'} 需真实执行——"
-                  "装机脚本不冒充回执，留待执行器/后续轮次消费", file=sys.stderr)
+            print(f"Command {cmd.get('id')} (type={ctype or 'unknown'}) requires real "
+                  "execution — the installer never fakes an acknowledgement; it stays "
+                  "queued for the executor or a later round", file=sys.stderr)
             continue
         claimer = cmd.get("claimedBy")
         if claimer is None:
             continue
         _post(args.base_url, "/internal/cluster/commands/progress", args.token,
               fingerprint, extra={"commandId": cmd.get("id"), "claimerId": claimer,
-                                  "step": "ack", "message": "装机机已确认指令"})
+                                  "step": "ack", "message": "The installer acknowledged the command"})
         ack = _post(args.base_url, "/internal/cluster/commands/result", args.token,
                     fingerprint, extra={"commandId": cmd.get("id"), "claimerId": claimer,
                                         "success": True,
-                                        "resultDetail": "装机机回执确认（语义判定在平台侧）"})
+                                        "resultDetail": "Installer acknowledgement recorded (semantic judgement runs on the platform side)"})
         if ack is None or str(ack.get("code")) != "0":
             rc = _fail(ack)
     return rc
@@ -178,9 +183,9 @@ def cmd_poll(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="enroll_client.py",
-                                     description="装机入池/心跳打点/配方拉取/命令领取客户端（经 api /internal 口）")
+                                     description="Installer enrollment / heartbeat reporting / recipe fetch / fleet command client (via the api /internal endpoints)")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("fingerprint", help="打印本机指纹（稳定 sha256，供排障核对）")
+    sub.add_parser("fingerprint", help="Print this machine's fingerprint (stable sha256, for troubleshooting cross-checks)")
     p = sub.add_parser("enroll")
     p.add_argument("--base-url", required=True)
     p.add_argument("--token", required=True)
@@ -190,13 +195,13 @@ def main(argv=None):
     p.add_argument("--step", default=None)
     p.add_argument("--step-status", dest="step_status", default=None)
     p.add_argument("--message", default=None)
-    p = sub.add_parser("fetch-mirror", help="拉平台镜像源键默认值（stdout 只印键值；失败则提示并降级官方源）")
+    p = sub.add_parser("fetch-mirror", help="Fetch the platform mirror-source key default (stdout prints the value only; on failure print a notice and fall back to the official source)")
     p.add_argument("--base-url", required=True)
-    p = sub.add_parser("fetch-recipe", help="拉引擎安装配方落盘（stdout 只印路径；失败给出原因并非零退出，不落半成品）")
+    p = sub.add_parser("fetch-recipe", help="Fetch the engine install recipe to disk (stdout prints the path only; on failure print the reason and exit non-zero without a partial file)")
     p.add_argument("--base-url", required=True)
     p.add_argument("--engine", required=True)
     p.add_argument("--out", required=True)
-    p = sub.add_parser("poll", help="领取机群命令（令牌形态；--ack=纯确认型当场回执，需执行的型别不冒充）")
+    p = sub.add_parser("poll", help="Claim fleet commands (token form; --ack records a receipt for pure-confirmation commands only, execution-required types are never faked)")
     p.add_argument("--base-url", required=True)
     p.add_argument("--token", required=True)
     p.add_argument("--limit", type=int, default=5)

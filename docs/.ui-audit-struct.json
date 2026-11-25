@@ -129,13 +129,6 @@
     1812
    ]
   ],
-  "src/views/apitest/MockStubDirectWizard.vue": [
-   [
-    "S-14",
-    "page-level dialog/drawer size \"900\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
-    210
-   ]
-  ],
   "src/views/apitest/RunSetDetailDrawer.vue": [
    [
     "S-14",
@@ -434,17 +427,17 @@
    [
     "S-14",
     "page-level dialog/drawer size \"520px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
-    276
+    286
    ],
    [
     "S-14",
     "page-level dialog/drawer size \"560px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
-    310
+    320
    ],
    [
     "S-14",
     "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)",
-    361
+    371
    ]
   ],
   "src/views/mock/MockInspectorView.vue": [
@@ -873,12 +866,6 @@
    [
     "S-14",
     "page-level dialog/drawer size \"640px\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
-   ]
-  ],
-  "src/views/apitest/MockStubDirectWizard.vue": [
-   [
-    "S-14",
-    "page-level dialog/drawer size \"900\" is not a theme tier (width rides class tp-dialog--sm|md|lg|xl; exempt: tp-dialog-exempt + reason)"
    ]
   ],
   "src/views/apitest/RunSetDetailDrawer.vue": [
@@ -1415,12 +1402,24 @@
  "rules": {},
  "pages_new": {},
  "new_violations": 0,
- "pending_count": 122,
+ "pending_count": 121,
  "fb3_merge_candidates": {},
  "fb4_touch_reconcile": {
   "armed": true,
   "touched": [
-   "docs/.ui-audit-struct.json"
+   "docs/.ui-audit-struct.json",
+   "installkit/doctor.py",
+   "installkit/failure_guide.py",
+   "installkit/image_relay.py",
+   "installkit/ledger.py",
+   "installkit/messages.py",
+   "installkit/tests/test_compose_stage_order_contract.py",
+   "installkit/tests/test_failure_injection_guide_contract.py",
+   "installkit/tests/test_fleet_doctor_matrix.py",
+   "installkit/tests/test_image_relay_contract.py",
+   "installkit/tests/test_installkit.py",
+   "installkit/tests/test_t321b_upgrade_recipe.py",
+   "installkit/tests/test_t336_wiring.py"
   ],
   "violations": [],
   "deferred": [],

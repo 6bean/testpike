@@ -24,6 +24,8 @@ import java.time.LocalDateTime;
  *                      this row was read with; a stale echo is refused loudly
  * @param createdAt     row creation time
  * @param updatedAt     last mutation time
+ * @param enrichedBy    AI enrichment job anchor (job:{id}); null = the rule was
+ *                      never improved by an enrichment run (contract-direct badge)
  */
 public record MockStubInfo(
         Long id,
@@ -43,7 +45,8 @@ public record MockStubInfo(
         Boolean enabled,
         Integer version,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        String enrichedBy) {
 
     /**
      * 17-arg compatibility constructor (V240): callers written before the
@@ -59,6 +62,21 @@ public record MockStubInfo(
                         LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, spaceId, name, priority, method, pathMatchType, pathPattern,
                 matchersJson, responseJson, scenarioName, requiredState, newState,
-                source, sourceRef, enabled, null, createdAt, updatedAt);
+                source, sourceRef, enabled, null, createdAt, updatedAt, null);
+    }
+
+    /**
+     * 18-arg compatibility constructor (V669): callers written before the
+     * enrichment provenance column build rows without an enrichment anchor.
+     */
+    public MockStubInfo(Long id, Long spaceId, String name, Integer priority,
+                        String method, String pathMatchType, String pathPattern,
+                        String matchersJson, String responseJson,
+                        String scenarioName, String requiredState, String newState,
+                        String source, String sourceRef, Boolean enabled,
+                        Integer version, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, spaceId, name, priority, method, pathMatchType, pathPattern,
+                matchersJson, responseJson, scenarioName, requiredState, newState,
+                source, sourceRef, enabled, version, createdAt, updatedAt, null);
     }
 }

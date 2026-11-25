@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 
 @SpringBootTest(classes = CoreApplication.class)
@@ -38,21 +39,25 @@ class PerfRunResultFinalizerTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    /** Executor name prefix for the seeded capable fleet seat (teardown channel). */
+    private static final String EXECUTOR_PREFIX = "perf-rslt-ex-";
+
     private long projectId;
     private long envId;
 
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
-        long uniq = System.nanoTime() % 1_000_000_000L;
-        jdbcTemplate.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
-                "压测回传测试项目_" + uniq, "PERFRSLT" + uniq);
-        projectId = lastId("tp_project");
-        jdbcTemplate.update("INSERT INTO tp_project_env (project_id, name, env_type, base_url) "
-                        + "VALUES (?, '性能-回传测', 1, 'http://perf-target.local/api')",
-                projectId);
-        envId = lastId("tp_project_env");
-        jdbcTemplate.update("INSERT INTO tp_perf_whitelist (project_id, env_id, max_concurrency, allowed_modes) VALUES (?, ?, 1000, '[]'::jsonb)", projectId, envId);
+        long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
+                "压测回传测试项目_", "PERFRSLT", "性能-回传测", 1,
+                "http://perf-target.local/api", 1000, null);
+        projectId = seeded[0];
+        envId = seeded[1];
+        // The launch gate routes on the engine capability face: a fresh-install
+        // database has no runner process, so seed one capable executor (both
+        // perf engines; the scenario default is GATLING, envelopes say K6).
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, EXECUTOR_PREFIX,
+                "GATLING", "K6");
     }
 
     @AfterEach
@@ -61,6 +66,7 @@ class PerfRunResultFinalizerTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, EXECUTOR_PREFIX);
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFRSLT%')");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
@@ -74,10 +80,6 @@ class PerfRunResultFinalizerTest {
         jdbcTemplate.update("DELETE FROM tp_project_env WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFRSLT%')");
         jdbcTemplate.update("DELETE FROM tp_project WHERE code LIKE 'PERFRSLT%'");
-    }
-
-    private long lastId(String table) {
-        return jdbcTemplate.queryForObject("SELECT max(id) FROM " + table, Long.class);
     }
 
     private long newRun() {

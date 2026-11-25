@@ -69,6 +69,10 @@ class PerfRunDispatchBudgetTest {
     @BeforeEach
     void seedBudgetFixture() {
         cleanupBudgetRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-budget-seed-ex-",
+                "GATLING", "K6");
         long[] ids = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "预算自愈测试项目_", "PERFBUDGET",
                 "性能-预算自愈", "http://perf-target.local/api");
@@ -82,6 +86,7 @@ class PerfRunDispatchBudgetTest {
     }
 
     private void cleanupBudgetRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-budget-seed-ex-");
         Long marginId = jdbcTemplate.query(
                 "SELECT id FROM tp_sys_config WHERE config_key = ?",
                 rs -> rs.next() ? rs.getLong(1) : null, MARGIN_KEY);

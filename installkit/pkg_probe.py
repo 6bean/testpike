@@ -17,7 +17,7 @@ PREREQ_CMD = {
         "python3": "sudo apt-get install -y python3 python3-pip",
     },
     "dnf": {
-        "docker": "sudo dnf install -y docker-ce docker-ce-cli containerd.io（或 dnf module install docker）",
+        "docker": "sudo dnf install -y docker-ce docker-ce-cli containerd.io (or: dnf module install docker)",
         "node": "sudo dnf install -y nodejs npm",
         "git": "sudo dnf install -y git",
         "python3": "sudo dnf install -y python3 python3-pip",
@@ -121,12 +121,14 @@ def install_command(pm, prereq):
     pass
     table = PREREQ_CMD.get(pm)
     if table is None:
-        raise ValueError("未登记的包管理画像「%s」——支持 %s，"
-                         "其余发行版请按官方文档人工安装前置件后重跑预检"
+        raise ValueError("Unregistered package-manager profile \"%s\" -- supported: %s; "
+                         "on other distributions install the prerequisites manually per the "
+                         "official docs, then re-run the preflight"
                          % (pm, " / ".join(PREREQ_CMD)))
     cmd = table.get(prereq)
     if cmd is None:
-        raise ValueError("前置件「%s」不在登记表内——可选：%s" % (prereq, " / ".join(PREREQS)))
+        raise ValueError("Prerequisite \"%s\" is not in the registry -- options: %s"
+                         % (prereq, " / ".join(PREREQS)))
     return apply_privilege(cmd)
 
 
@@ -142,37 +144,42 @@ def preflight(require_items, ports, require_disk_mb=None, disk_root=None):
     release = read_os_release() if os_kind == "linux" else None
     pretty = _kv(release, "PRETTY_NAME") if release else ""
     pm = pkg_manager_for(os_kind, release)
-    pm_text = pm if pm else "未知（本发行版不在已登记画像内，请按官方文档人工装前置件）"
-    print("预检报告｜OS=%s %s｜包管理=%s" % (os_kind, pretty, pm_text))
+    pm_text = pm if pm else ("unknown (this distribution has no registered "
+                             "package-manager profile; install the prerequisites "
+                             "manually per the official docs)")
+    print("Preflight report | OS=%s %s | package manager=%s" % (os_kind, pretty, pm_text))
 
     unknown = [r for r in require_items if r not in PREREQS]
     if unknown:
-        print("前置件「%s」不在登记表——可选：%s" % ("、".join(unknown), " / ".join(PREREQS)),
+        print("Prerequisite \"%s\" is not in the registry -- options: %s"
+              % (", ".join(unknown), " / ".join(PREREQS)),
               file=sys.stderr)
         return 2
 
     for req in require_items:
         if shutil.which(req):
-            print("前置件 %s：在位" % req)
+            print("prerequisite %s: present" % req)
             continue
-        print("缺前置件 %s" % req)
+        print("missing prerequisite %s" % req)
         if pm:
-            print("  本画像安装命令：%s" % install_command(pm, req))
+            print("  install command for this profile: %s" % install_command(pm, req))
         else:
-            print("  包管理画像未知——请按 %s 官方文档人工安装后重跑预检" % (os_kind or "本机"))
+            print("  package-manager profile unknown -- install manually per the %s "
+                  "official docs, then re-run the preflight" % (os_kind or "this host"))
 
     for port in ports:
         if port_occupied(port):
-            print("端口 %d 占用：本机已有服务监听——查看占用者：ss -ltnp | grep %d；"
-                  "若这台机要当「平台服务器」需先停旧服务或在 .env 改端口键，"
-                  "纯执行器机可忽略" % (port, port))
+            print("port %d busy: a service is already listening on this machine -- "
+                  "identify the owner: ss -ltnp | grep %d; if this machine is the "
+                  "platform server, stop the old services first or change the port "
+                  "keys in .env; executor-only machines can ignore this" % (port, port))
         else:
-            print("端口 %d 空闲" % port)
+            print("port %d free" % port)
 
     if require_disk_mb is not None:
         root = disk_root or "/"
         free_mb = shutil.disk_usage(root).free // (1024 * 1024)
-        print("磁盘：%s 分区余量 %d MB，本档装机需要 %d MB"
+        print("disk: partition %s has %d MB free, this install profile needs %d MB"
               % (root, free_mb, require_disk_mb))
         if free_mb < require_disk_mb:
             import failure_guide
@@ -186,13 +193,14 @@ def preflight(require_items, ports, require_disk_mb=None, disk_root=None):
 
 def main(argv):
     if not argv or argv[0] not in ("preflight", "--help", "-h"):
-        print("用法: pkg_probe.py preflight [--require=docker,node,git] "
+        print("usage: pkg_probe.py preflight [--require=docker,node,git] "
               "[--ports=8081,8082] [--require-disk-mb=10240] [--disk-root=/]",
               file=sys.stderr)
         return 2
     if argv[0] in ("--help", "-h"):
-        print("用法: pkg_probe.py preflight [--require=<前置件表>] [--ports=<端口表>]\n"
-              "多画像包管理器适配层：apt/dnf/apk 判 /etc/os-release，brew 判 macOS，winget/choco 判 Windows。")
+        print("usage: pkg_probe.py preflight [--require=<prereq list>] [--ports=<port list>]\n"
+              "Multi-profile package-manager adapter: apt/dnf/apk via /etc/os-release, "
+              "brew on macOS, winget/choco on Windows.")
         return 0
     require, ports = [], []
     disk_mb, disk_root = None, None
@@ -214,7 +222,7 @@ def main(argv):
         elif arg.startswith("--disk-root="):
             disk_root = arg.split("=", 1)[1]
         else:
-            print("未识别参数：%s" % arg, file=sys.stderr)
+            print("unrecognized argument: %s" % arg, file=sys.stderr)
             return 2
     return preflight(require, ports, require_disk_mb=disk_mb,
                      disk_root=disk_root)

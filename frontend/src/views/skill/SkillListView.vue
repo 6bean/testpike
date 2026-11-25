@@ -218,11 +218,11 @@
           <el-form-item v-if="!editingId" :label="t('skill.submitNowLabel')">
             <el-switch v-model="form.submitNow" data-test="skill-form-submit-now" />
           </el-form-item>
-          <el-form-item v-if="editingId" label=" ">
-            <span class="text-secondary edit-hint" data-test="skill-form-edit-hint">
-              {{ t('skill.editHint') }}
-            </span>
-          </el-form-item>
+          <FormSideEffectHint
+            v-if="editingId"
+            :text="t('skill.editHint')"
+            test-id="skill-form-edit-hint"
+          />
         </el-form>
         <template #footer>
           <el-button @click="formVisible = false">{{ t('common.cancel') }}</el-button>
@@ -286,6 +286,7 @@ import ProjectSelect from '@/components/ProjectSelect.vue'
 import TableSkeleton from '@/components/TableSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ColumnSettings from '@/components/ColumnSettings.vue'
+import FormSideEffectHint from '@/components/FormSideEffectHint.vue'
 import { useColumnConfig, type ColumnDef } from '@/composables/useColumnConfig'
 import { useObjectSync } from '@/composables/useObjectSync'
 import SkillMarketView from './SkillMarketView.vue'
@@ -666,9 +667,6 @@ watch(followTick, () => {
   color: var(--el-color-danger);
   font-size: 12px;
   margin-top: 2px;
-}
-.edit-hint {
-  font-size: 12px;
 }
 .text-secondary {
   color: var(--tp-text-secondary);

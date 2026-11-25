@@ -69,18 +69,18 @@ public class CaseIngestConsumer {
      */
     private void onRequirementEvent(CaseIngestEventMessage message) {
         if (message.projectId() == null) {
-            log.info("需求入库闸跳过：projectId 缺失 requirementId={} eventType={}（残缺事件）",
+            log.info("Requirement ingest gate skipped: projectId missing requirementId={} eventType={} (incomplete event)",
                     message.requirementId(), message.eventType());
             return;
         }
         if (REQUIREMENT_EVENT_CHANGED.equals(message.eventType())) {
-            log.info("需求下线消费 requirementId={} projectId={} version={}",
+            log.info("Requirement offline consumed requirementId={} projectId={} version={}",
                     message.requirementId(), message.projectId(), message.requirementVersion());
             idempotentRunner.runRetire(message.requirementId());
             return;
         }
         if (!REQUIREMENT_EVENT_REVIEW_PASSED.equals(message.eventType())) {
-            log.info("需求事件类型不在入库支路范围，跳过 eventType={} requirementId={}",
+            log.info("Requirement event type outside the ingest branches, skipping eventType={} requirementId={}",
                     message.eventType(), message.requirementId());
             return;
         }
@@ -89,21 +89,21 @@ public class CaseIngestConsumer {
                     message.projectId(), message.operatorId(), requirementAuditFields(message));
             return;
         }
-        log.info("需求入库消费 requirementId={} projectId={} version={}",
+        log.info("Requirement ingest consumed requirementId={} projectId={} version={}",
                 message.requirementId(), message.projectId(), message.requirementVersion());
         String dedupKey = "kb-ingest:req:" + message.requirementId() + ":" + message.requirementVersion();
         String token = UUID.randomUUID().toString();
         ConsumeOutcome outcome = consumeSupport.consumeOnce(dedupKey, token,
                 () -> idempotentRunner.runRequirement(message, token), CONSUME_LEASE_MILLIS);
         if (outcome == ConsumeOutcome.DUPLICATE) {
-            log.info("需求入库重复投递幂等跳过 requirementId={} version={}",
+            log.info("Requirement ingest duplicate delivery, idempotent skip requirementId={} version={}",
                     message.requirementId(), message.requirementVersion());
             coreGateway.writeDuplicateDrop("kb-ingest:req:" + message.requirementId(),
                     message.projectId(), message.operatorId(), requirementAuditFields(message));
         }
         // noise reduction: requirement row already deleted -> ack + skip audit
         if (outcome == ConsumeOutcome.ENTITY_GONE_SKIPPED) {
-            log.info("需求入库实体已删除降噪跳过 requirementId={}", message.requirementId());
+            log.info("Requirement ingest skipped, entity already deleted, reducing noise requirementId={}", message.requirementId());
             coreGateway.writeEntityGoneSkip("kb-ingest:req:" + message.requirementId(),
                     message.projectId(), message.operatorId(), requirementAuditFields(message));
         }
@@ -118,7 +118,7 @@ public class CaseIngestConsumer {
 
     private void onCaseEvent(CaseIngestEventMessage message) {
         if (!isIngestable(message)) {
-            log.info("G1 用例入库闸跳过 eventType={} caseId={} action={}",
+            log.info("G1 case ingest gate skipped eventType={} caseId={} action={}",
                     message.eventType(), message.caseId(), message.action());
             return;
         }
@@ -131,8 +131,8 @@ public class CaseIngestConsumer {
                     message.projectId(), message.operatorId(), before);
             return;
         }
-        log.info("G1 用例{}消费 caseId={} projectId={} version={}",
-                excellent ? "优秀标记联动" : "入库", message.caseId(), message.projectId(), message.caseVersion());
+        log.info("G1 case {} consumed caseId={} projectId={} version={}",
+                excellent ? "excellent-case linkage" : "ingest", message.caseId(), message.projectId(), message.caseVersion());
         String dedupKey = "kb-ingest:case:" + message.caseId() + ":" + message.caseVersion()
                 + ":" + message.action();
         String token = UUID.randomUUID().toString();
@@ -142,8 +142,8 @@ public class CaseIngestConsumer {
                         : idempotentRunner.run(message, token),
                 CONSUME_LEASE_MILLIS);
         if (outcome == ConsumeOutcome.DUPLICATE) {
-            log.info("G1 用例{}重复投递幂等跳过 caseId={}",
-                    excellent ? "优秀标记联动" : "入库", message.caseId());
+            log.info("G1 case {} duplicate delivery, idempotent skip caseId={}",
+                    excellent ? "excellent-case linkage" : "ingest", message.caseId());
             Map<String, Object> before = new LinkedHashMap<>();
             before.put("caseId", message.caseId());
             before.put("caseVersion", message.caseVersion());
@@ -152,8 +152,8 @@ public class CaseIngestConsumer {
         }
         // noise reduction: case row already deleted -> ack + skip audit
         if (outcome == ConsumeOutcome.ENTITY_GONE_SKIPPED) {
-            log.info("G1 用例{}实体已删除降噪跳过 caseId={}",
-                    excellent ? "优秀标记联动" : "入库", message.caseId());
+            log.info("G1 case {} skipped, entity already deleted, reducing noise caseId={}",
+                    excellent ? "excellent-case linkage" : "ingest", message.caseId());
             Map<String, Object> before = new LinkedHashMap<>();
             before.put("caseId", message.caseId());
             before.put("caseVersion", message.caseVersion());

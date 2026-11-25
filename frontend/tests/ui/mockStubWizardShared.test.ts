@@ -38,7 +38,9 @@ describe('mock stub direct wizard shared mount', () => {
   it('workbench docs tab hosts the entry action and passes the space down', () => {
     expect(docsSrc).toContain('mock-docs-import-contract')
     expect(docsSrc).toContain(':preset-space-id="spaceId"')
-    expect(docsSrc).toContain(':preset-space-name="activeSpace?.name ?? \'\'"')
+    // The echo rides the shared space-label builder, so the wizard names the
+    // destination exactly the way the page's own picker does (one spelling).
+    expect(docsSrc).toContain(':preset-space-name="activeSpace ? mockSpaceLabel(activeSpace) : \'\'"')
   })
 
   it('wizard step 1 offers the two contract sources and uses the upload single door', () => {

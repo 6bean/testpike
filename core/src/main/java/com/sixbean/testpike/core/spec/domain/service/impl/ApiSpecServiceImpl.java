@@ -365,33 +365,9 @@ public class ApiSpecServiceImpl implements ApiSpecService {
 
     
     static SpecDiff diffOf(ParsedApiSpec prev, ParsedApiSpec current) {
-        Map<String, String> prevHashes = new LinkedHashMap<>();
-        for (ApiEndpoint ep : prev.endpoints()) {
-            prevHashes.put(ep.endpointKey(), ep.structureHash());
-        }
-        Map<String, String> currentHashes = new LinkedHashMap<>();
-        for (ApiEndpoint ep : current.endpoints()) {
-            currentHashes.put(ep.endpointKey(), ep.structureHash());
-        }
-        Set<String> added = new TreeSet<>(currentHashes.keySet());
-        added.removeAll(prevHashes.keySet());
-        Set<String> removed = new TreeSet<>(prevHashes.keySet());
-        removed.removeAll(currentHashes.keySet());
-        Set<String> common = new HashSet<>(prevHashes.keySet());
-        common.retainAll(currentHashes.keySet());
-        Set<String> changed = new TreeSet<>();
-        for (String key : common) {
-            String a = prevHashes.get(key);
-            String b = currentHashes.get(key);
-            if (a == null || b == null || !a.equals(b)) {
-                changed.add(key);
-            }
-        }
-        return new SpecDiff(sortedCopy(added), sortedCopy(changed), sortedCopy(removed));
-    }
-
-    private static List<String> sortedCopy(Set<String> keys) {
-        return keys.stream().sorted(Comparator.naturalOrder()).toList();
+        // Logic moved to SpecDiffOps (single source shared with the mock
+        // upgrade planner); this delegate keeps the same-package consumers.
+        return com.sixbean.testpike.core.spec.domain.component.SpecDiffOps.diffOf(prev, current);
     }
 
     private static Map<String, List<String>> diffMap(SpecDiff diff) {

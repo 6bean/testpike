@@ -26,7 +26,7 @@ class MockDraftRecallDirectiveContractTest {
     private final CoreGateway coreGateway = mock(CoreGateway.class);
     private final MockDraftGenServiceImpl service = new MockDraftGenServiceImpl(
             coreGateway, mock(LlmFallbackChain.class), mock(ProjectLlmRouter.class),
-            mock(MockDraftArtifactGateway.class), new ObjectMapper());
+            mock(MockDraftArtifactGateway.class), new ObjectMapper(), null);
 
     @Test
     void absentKeyDefaultsOnAndPromptCarriesTheSharedBlockBytes() {

@@ -74,9 +74,9 @@ def test_seed_demo_not_ready_degrades_honestly(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert rc == 0, "不就绪=诚实降级 rc0，禁拦装机流程"
     assert calls == [], "不就绪时禁真发起播种调用"
-    assert "不可达" in out and "就绪" in out
+    assert "unreachable" in out and "not ready" in out
     assert "python3 installkit/s1_bootstrap.py seed-demo" in out, "降级必须给可复读重跑命令（R63 假路即缺陷）"
-    assert "幂等" in out, "透出重跑安全语义"
+    assert "idempotent" in out, "rerun-safety semantics must be shown"
 
 
 def test_seed_demo_consumes_three_seed_entries_in_order(monkeypatch, capsys):
@@ -87,14 +87,14 @@ def test_seed_demo_consumes_three_seed_entries_in_order(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert seen == ["sample", "journey", "centers"], "消费序=样例→旅程→剧本 各恰一次（禁重复/漏段）"
-    assert "播种完成" in out and "体验动线" in out, "就绪态透出结果与页面入口动线"
+    assert "seeding complete" in out and "Experience path" in out, "ready path shows the result and the entry route"
 
 
 def test_seed_demo_mid_failure_degrades_not_blocks(monkeypatch, capsys):
     monkeypatch.setattr(s1_bootstrap, "admin_ready", lambda url, **kw: True)
 
     def boom(url):
-        raise RuntimeError("登录已失效 401")
+        raise RuntimeError("session expired (401)")
 
     monkeypatch.setattr(demo_seed, "ensure_sample", lambda url: (7, 9))
     monkeypatch.setattr(demo_seed, "ensure_journey", boom)
@@ -102,8 +102,8 @@ def test_seed_demo_mid_failure_degrades_not_blocks(monkeypatch, capsys):
     rc = s1_bootstrap.cmd_seed_demo(_args())
     err = capsys.readouterr().err
     assert rc == 0, "演示数据非装机前置：中途失败降级续跑，禁阻断整个装机"
-    assert "播种未完成" in err and "登录已失效" in err, "原因点名透传（R63 要素一）"
-    assert "seed-demo" in err and "重跑" in err and "幂等" in err, "修法给重跑命令且明示幂等续播（要素二）"
+    assert "seeding did not complete" in err and "session expired" in err, "cause passes through verbatim (R63 element 1)"
+    assert "seed-demo" in err and "re-run" in err and "idempotent" in err, "fix gives a rerun command and states the idempotent resume (element 2)"
 
 
 def test_seed_demo_systemexit_degrades_not_blocks(monkeypatch, capsys):
@@ -113,14 +113,14 @@ def test_seed_demo_systemexit_degrades_not_blocks(monkeypatch, capsys):
     monkeypatch.setattr(demo_seed, "ensure_journey", lambda url: {"created": 1})
 
     def boom(url):
-        raise SystemExit("上游直接退出")
+        raise SystemExit("upstream exited directly")
 
     monkeypatch.setattr(demo_seed, "ensure_centers", boom)
     rc = s1_bootstrap.cmd_seed_demo(_args())
     err = capsys.readouterr().err
     assert rc == 0, "SystemExit 同样诚实降级，禁阻断装机"
-    assert "播种未完成" in err and "上游直接退出" in err, "原因点名上屏（R63 要素一）"
-    assert "seed-demo" in err and "重跑" in err, "重跑命令上屏（要素二）"
+    assert "seeding did not complete" in err and "upstream exited directly" in err, "cause names the input value on screen (R63 element 1)"
+    assert "seed-demo" in err and "re-run" in err, "rerun command shown on screen (element 2)"
 
 
 def test_probe_is_login_identity_not_port_answer(monkeypatch):

@@ -44,7 +44,7 @@ class AiGenServiceImplFidelityGateWiringTest {
     /** Anchor marker of the dispute line (shared with the L3 window scripts). */
     private static final String DISPUTE_MARK = "数值断言无原文依据";
     /** Anchor marker of the honest non-blocking notice when the budget is spent. */
-    private static final String NOTICE_MARK = "忠实闸轮数上限";
+    private static final String NOTICE_MARK = "Fidelity gate round budget exhausted";
 
     private static final String FIDELITY_GATE_KEY = "ai.gen.fidelity-gate.enabled";
     private static final String FIDELITY_ROUNDS_KEY = "ai.gen.fidelity-recheck-rounds";

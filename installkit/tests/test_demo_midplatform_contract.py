@@ -473,7 +473,7 @@ def test_cli_purge_prints_skip_ledger_with_repair_path(stub, capsys):
     out = capsys.readouterr().out
 
     assert rc == 0, "带跳过账的清除是完成态，不是失败态"
-    assert "跳过保留 2 项" in out, "合计数账（删除/跳过分列）"
+    assert "deleted, 2 kept" in out, "合计数账（删除/跳过分列）"
     assert "「API 测试」页" in out, "指路随跳过件上屏（原因+入口+后果三要素）"
 
 
