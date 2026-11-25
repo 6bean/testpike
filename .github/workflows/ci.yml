@@ -129,7 +129,10 @@ jobs:
           # Factory demo cipher key already published in .env.example (throwaway CI
           # credential); without it every sensitive-config/claim/MCP auth path in the
           # core suite refuses with the missing-CONFIG_AES_KEY error.
-          CONFIG_AES_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+          CONFIG_AES_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          # Factory demo admin seed password published in .env.example (throwaway CI
+          # credential); the seed-admin guard test rebuilds the factory row and needs it.
+          ADMIN_INIT_PASSWORD: "Admin#123"
         run: |
           set +e
           mvn -B -pl common,${{ matrix.module }} -am \

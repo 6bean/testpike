@@ -18,7 +18,15 @@
  * endpoint (abortChatMessage) to stop the turn itself.
  */
 import axios from 'axios'
-import { BizError, getToken, postMultipart, request, type ApiResponse } from './request'
+import {
+  BizError,
+  getToken,
+  ensureFreshAccessToken,
+  renewAccessTokenOnce,
+  postMultipart,
+  request,
+  type ApiResponse,
+} from './request'
 import { createSseFrameDecoder, type SseFrame } from './sseFrameParser'
 import { emitObjectSync } from '../composables/chatSyncBus'
 
@@ -179,24 +187,56 @@ export function openChatStream(
     onError({ kind: 'timeout' })
   }, CHAT_FIRST_FRAME_TIMEOUT_MS)
 
+  const doorInit = (token: string): RequestInit => ({
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
+    signal: controller.signal,
+  })
+
   const run = (async () => {
+    // This door is a bare fetch and physically bypasses the axios
+    // 401 -> single-flight refresh -> replay road, so renew BEFORE opening
+    // (shared helpers, no second refresh implementation anywhere else).
+    // A transient renewal verdict keeps the door SHUT: knocking with a
+    // stale token is exactly how a refresh storm bursts 401s on the wire.
+    let accessToken: string
+    try {
+      accessToken = await ensureFreshAccessToken()
+    } catch {
+      if (!controller.signal.aborted) {
+        onError({ kind: 'network' })
+      }
+      return
+    }
+    const streamUrl = `/api/v1/ai/chat/sessions/${sessionId}/stream`
     let response: Response
     try {
-      response = await fetch(`/api/v1/ai/chat/sessions/${sessionId}/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify(request),
-        signal: controller.signal,
-      })
+      response = await fetch(streamUrl, doorInit(accessToken))
     } catch (networkOrAbort) {
       // A local close() lands here too; the dock treats it as a quiet end.
       if (!controller.signal.aborted) {
         onError({ kind: 'network' })
       }
       return
+    }
+    if (response.status === 401) {
+      // Safety net for a token that expired un-readably early (revocation,
+      // clock skew): renew once and reopen EXACTLY once with the rotated
+      // token — 'transient' is not success, never a reopen loop.
+      if ((await renewAccessTokenOnce()) === true) {
+        try {
+          response = await fetch(streamUrl, doorInit(getToken()))
+        } catch {
+          if (!controller.signal.aborted) {
+            onError({ kind: 'network' })
+          }
+          return
+        }
+      }
     }
     if (!response.ok) {
       // The admin door refuses with a human-readable msg (ownership, budget …)

@@ -1,5 +1,5 @@
 
-import { BizError, getToken } from '@/api/request'
+import { BizError, getToken, ensureFreshAccessToken, renewAccessTokenOnce } from '@/api/request'
 
 
 export interface SyncExportResult {
@@ -18,7 +18,16 @@ export function downloadBase64Xlsx(base64: string, fileName: string): void {
 
 
 export async function fetchAndDownloadBlob(url: string, fallbackFileName: string): Promise<void> {
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } })
+  // This door is a bare fetch outside the axios interceptor road: renew
+  // through the shared non-axios doors before knocking. A transient renewal
+  // verdict throws before any request leaves, so a stale token never hits
+  // the wire (same contract as the SSE doors, single source).
+  const doorHeaders = (token: string) => ({ Authorization: `Bearer ${token}` })
+  let resp = await fetch(url, { headers: doorHeaders(await ensureFreshAccessToken()) })
+  if (resp.status === 401 && (await renewAccessTokenOnce()) === true) {
+    // Safety net, reopen exactly once with the rotated token — never a loop.
+    resp = await fetch(url, { headers: doorHeaders(getToken()) })
+  }
   if (!resp.ok) {
     const text = await resp.text()
     try {

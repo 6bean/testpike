@@ -105,7 +105,7 @@ class OpenAiCompatClientIntegrationTest {
         serverACalls.set(0);
         LlmProperties props = new LlmProperties();
         props.setMockEnabled(false);
-        props.setBaseUrl("http://localhost:" + port(serverA) + "/v1");
+        props.setBaseUrl("http://127.0.0.1:" + port(serverA) + "/v1");
         props.setApiKey("sk-integration-test-key");
         OpenAiCompatLlmProvider provider = new OpenAiCompatLlmProvider(props, MAPPER);
 
@@ -126,7 +126,7 @@ class OpenAiCompatClientIntegrationTest {
         LlmProperties props = new LlmProperties();
         props.setMockEnabled(false);
         props.setProvider("deepseek");
-        props.setBaseUrl("http://localhost:" + port(serverB) + "/v1");
+        props.setBaseUrl("http://127.0.0.1:" + port(serverB) + "/v1");
         props.setApiKey("sk-integration-test-key");
         OpenAiCompatLlmProvider provider = new OpenAiCompatLlmProvider(props, MAPPER);
 
@@ -142,7 +142,7 @@ class OpenAiCompatClientIntegrationTest {
         try {
             LlmProperties props = new LlmProperties();
             props.setMockEnabled(false);
-            props.setBaseUrl("http://localhost:" + bad.getAddress().getPort() + "/v1");
+            props.setBaseUrl("http://127.0.0.1:" + bad.getAddress().getPort() + "/v1");
             props.setApiKey("sk-integration-test-key");
             OpenAiCompatLlmProvider provider = new OpenAiCompatLlmProvider(props, MAPPER);
 
@@ -162,7 +162,7 @@ class OpenAiCompatClientIntegrationTest {
             // straight on the client constructor here — this test pins the
             // timeout taxonomy (50401), not the floor seam.
             OpenAiCompatClient client = new OpenAiCompatClient(
-                    "http://localhost:" + slow.getAddress().getPort() + "/v1",
+                    "http://127.0.0.1:" + slow.getAddress().getPort() + "/v1",
                     "sk-int...-key",
                     java.time.Duration.ofSeconds(1), MAPPER);
 

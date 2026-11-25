@@ -12,6 +12,7 @@ import com.sixbean.testpike.aiservice.wxmock.domain.service.WxMockService;
 import com.sixbean.testpike.common.exception.BizErrorCode;
 import com.sixbean.testpike.common.exception.ServiceException;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +58,14 @@ class WxMockServiceImplTest {
     void cleanup() {
         jdbcTemplate.update("DELETE FROM tp_ai_call_log WHERE project_id >= ? AND project_id < ?",
                 PROJECT_BASE, PROJECT_BASE + 1000L);
+    }
+
+    @BeforeEach
+    void isolateStartupWiring() {
+        // Context refresh may wire production beans (e.g. DocExtractServiceImpl
+        // .setAiCallLogWriter) through the shared mock after the per-method reset;
+        // clear that boot traffic so zero-call assertions pin the tested seam only.
+        org.mockito.Mockito.clearInvocations(llmFallbackChain);
     }
 
     private void switchOn() {
