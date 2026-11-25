@@ -1167,7 +1167,7 @@ public class DocExtractServiceImpl implements DocExtractService {
                                           ExtractDeadline deadline, String face) {
         if (runAbort.aborted() || deadline.spent()) {
             runAbort.trip(face + " 检出任务时长窗口耗尽");
-            throw new IllegalStateException("no new outbound call starts after the stop gate: " + face);
+            throw new IllegalStateException("stop gate active, outbound call refused: " + face);
         }
     }
 

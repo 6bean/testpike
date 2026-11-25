@@ -47,7 +47,7 @@ class MockShellSchemaTest {
     static final Set<String> STUB_COLUMNS = new HashSet<>(Arrays.asList(
             "id", "space_id", "name", "priority", "method", "path_match_type", "path_pattern",
             "matchers_json", "response_json", "scenario_name", "required_state", "new_state",
-            "source", "source_ref", "enabled", "version", "created_at", "updated_at"));
+            "source", "source_ref", "enabled", "version", "enriched_by", "contract_stale", "created_at", "updated_at"));
 
     static final Set<String> SCENARIO_COLUMNS = new HashSet<>(Arrays.asList(
             "id", "space_id", "name", "definition_json", "created_at", "updated_at"));

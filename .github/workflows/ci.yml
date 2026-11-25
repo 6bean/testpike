@@ -79,6 +79,15 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Install the real k6 engine for perf suites
+        if: matrix.module == 'core'
+        run: |
+          # K6AdapterTest drives the real k6 binary; ubuntu-latest ships none.
+          curl -fsSL -o /tmp/k6.tar.gz \
+            https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo install /tmp/k6-v0.55.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
       - name: Load fresh-install schema into CI postgres
         run: |
           CID=$(docker ps --format '{{.ID}} {{.Image}}' | awk '/pgvector/ {print $1; exit}')
@@ -133,6 +142,11 @@ jobs:
           # Factory demo admin seed password published in .env.example (throwaway CI
           # credential); the seed-admin guard test rebuilds the factory row and needs it.
           ADMIN_INIT_PASSWORD: "Admin#123"
+          # Factory demo gateway endpoint published in .env.example (throwaway CI
+          # config, never called by these suites); the embedding baseline seeder skips
+          # without it, and the per-domain default-index suites need its frozen row.
+          LLM_BASE_URL: "http://localhost:4000/v1"
+          LLM_API_KEY: "sk-pla...e-me"
           # Factory demo storage signing key already published in .env.example
           # (throwaway CI credential); without it the local-disk probe and the
           # visual-baseline round-trip refuse with the missing-secret error.
@@ -179,16 +193,37 @@ jobs:
                   out.append(s); seen.add(s)
           tail = "\n".join(out[:420]) + "\n--- tail ---\n" + "\n".join(lines[-40:])
           tail = tail[:56000]
-          req = urllib.request.Request(
-              os.environ["GITHUB_API_URL"] + "/repos/" + os.environ["GITHUB_REPOSITORY"] + "/issues",
-              data=json.dumps({
-                  "title": "CI log tail: ${{ matrix.module }} @" + os.environ["GITHUB_SHA"][:9],
-                  "body": "<!-- ci-log-tail -->\n```\n" + tail + "\n```",
-              }).encode(),
-              headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
-                       "Accept": "application/vnd.github+json",
-                       "Content-Type": "application/json"},
-              method="POST")
+          # One ROLLING issue per module (updated in place on every red run),
+          # never a new issue per snapshot: the convergence loop pushes many
+          # candidate builds a day and a per-build issue is public noise.
+          # The sha/run anchors live in the body for traceability.
+          title = "CI log tail: ${{ matrix.module }}"
+          body = ("<!-- ci-log-tail -->\n"
+                  "latest: sha " + os.environ["GITHUB_SHA"][:9]
+                  + " \u00b7 run " + os.environ.get("GITHUB_RUN_ID", "?") + "\n"
+                  + "```\n" + tail + "\n```")
+          api = os.environ["GITHUB_API_URL"] + "/repos/" + os.environ["GITHUB_REPOSITORY"]
+          hdr = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                 "Accept": "application/vnd.github+json",
+                 "Content-Type": "application/json"}
+          found = None
+          try:
+              with urllib.request.urlopen(urllib.request.Request(
+                      api + "/issues?state=open&per_page=100", headers=hdr)) as r:
+                  for it in json.load(r):
+                      if it["title"] == title:
+                          found = it["number"]
+                          break
+          except Exception:
+              pass
+          if found:
+              req = urllib.request.Request(api + "/issues/" + str(found),
+                                           data=json.dumps({"body": body}).encode(),
+                                           headers=hdr, method="PATCH")
+          else:
+              req = urllib.request.Request(api + "/issues",
+                                           data=json.dumps({"title": title, "body": body}).encode(),
+                                           headers=hdr, method="POST")
           try:
               with urllib.request.urlopen(req) as r:
                   print("issue:", json.load(r)["html_url"])
