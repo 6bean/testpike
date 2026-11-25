@@ -158,7 +158,7 @@ jobs:
           out, seen = [], set()
           # first context-load failure with its preceding root-cause block
           for i, l in enumerate(lines):
-              if "Failed to load ApplicationContext" in l or "ApplicationContext failure" in l:
+              if ("Failed to load ApplicationContext" in l or "ApplicationContext failure" in l) and "[exec-claim-census]" not in l:
                   lo = max(0, i - 90)
                   for j in range(lo, i + 2):
                       if lines[j] not in seen:
@@ -167,9 +167,11 @@ jobs:
           # every distinct root-cause line across the run
           for l in lines:
               s = l.strip()
+              if s.startswith("[exec-claim-census]") or "guard-skipped-no-jdbc-bean" in s:
+                  continue  # by-design census chatter, never a root cause
               if ("Caused by" in s or "BeanCreationException" in s or "UnsatisfiedDependency" in s
-                  or "Connection refused" in s or "class path resource" in s or "No qualifying bean" in s) \
-                     and s not in seen:
+                  or "Connection refused" in s or "class path resource" in s or "No qualifying bean" in s
+                  or "<<< FAILURE!" in s or "<<< ERROR!" in s) and s not in seen:
                   out.append(s); seen.add(s)
           tail = "\n".join(out[:420]) + "\n--- tail ---\n" + "\n".join(lines[-40:])
           tail = tail[:56000]
