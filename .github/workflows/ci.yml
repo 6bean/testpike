@@ -142,6 +142,12 @@ jobs:
           # Factory demo admin seed password published in .env.example (throwaway CI
           # credential); the seed-admin guard test rebuilds the factory row and needs it.
           ADMIN_INIT_PASSWORD: "Admin#123"
+          # Explicit datasource trio for the connection-registry suites: the app
+          # defaults resolve fine without them, but those tests read the very env
+          # they probe, and a fresh runner leaves DB_URL/DB_USERNAME unset.
+          DB_URL: "jdbc:postgresql://localhost:15432/testpike"
+          DB_USERNAME: "testpike"
+          DB_PASSWORD: "testpike"
           # Factory demo gateway endpoint published in .env.example (throwaway CI
           # config, never called by these suites); the embedding baseline seeder skips
           # without it, and the per-domain default-index suites need its frozen row.
@@ -153,11 +159,27 @@ jobs:
           STORAGE_URL_SIGN_SECRET: "dev-hmac-change-me"
         run: |
           set +e
-          mvn -B -pl common,${{ matrix.module }} -am \
-              -Daether.connector.http.retryHandler.count=5 \
-              -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504 \
-              test > /tmp/mvn-${{ matrix.module }}.log 2>&1
-          RC=$?
+          # Maven Central intermittently rate-limits the shared runner IPs (429).
+          # If resolution dies BEFORE a single test ran, that is an infra flake,
+          # not a suite signal: retry the whole invocation (max 3 attempts) ONLY
+          # on that combined fingerprint - a real test failure never retries, so
+          # this cannot mask genuine reds.
+          RC=1
+          for attempt in 1 2 3; do
+            mvn -B -pl common,${{ matrix.module }} -am \
+                -Daether.connector.http.retryHandler.count=5 \
+                -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504 \
+                test > /tmp/mvn-${{ matrix.module }}.log 2>&1
+            RC=$?
+            if [ $RC -eq 0 ]; then break; fi
+            if grep -q "DependencyResolutionException" "/tmp/mvn-${{ matrix.module }}.log" \
+               && ! grep -q "Tests run:" "/tmp/mvn-${{ matrix.module }}.log"; then
+              echo "RESOLVER-FLAKE attempt=$attempt: central 429 before any test ran, retrying"
+              sleep $((45 * attempt))
+              continue
+            fi
+            break
+          done
           tail -n 30 /tmp/mvn-${{ matrix.module }}.log
           exit $RC
       # Keep the real failure visible without repo sign-in: publish the log

@@ -313,14 +313,6 @@ export interface MockStubImportResult {
 }
 
 /**
- * Preview the save-ready drafts of one spec row (wizard step one — a proposal,
- * persists nothing). Empty list = the contract has no mock-servable endpoint.
- */
-export function previewStubDrafts(specId: number): Promise<MockStubDraftItem[]> {
-  return request<MockStubDraftItem[]>({ url: `/mock/specs/${specId}/stub-drafts`, method: 'get' })
-}
-
-/**
  * Import chosen drafts into a space (wizard step two). specId rides the query
  * purely so the server-side guard can resolve the contract's owning project;
  * drafts must be the exact rows the preview served. Same method+path already
@@ -364,6 +356,23 @@ export interface MockStubDraftAdviceItem extends MockStubDraftItem {
   origin?: string | null
   adviceState?: string | null
   defaultChecked?: boolean | null
+}
+
+/**
+ * Preview drafts with core's pre-adjudication joined (MJ P3 door): every
+ * row carries the deterministic verdict beside it, and the wizard uses
+ * that flag — never a locally re-decided guess — for the advice-only
+ * selection. Rows without advice (no space context) honestly carry none.
+ */
+export function previewStubDraftsAdvised(
+  specId: number,
+  spaceId: number | null,
+): Promise<MockStubDraftAdviceItem[]> {
+  return request<MockStubDraftAdviceItem[]>({
+    url: `/mock/specs/${specId}/stub-drafts-advised`,
+    method: 'get',
+    params: spaceId === null ? undefined : { spaceId },
+  })
 }
 
 /** One-frame contract-upgrade plan (admin MockSpecUpgradePlanView mirror). */

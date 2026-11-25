@@ -17,6 +17,7 @@
 import 'element-plus/dist/index.css'
 import { flushPromises, mount } from '@vue/test-utils'
 import ElementPlus, { ElTable } from 'element-plus'
+import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import zhCN from '@/utils/locales/zh-CN'
@@ -24,7 +25,9 @@ import enUS from '@/utils/locales/en-US'
 
 const mockApi = vi.hoisted(() => ({
   listSpaces: vi.fn(),
-  previewStubDrafts: vi.fn(),
+  previewStubDraftsAdvised: vi.fn(),
+  fetchSpecUpgradePlan: vi.fn(),
+  markRemovedUpgradePlan: vi.fn(),
   importStubsFromSpec: vi.fn(),
 }))
 vi.mock('@/api/mock', () => mockApi)
@@ -69,7 +72,7 @@ async function open(props: Record<string, unknown> = {}) {
   })
   const w = mount(MockStubDirectWizard, {
     props: { modelValue: false, projectId: 3, ...props },
-    global: { plugins: [ElementPlus, i18n] },
+    global: { plugins: [ElementPlus, i18n, createPinia()] },
   })
   await w.setProps({ modelValue: true })
   await flushPromises()
@@ -97,7 +100,12 @@ describe('wizard upload: localized pick button + file name echo', () => {
     specApi.listApiSpecs.mockReset().mockResolvedValue({ list: [specRow], total: 1 })
     specApi.uploadApiSpec.mockReset()
     mockApi.listSpaces.mockReset().mockResolvedValue([spaceRow()])
-    mockApi.previewStubDrafts.mockReset().mockResolvedValue([draftRow])
+    mockApi.previewStubDraftsAdvised.mockReset().mockResolvedValue([draftRow])
+    // First-version contract posture: empty upgrade plan keeps the wizard on
+    // the selection step (the difference step is contract-tested elsewhere).
+    mockApi.fetchSpecUpgradePlan.mockReset()
+      .mockResolvedValue({ added: [], changed: [], removed: [], hasPrevious: false })
+    mockApi.markRemovedUpgradePlan.mockReset().mockResolvedValue(0)
     mockApi.importStubsFromSpec.mockReset()
       .mockResolvedValue({ createdStubIds: [77], skippedEndpointKeys: [] })
   })
@@ -142,7 +150,12 @@ describe('wizard dialog: width grows monotonically, receipt step closes the rail
   beforeEach(() => {
     specApi.listApiSpecs.mockReset().mockResolvedValue({ list: [specRow], total: 1 })
     mockApi.listSpaces.mockReset().mockResolvedValue([spaceRow()])
-    mockApi.previewStubDrafts.mockReset().mockResolvedValue([draftRow])
+    mockApi.previewStubDraftsAdvised.mockReset().mockResolvedValue([draftRow])
+    // First-version contract posture: empty upgrade plan keeps the wizard on
+    // the selection step (the difference step is contract-tested elsewhere).
+    mockApi.fetchSpecUpgradePlan.mockReset()
+      .mockResolvedValue({ added: [], changed: [], removed: [], hasPrevious: false })
+    mockApi.markRemovedUpgradePlan.mockReset().mockResolvedValue(0)
     mockApi.importStubsFromSpec.mockReset()
       .mockResolvedValue({ createdStubIds: [77], skippedEndpointKeys: [] })
   })

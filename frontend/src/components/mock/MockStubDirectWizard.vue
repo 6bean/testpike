@@ -7,12 +7,18 @@ import {
   importStubsFromSpec,
   listSpaces,
   markRemovedUpgradePlan,
-  previewStubDrafts,
+  previewStubDraftsAdvised,
   type MockSpaceItem,
   type MockSpecUpgradePlan,
-  type MockStubDraftItem,
+  type MockStubDraftAdviceItem,
   type MockStubImportResult,
 } from '@/api/mock'
+import {
+  DRAFT_UNIT_HEIGHT_PX,
+  DRAFT_VISIBLE_UNITS,
+  draftWindowRange,
+  flattenDraftUnits,
+} from '@/composables/mockDraftWindow'
 import { listApiSpecs, uploadApiSpec, type ApiSpecView } from '@/api/apiSpec'
 import { bizErrorMsg } from '@/utils/bizError'
 import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
@@ -175,11 +181,21 @@ function step1DisabledReason(): string {
 }
 
 // ---------- step 2: preview + checkbox selection ----------
-const drafts = ref<MockStubDraftItem[]>([])
+const drafts = ref<MockStubDraftAdviceItem[]>([])
 const selected = ref<Set<string>>(new Set())
 const keyword = ref('')
 const step2Error = ref('')
 const applying = ref(false)
+
+// Worst-scale posture (500-endpoint contract): the card area is a fixed
+// viewport and only a window of units is mounted, so the DOM never grows
+// with the draft count. Group collapse removes a bucket's rows from the
+// unit stream; the unchecked review list is opt-in and capped.
+const collapsedGroups = ref<Set<string>>(new Set())
+const cardsScrollPx = ref(0)
+const uncheckedShown = ref(false)
+const UNCHECKED_REVIEW_CAP = 200
+const cardsViewportPx = DRAFT_VISIBLE_UNITS * DRAFT_UNIT_HEIGHT_PX
 
 const filteredDrafts = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -192,7 +208,32 @@ const filteredDrafts = computed(() => {
   )
 })
 
+const draftUnits = computed(() => flattenDraftUnits(filteredDrafts.value, collapsedGroups.value))
+const cardsWindow = computed(() => draftWindowRange(cardsScrollPx.value, draftUnits.value.length))
+const windowedUnits = computed(() => {
+  const w = cardsWindow.value
+  return draftUnits.value.slice(w.start, w.end).map((u) =>
+    u.kind === 'group'
+      ? { kind: 'group' as const, key: u.key, count: u.count, collapsed: collapsedGroups.value.has(u.key) }
+      : { kind: 'draft' as const, key: u.row.endpointKey, row: u.row },
+  )
+})
+
+function onCardsScroll(e: Event): void {
+  cardsScrollPx.value = (e.target as HTMLElement).scrollTop
+}
+
+function toggleGroup(key: string): void {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsedGroups.value = next
+  cardsScrollPx.value = 0
+}
+
 const checkedCount = computed(() => selected.value.size)
+const uncheckedKeys = computed(() => drafts.value.filter((d) => !selected.value.has(d.endpointKey)).map((d) => d.endpointKey))
+const uncheckedShownKeys = computed(() => uncheckedKeys.value.slice(0, UNCHECKED_REVIEW_CAP))
 const allChecked = computed(
   () => filteredDrafts.value.length > 0 && filteredDrafts.value.every((d) => selected.value.has(d.endpointKey)),
 )
@@ -249,11 +290,14 @@ async function onPreview(): Promise<void> {
   step1Error.value = ''
   try {
     const [d, p] = await Promise.all([
-      previewStubDrafts(pickedSpecId.value),
+      previewStubDraftsAdvised(pickedSpecId.value, pickedSpaceId.value),
       fetchSpecUpgradePlan(pickedSpaceId.value, pickedSpecId.value),
     ])
     drafts.value = d
     plan.value = p
+    collapsedGroups.value = new Set()
+    uncheckedShown.value = false
+    cardsScrollPx.value = 0
     applyDraftSelection()
     markReceipt.value = ''
     markError.value = ''
@@ -280,6 +324,30 @@ function toggleItem(key: string, v: boolean): void {
   const next = new Set(selected.value)
   if (v) next.add(key)
   else next.delete(key)
+  selected.value = next
+}
+
+/**
+ * Selection = the rows core's pre-adjudication flagged (defaultChecked),
+ * within the current filter. The flag is read, never re-decided here; rows
+ * served without advice simply do not join the AI-only set.
+ */
+function selectOnlyAi(): void {
+  const next = new Set(selected.value)
+  for (const d of filteredDrafts.value) {
+    if (d.defaultChecked === true) next.add(d.endpointKey)
+    else next.delete(d.endpointKey)
+  }
+  selected.value = next
+}
+
+/** Invert within the current filter; rows outside the filter keep their state. */
+function invertSelection(): void {
+  const next = new Set(selected.value)
+  for (const d of filteredDrafts.value) {
+    if (next.has(d.endpointKey)) next.delete(d.endpointKey)
+    else next.add(d.endpointKey)
+  }
   selected.value = next
 }
 
@@ -637,23 +705,63 @@ watch(
         <span class="sd-stat" data-test="stub-direct-stat">
           {{ t('apitest.stubImport.statChecked', { total: drafts.length, checked: checkedCount }) }}
         </span>
+        <el-button size="small" data-test="stub-direct-only-ai" @click="selectOnlyAi">
+          {{ t('apitest.stubImport.onlyAi') }}
+        </el-button>
+        <el-button size="small" data-test="stub-direct-invert" @click="invertSelection">
+          {{ t('apitest.stubImport.invert') }}
+        </el-button>
+        <el-button
+          link
+          type="primary"
+          size="small"
+          data-test="stub-direct-unchecked-toggle"
+          @click="uncheckedShown = !uncheckedShown"
+        >
+          {{ t('apitest.stubImport.uncheckedToggle', { n: uncheckedKeys.length }) }}
+        </el-button>
       </div>
-      <div class="sd-cards">
-        <div v-for="d in filteredDrafts" :key="d.endpointKey" class="sd-card" data-test="stub-direct-card">
-          <div class="sd-card-head">
-            <el-checkbox
-              :model-value="selected.has(d.endpointKey)"
-              :data-test="`stub-direct-check-${d.endpointKey.replace(/[^a-zA-Z0-9]/g, '-')}`"
-              @change="(v: any) => toggleItem(d.endpointKey, Boolean(v))"
-            />
-            <span class="sd-method">{{ d.method }}</span>
-            <span class="sd-path">{{ d.pathPattern }}</span>
-            <span class="sd-name">{{ d.name }}</span>
-            <el-tag size="small" type="info" data-test="stub-direct-source-tag">
-              {{ t('apitest.stubImport.sourceTag') }}
-            </el-tag>
+      <div v-if="uncheckedShown" class="sd-unchecked" data-test="stub-direct-unchecked-list">
+        <p v-if="uncheckedKeys.length === 0" class="sd-hint">{{ t('apitest.stubImport.uncheckedEmpty') }}</p>
+        <ul v-else class="sd-unchecked-ul">
+          <li v-for="k in uncheckedShownKeys" :key="k" class="sd-unchecked-item">{{ k }}</li>
+        </ul>
+      </div>
+      <div
+        class="sd-cards"
+        data-test="stub-direct-window"
+        :style="{ height: cardsViewportPx + 'px' }"
+        @scroll.passive="onCardsScroll"
+      >
+        <div :style="{ height: cardsWindow.padTopPx + 'px' }"></div>
+        <template v-for="u in windowedUnits" :key="u.kind === 'group' ? 'g:' + u.key : u.row.endpointKey">
+          <div
+            v-if="u.kind === 'group'"
+            class="sd-group-head"
+            data-test="stub-direct-group-toggle"
+            @click="toggleGroup(u.key)"
+          >
+            <span class="sd-group-name">{{ u.key || t('apitest.stubImport.groupRoot') }}</span>
+            <span class="sd-group-count">{{ t('apitest.stubImport.groupCount', { n: u.count }) }}</span>
+            <span class="sd-group-caret">{{ u.collapsed ? '▸' : '▾' }}</span>
           </div>
-        </div>
+          <div v-else class="sd-card" data-test="stub-direct-card">
+            <div class="sd-card-head">
+              <el-checkbox
+                :model-value="selected.has(u.row.endpointKey)"
+                :data-test="`stub-direct-check-${u.row.endpointKey.replace(/[^a-zA-Z0-9]/g, '-')}`"
+                @change="(v: any) => toggleItem(u.row.endpointKey, Boolean(v))"
+              />
+              <span class="sd-method">{{ u.row.method }}</span>
+              <span class="sd-path">{{ u.row.pathPattern }}</span>
+              <span class="sd-name">{{ u.row.name }}</span>
+              <el-tag size="small" type="info" data-test="stub-direct-source-tag">
+                {{ t('apitest.stubImport.sourceTag') }}
+              </el-tag>
+            </div>
+          </div>
+        </template>
+        <div :style="{ height: cardsWindow.padBottomPx + 'px' }"></div>
         <p v-if="filteredDrafts.length === 0" class="sd-hint">{{ t('apitest.stubImport.noMatch') }}</p>
       </div>
       <p v-if="step2Error" class="sd-error" data-test="stub-direct-step2-error">{{ step2Error }}</p>
@@ -727,9 +835,18 @@ watch(
 .sd-error { margin: 0; font-size: 12px; color: var(--el-color-danger); }
 .sd-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sd-stat { font-size: 12px; color: var(--el-text-color-secondary); }
-.sd-cards { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
-.sd-card { border: 1px solid var(--el-border-color-lighter); border-radius: 8px; padding: 8px 12px; }
+/* Windowed list: fixed viewport height comes from the inline style bound to
+   DRAFT_VISIBLE_UNITS * DRAFT_UNIT_HEIGHT_PX, and each unit occupies exactly
+   that band so the scroll math matches the DOM (no flex gap drift). */
+.sd-cards { display: flex; flex-direction: column; overflow-y: auto; }
+.sd-card { border: 1px solid var(--el-border-color-lighter); border-radius: 8px; padding: 8px 12px; height: 44px; box-sizing: border-box; }
 .sd-card-head { display: flex; align-items: center; gap: 10px; }
+.sd-group-head { display: flex; align-items: center; gap: 8px; height: 44px; box-sizing: border-box; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--el-text-color-secondary); border-bottom: 1px dashed var(--el-border-color-lighter); }
+.sd-group-name { min-width: 80px; }
+.sd-group-count { font-weight: 400; }
+.sd-unchecked { margin: 4px 0; padding: 8px 12px; border: 1px dashed var(--el-border-color-lighter); border-radius: 8px; }
+.sd-unchecked-ul { margin: 0; padding-left: 18px; max-height: 160px; overflow-y: auto; }
+.sd-unchecked-item { font-size: 12px; color: var(--el-text-color-secondary); }
 .sd-method { font-size: 12px; font-weight: 700; min-width: 56px; }
 .sd-path { font-size: 13px; font-weight: 600; }
 .sd-name { font-size: 12px; color: var(--el-text-color-secondary); }

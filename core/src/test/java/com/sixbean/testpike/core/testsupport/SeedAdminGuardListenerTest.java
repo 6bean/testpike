@@ -24,20 +24,38 @@ class SeedAdminGuardListenerTest {
 
     @Test
     void 空表触发守卫重建种子管理员() {
-        jdbcTemplate.execute("DELETE FROM tp_user_role");
-        jdbcTemplate.execute("DELETE FROM tp_user");
-        assertEquals(0, countUsers(), "前置：表应为空");
+        // The empty-table scenario must not destroy the shipped factory rows
+        // (demo accounts included): snapshot both tables into guard-owned
+        // backups, drain, fire the guard, then restore byte-identical ids.
+        jdbcTemplate.execute("DROP TABLE IF EXISTS tp_guard_user_backup");
+        jdbcTemplate.execute("DROP TABLE IF EXISTS tp_guard_user_role_backup");
+        jdbcTemplate.execute("CREATE TABLE tp_guard_user_backup AS SELECT * FROM tp_user");
+        jdbcTemplate.execute("CREATE TABLE tp_guard_user_role_backup AS SELECT * FROM tp_user_role");
+        try {
+            jdbcTemplate.execute("DELETE FROM tp_user_role");
+            jdbcTemplate.execute("DELETE FROM tp_user");
+            assertEquals(0, countUsers(), "前置：表应为空");
 
-        new SeedAdminGuardListener().afterTestClass(TestContextStub.of(applicationContext));
+            new SeedAdminGuardListener().afterTestClass(TestContextStub.of(applicationContext));
 
-        Integer admin = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_user WHERE username = ? AND deleted = 0",
-                Integer.class, UserSeedInitializer.DEFAULT_ADMIN_USERNAME);
-        assertNotNull(admin);
-        assertEquals(1, admin, "守卫应重建种子 admin");
-        String hash = jdbcTemplate.queryForObject(
-                "SELECT password_hash FROM tp_user WHERE username = 'admin'", String.class);
-        assertNotNull(hash, "BCrypt 哈希须写入（否则无法登录）");
+            Integer admin = jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM tp_user WHERE username = ? AND deleted = 0",
+                    Integer.class, UserSeedInitializer.DEFAULT_ADMIN_USERNAME);
+            assertNotNull(admin);
+            assertEquals(1, admin, "守卫应重建种子 admin");
+            String hash = jdbcTemplate.queryForObject(
+                    "SELECT password_hash FROM tp_user WHERE username = 'admin'", String.class);
+            assertNotNull(hash, "BCrypt 哈希须写入（否则无法登录）");
+        } finally {
+            // Drop the guard-rebuilt row first (unique username would collide),
+            // then replay the exact pre-test rows.
+            jdbcTemplate.execute("DELETE FROM tp_user_role");
+            jdbcTemplate.execute("DELETE FROM tp_user");
+            jdbcTemplate.update("INSERT INTO tp_user OVERRIDING SYSTEM VALUE SELECT * FROM tp_guard_user_backup");
+            jdbcTemplate.update("INSERT INTO tp_user_role OVERRIDING SYSTEM VALUE SELECT * FROM tp_guard_user_role_backup");
+            jdbcTemplate.execute("DROP TABLE tp_guard_user_backup");
+            jdbcTemplate.execute("DROP TABLE tp_guard_user_role_backup");
+        }
     }
 
     @Test
