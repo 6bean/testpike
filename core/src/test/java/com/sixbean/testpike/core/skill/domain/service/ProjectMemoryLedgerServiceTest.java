@@ -68,8 +68,7 @@ class ProjectMemoryLedgerServiceTest {
             String ids = createdMemoryIds.stream().map(String::valueOf).collect(Collectors.joining(","));
             jdbcTemplate.update("DELETE FROM tp_ai_ctx_memory WHERE id IN (" + ids + ")");
         }
-        jdbcTemplate.update("DELETE FROM tp_audit_log WHERE object_id IN "
-                + "(SELECT CAST(id AS TEXT) FROM tp_ai_ctx_memory WHERE project_id = ?)", projectId);
+// fixture audit rows stay: mid-range ledger deletion forges chain breaks
         jdbcTemplate.update("DELETE FROM tp_ai_ctx_memory WHERE project_id = ?", projectId);
         // Draft anchors created by the spectra ride the same fixture project.
         jdbcTemplate.update("DELETE FROM tp_ai_chat_draft WHERE project_id = ?", projectId);

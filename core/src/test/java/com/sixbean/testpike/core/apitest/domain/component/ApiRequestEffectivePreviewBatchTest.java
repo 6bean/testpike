@@ -129,7 +129,7 @@ class ApiRequestEffectivePreviewBatchTest {
         jdbc.update("DELETE FROM tp_apitest_collection WHERE project_id = ?", f.projectId());
         jdbc.update("DELETE FROM tp_project_env WHERE project_id = ?", f.projectId());
         jdbc.update("DELETE FROM tp_user_project WHERE project_id = ?", f.projectId());
-        jdbc.update("DELETE FROM tp_audit_log WHERE project_id = ?", f.projectId());
+// fixture audit rows stay: mid-range ledger deletion forges chain breaks
         jdbc.update("DELETE FROM tp_project WHERE id = ?", f.projectId());
     }
 }

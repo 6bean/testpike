@@ -800,7 +800,11 @@ public final class SharedDbFixtureSweep {
             jdbc.update("DELETE FROM " + child + " WHERE " + childCol + " IN (" + childVals + ")");
         }
         if ("tp_audit_log".equals(table)) {
-            deleteAuditLogRows(jdbc, matchCol, ids);
+            // NEVER surgically remove audit rows: the ledger is append-only and
+            // mid-range removal forges a chain break (the registered channel is
+            // the retention prefix sweep). Fixture audit rows are harmless —
+            // every ledger assertion in the suite anchors on its own fixture.
+            return;
         } else {
             jdbc.update("DELETE FROM " + table + " WHERE " + matchCol + " IN (" + ids + ")");
         }
@@ -815,65 +819,6 @@ public final class SharedDbFixtureSweep {
      * semantics end with the commit, so the pooled connection never leaks an
      * open permission window to its next borrower.
      */
-    /**
-     * Remove every ledger row above a watermark in ONE serialized statement
-     * under a table-level EXCLUSIVE lock — the same lock mode
-     * AuditLogServiceImpl.record uses before it reads the chain tail. Without
-     * the lock, a concurrent JVM can append a row between the id enumeration
-     * and the delete; that survivor stays chained to a row the sweep then
-     * removes, leaving a mid-chain gap that permanently fails verifyChain
-     * (observed on the shared slot0 ledger, 2026-11-25). Locking inside the
-     * sweep transaction makes enumerate-and-delete atomic against record().
-     */
-    private static void sweepAuditWindow(JdbcTemplate jdbc, long idFloor) {
-        DataSource ds = jdbc.getDataSource();
-        if (ds == null) {
-            throw new IllegalStateException("SharedDbFixtureSweep needs a JdbcTemplate backed by a DataSource to sweep tp_audit_log");
-        }
-        try (Connection c = ds.getConnection()) {
-            boolean previousAutoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
-            try (Statement lock = c.createStatement();
-                    PreparedStatement del = c.prepareStatement(
-                            "DELETE FROM tp_audit_log WHERE id > ?")) {
-                lock.execute("SELECT set_config('tp.audit_retention_allowed', 'on', true)");
-                lock.execute("LOCK TABLE tp_audit_log IN EXCLUSIVE MODE");
-                del.setLong(1, idFloor);
-                del.executeUpdate();
-                c.commit();
-            } catch (SQLException e) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit(previousAutoCommit);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("fixture audit window sweep failed above id " + idFloor, e);
-        }
-    }
-
-    private static void deleteAuditLogRows(JdbcTemplate jdbc, String matchCol, String ids) {
-        DataSource ds = jdbc.getDataSource();
-        if (ds == null) {
-            throw new IllegalStateException("SharedDbFixtureSweep needs a JdbcTemplate backed by a DataSource to sweep tp_audit_log");
-        }
-        try (Connection c = ds.getConnection()) {
-            boolean previousAutoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
-            try (Statement s = c.createStatement()) {
-                s.execute("SELECT set_config('tp.audit_retention_allowed', 'on', true)");
-                s.executeUpdate("DELETE FROM tp_audit_log WHERE " + matchCol + " IN (" + ids + ")");
-                c.commit();
-            } catch (SQLException e) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit(previousAutoCommit);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("fixture audit-row sweep failed for ids " + ids, e);
-        }
-    }
 
     /**
      * Remove stale tp_asset_reference pins whose referrer_id sits in one asset
