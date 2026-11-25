@@ -1,7 +1,9 @@
 package com.sixbean.testpike.core.llmconfig.domain.component;
 
+import com.sixbean.testpike.core.llmconfig.api.dto.LlmConfigInfo;
 import com.sixbean.testpike.core.llmconfig.api.dto.LlmConfigInput;
 import com.sixbean.testpike.core.llmconfig.domain.service.LlmConfigService;
+import com.sixbean.testpike.common.config.CatalogInputWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,6 +84,7 @@ public class LlmConfigGenerationSeedInitializer implements ApplicationRunner {
     private final String gatewayApiKey;
     private final String modelName;
     private final String tokenizerFamilyOverride;
+    private final String promptLimitOverride;
 
     public LlmConfigGenerationSeedInitializer(
             LlmConfigService llmConfigService,
@@ -90,7 +93,8 @@ public class LlmConfigGenerationSeedInitializer implements ApplicationRunner {
             @Value("${LLM_BASE_URL:}") String gatewayBaseUrl,
             @Value("${LLM_API_KEY:}") String gatewayApiKey,
             @Value("${LLM_MODEL:}") String modelName,
-            @Value("${LLM_TOKENIZER_FAMILY:}") String tokenizerFamilyOverride) {
+            @Value("${LLM_TOKENIZER_FAMILY:}") String tokenizerFamilyOverride,
+            @Value("${LLM_PROMPT_LIMIT_TOKENS:}") String promptLimitOverride) {
         this.llmConfigService = llmConfigService;
         this.jdbcTemplate = jdbcTemplate;
         this.provider = provider;
@@ -98,6 +102,7 @@ public class LlmConfigGenerationSeedInitializer implements ApplicationRunner {
         this.gatewayApiKey = gatewayApiKey;
         this.modelName = modelName;
         this.tokenizerFamilyOverride = tokenizerFamilyOverride;
+        this.promptLimitOverride = promptLimitOverride;
     }
 
     @Override
@@ -124,6 +129,7 @@ public class LlmConfigGenerationSeedInitializer implements ApplicationRunner {
     public int seedIfMissing() {
         Integer present = jdbcTemplate.queryForObject(PRESENCE_SQL, Integer.class);
         if (present != null && present > 0) {
+            calibrateInstallDefaultRow();
             return 0;
         }
         if (isBlank(gatewayBaseUrl) || isBlank(modelName)) {
@@ -140,11 +146,69 @@ public class LlmConfigGenerationSeedInitializer implements ApplicationRunner {
                 1, 1,
                 "装机登记的默认对话模型：端点与模型名来自安装配置，密钥为空时在大模型配置页补填后即可使用；"
                         + "更换模型时令牌预估族会按模型名调整",
-                null,
+                limitFor(promptLimitOverride),
                 familyFor(modelName, tokenizerFamilyOverride),
                 LlmConfigInput.TYPE_GENERATION,
                 null));
         return 1;
+    }
+
+    /**
+     * Declared input window for a factory-seeded install-default row. An
+     * explicit install key (LLM_PROMPT_LIMIT_TOKENS) inside the contract
+     * range wins verbatim so an operator can state the vendor window exactly;
+     * anything else (blank, non-numeric, out of range, or the blanket UI
+     * default) lands on the conservative catalog floor — the row must never
+     * start on the fake 1M window, which trips the startup consistency probe
+     * and inflates the extraction budget past the endpoint's real window.
+     */
+    public static int limitFor(String rawOverride) {
+        if (rawOverride == null || rawOverride.isBlank()) {
+            return CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS;
+        }
+        try {
+            int value = Integer.parseInt(rawOverride.trim());
+            boolean usable = value >= LlmConfigInput.PROMPT_LIMIT_MIN
+                    && value <= LlmConfigInput.PROMPT_LIMIT_MAX
+                    && value != LlmConfigInput.DEFAULT_PROMPT_LIMIT_TOKENS;
+            return usable ? value : CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS;
+        } catch (NumberFormatException notNumeric) {
+            return CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS;
+        }
+    }
+
+    /**
+     * Convergence channel for install-default rows seeded before the factory
+     * calibration existed: a row still on the blanket default gets its
+     * declared window through the same service write path (audit, masking
+     * and replay-safety stay single-sourced). Rows registered by admins —
+     * any name outside the install-default prefix — are never touched, and a
+     * replay on a calibrated row writes nothing.
+     */
+    private void calibrateInstallDefaultRow() {
+        Long rowId = jdbcTemplate.query(
+                "SELECT id FROM tp_llm_config WHERE model_type = 1 AND status = 1 AND is_default = 1"
+                        + " AND prompt_limit_tokens = ? AND name LIKE ?",
+                rs -> rs.next() ? rs.getLong(1) : null,
+                LlmConfigInput.DEFAULT_PROMPT_LIMIT_TOKENS, INSTALL_PREFIX + "%");
+        if (rowId == null) {
+            return;
+        }
+        LlmConfigInfo current = llmConfigService.get(rowId);
+        if (current == null) {
+            return;
+        }
+        llmConfigService.update(SEED_OPERATOR_ID, rowId, new LlmConfigInput(
+                current.name(), current.provider(), current.modelName(),
+                "", current.baseUrl(), current.status(), current.isDefault(),
+                current.description(), limitFor(promptLimitOverride),
+                current.tokenizerFamily(), LlmConfigInput.TYPE_GENERATION,
+                current.embeddingDimension()));
+        log.info("Install-default model row '{}' prompt limit recalibrated from the blanket "
+                        + "default to the declared input window ({}) — value sourced from "
+                        + "LLM_PROMPT_LIMIT_TOKENS or the conservative catalog floor; "
+                        + "adjust per vendor-published window on the LLM settings page",
+                current.name(), limitFor(promptLimitOverride));
     }
 
     /**

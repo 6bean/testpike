@@ -1,6 +1,7 @@
 package com.sixbean.testpike.core.llmconfig.domain.component;
 
 import com.sixbean.testpike.core.CoreApplication;
+import com.sixbean.testpike.common.config.CatalogInputWindow;
 import com.sixbean.testpike.core.llmconfig.api.dto.LlmConfigInput;
 import com.sixbean.testpike.core.llmconfig.domain.service.LlmConfigService;
 import java.util.List;
@@ -120,6 +121,16 @@ class LlmConfigGenerationSeedInitializerTest {
         assertEquals(1, ((Number) row.get("model_type")).intValue());
         assertNotNull(row.get("prompt_limit_tokens"),
                 "the catalog row must carry a prompt limit (the budget planner reads it)");
+        int limit = ((Number) row.get("prompt_limit_tokens")).intValue();
+        // The factory row must arrive calibrated, never on the blanket UI
+        // default: 1048576 both trips the startup consistency probe (the
+        // warning family this closes) and inflates the extraction budget past
+        // any in-catalog endpoint (effectiveTokens consumes this value raw).
+        assertTrue(limit != LlmConfigInput.DEFAULT_PROMPT_LIMIT_TOKENS,
+                "seeded default row must not carry the blanket default limit, got " + limit);
+        assertTrue(limit >= CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS
+                        && limit <= LlmConfigInput.PROMPT_LIMIT_MAX,
+                "seeded default limit must sit in the declared catalog floor..max range, got " + limit);
         String family = String.valueOf(row.get("tokenizer_family"));
         assertTrue(LlmConfigInput.TOKENIZER_FAMILIES.contains(family), "family " + family);
         assertFalse("auto".equals(family), "the catalog default must declare an explicit family");
@@ -132,12 +143,34 @@ class LlmConfigGenerationSeedInitializerTest {
     }
 
     @Test
+    void limitFor_prefersValidInstallOverride_floorOtherwise() {
+        // An explicit install key (LLM_PROMPT_LIMIT_TOKENS) wins inside the
+        // contract range so an operator can declare the vendor window verbatim.
+        assertEquals(262144, LlmConfigGenerationSeedInitializer.limitFor("262144"));
+        // Blank / non-numeric / out-of-range / the blanket default all land on
+        // the conservative catalog floor, never on the fake 1M window.
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor(null));
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor("  "));
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor("abc"));
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor("100"));
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor("99999999999"));
+        assertEquals(CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS,
+                LlmConfigGenerationSeedInitializer.limitFor(
+                        String.valueOf(LlmConfigInput.DEFAULT_PROMPT_LIMIT_TOKENS)));
+    }
+
+    @Test
     void blankGatewayBase_skipsSeeding_withoutThrowing() {
         // The seeder must never write an unreachable row: without a gateway
         // base address the answer is a named skip, not a half-configured model.
         LlmConfigGenerationSeedInitializer withoutGateway =
                 new LlmConfigGenerationSeedInitializer(llmConfigService, jdbcTemplate, "openai", "   ",
-                        "sk-test-presence-check", "qwen3.8-flash", null);
+                        "sk-test-presence-check", "qwen3.8-flash", null, null);
         assertEquals(0, withoutGateway.seedIfMissing(),
                 "a blank LLM_BASE_URL must skip the seed instead of inventing a row");
     }

@@ -75,6 +75,26 @@ fi
 step "mq vhost $(printf '%s\n' "$vhost_out" | tr '\n' ' ')"
 
 step "stage=jar-build (core/admin/api from this worktree; first start call triggers mvn package)"
+# Executor station quiesce (R70): the persistent runner polls claim/heartbeat
+# every couple of seconds; a swap that takes core/api down underneath it made
+# api forward-fail and log a recurring ERROR family in the role logs. Quiet
+# before any port is touched, revive only once this boot ends healthy — the
+# pairing lives here, the ownership refusal inside the tool (R47).
+step "stage=executor-quiet"
+QUIETED=0
+if python3 "$REPO_ROOT/tools/ops/executor_station.py" quiet; then
+    QUIETED=1
+else
+    quiet_rc=$?
+    [ "$quiet_rc" = "10" ] || { step "FAIL executor-quiet rc=$quiet_rc"; echo "SLOT-BOOT-EXIT=1" >> "$BOOT_LOG"; exit 1; }
+fi
+station_revive() {
+    [ "$QUIETED" = "1" ] || return 0
+    QUIETED=0
+    python3 "$REPO_ROOT/tools/ops/executor_station.py" revive \
+        || step "FAIL executor-revive (stack ports may be up, station is not — rerun station rebuild)"
+}
+trap 'rc=$?; station_revive; exit $rc' EXIT
 tp_start_unit core "$CORE_P" "$LOG_DIR/core.log" || { step "FAIL jar-build/core"; echo "SLOT-BOOT-EXIT=1" >> "$BOOT_LOG"; exit 1; }
 tp_start_unit admin "$ADMIN_P" "$LOG_DIR/admin.log" || { step "FAIL admin-$ADMIN_P"; echo "SLOT-BOOT-EXIT=1" >> "$BOOT_LOG"; exit 1; }
 tp_start_unit api "$API_P" "$LOG_DIR/api.log" || { step "FAIL api-$API_P"; echo "SLOT-BOOT-EXIT=1" >> "$BOOT_LOG"; exit 1; }
@@ -106,6 +126,10 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
 done
 if [ "$ok" -eq 0 ]; then
     step "stage=done ports $ADMIN_P/$API_P/$CORE_P${EXPECT_PORTS##* } all LISTEN"
+    # Revive the quiesced station only after the stack is fully up, so the
+    # first post-swap poll hits a healthy forward path instead of a race.
+    [ "$QUIETED" = "1" ] && step "stage=executor-revive"
+    station_revive
     echo "SLOT-BOOT-EXIT=0" >> "$BOOT_LOG"
 else
     step "FAIL sockets not up after health-wait:$still"

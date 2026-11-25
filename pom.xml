@@ -115,6 +115,19 @@
                              warning in every test fork. Allowing that attach keeps test
                              output free of warnings; production runtime is untouched. -->
                         <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
+                        <!-- Test-only JVM property (no production semantics): Spring
+                                 Boot's RabbitAutoConfiguration otherwise leaves
+                                 SimpleMessageListenerContainer at its default shutdown
+                                 wait, so a context-heavy suite accumulates serial
+                                 stop-waits at fork exit (51 containers x ~0.6-1s),
+                                 surefire hits its exit timeout and prints a
+                                 "kill self fork" ERROR. Zero wait makes containers
+                                 return immediately; tests assert message flows before
+                                 context close, so no in-flight expectation relies on
+                                 graceful drain. -->
+                        <systemPropertyVariables>
+                            <spring.rabbitmq.listener.simple.shutdown-timeout>0</spring.rabbitmq.listener.simple.shutdown-timeout>
+                        </systemPropertyVariables>
                     </configuration>
                 </plugin>
                 <!-- -parameters：保留方法参数名（Spring SpEL #参数名 / @PathVariable 解析必需，

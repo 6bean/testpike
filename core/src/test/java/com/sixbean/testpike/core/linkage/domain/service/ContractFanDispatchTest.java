@@ -60,8 +60,11 @@ class ContractFanDispatchTest {
     @BeforeEach
     void seedContractFanFixture() {
         String token = Long.toHexString(System.nanoTime());
+        // The project-code column caps at 16 chars; an early-boot nanoTime can
+        // render as fewer than 12 hex digits, so right-pad before truncating
+        // instead of substring(0,16) on a possibly shorter string.
         projectId = LinkageCaseFixture.insertProject(jdbc,
-                "契约扇出谱" + token, ("lnkf" + token).substring(0, 16));
+                "契约扇出谱" + token, ("lnkf" + token + "0000000000000000").substring(0, 16));
         // A static path keeps every fold form identical: the spec endpointKey,
         // the imported request's stored key and the derived stub's match key
         // all pass through the same ContractMatchKeyRules single source, so

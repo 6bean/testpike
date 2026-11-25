@@ -286,17 +286,15 @@ class DocumentServiceTest {
         StringBuilder chapter = new StringBuilder("支付流程章节正文。".repeat(80));
         List<String> lines = List.of("订单中心需求文档", chapter.toString(),
                 "库存与促销补充说明。".repeat(60));
-        try (org.apache.fontbox.ttf.TrueTypeCollection ttc =
-                     new org.apache.fontbox.ttf.TrueTypeCollection(
-                             new java.io.File("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"));
+        // Load the CJK glyph source from the classpath asset that production
+        // already ships (same resource as PdfHtmlRenderer), so the fixture
+        // works on fresh CI runners without any host-installed font package.
+        try (org.apache.fontbox.ttf.TrueTypeFont ttf =
+                     new org.apache.fontbox.ttf.TTFParser().parse(
+                             new org.springframework.core.io.ClassPathResource(
+                                     "fonts/NotoSansSC.ttf").getInputStream());
              PDDocument doc = new PDDocument()) {
-            final org.apache.fontbox.ttf.TrueTypeFont[] holder = new org.apache.fontbox.ttf.TrueTypeFont[1];
-            ttc.processAllFonts(ttf -> {
-                if (holder[0] == null) {
-                    holder[0] = ttf;
-                }
-            });
-            PDType0Font font = PDType0Font.load(doc, holder[0], true);
+            PDType0Font font = PDType0Font.load(doc, ttf, true);
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
             try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {

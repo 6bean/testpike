@@ -37,8 +37,11 @@ public final class ModelAdaptiveBudget {
     public static final double FACTOR_MIN = 0.1;
     public static final double FACTOR_MAX = 0.95;
 
-    /** Base input window assumed when the catalog row is unreadable. */
-    public static final int FALLBACK_CATALOG_TOKENS = 128000;
+    /** Base input window assumed when the catalog row is unreadable
+     *  (value single-sourced in the common module — the core factory seeder
+     *  writes the same floor onto install-default rows). */
+    public static final int FALLBACK_CATALOG_TOKENS =
+            com.sixbean.testpike.common.config.CatalogInputWindow.FALLBACK_INPUT_WINDOW_TOKENS;
 
     private ModelAdaptiveBudget() {
     }
