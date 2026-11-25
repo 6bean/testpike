@@ -69,11 +69,17 @@ class NetProxyResidualIngestorTest {
                 "serial", SERIAL, "proxy", "10.0.2.2:18899",
                 "action", "clear-failed", "detail", "adb 返回非零")));
 
+        // The ingestor fans one alert row out per system admin (same design the
+        // cleared-row test pins above). Fresh-install databases seed two admin
+        // accounts, so a hardcoded count of 1 was an environment-shaped assertion.
+        int admins = adminAlertRecipients.adminUserIds().size();
         List<String> contents = jdbcTemplate.queryForList(
                 "SELECT content FROM tp_notification WHERE event_type = 'NET_PROXY_RESIDUAL'", String.class);
-        assertEquals(1, contents.size());
-        assertTrue(contents.get(0).contains("人工处置"), "清除未确认必须转人话人工处置: " + contents.get(0));
-        assertTrue(contents.get(0).contains("adb 返回非零"), "executor 侧失败留痕必须透传: " + contents.get(0));
+        assertEquals(admins, contents.size(), "clear-failed 必须扇出全体系统管理员");
+        for (String content : contents) {
+            assertTrue(content.contains("人工处置"), "清除未确认必须转人话人工处置: " + content);
+            assertTrue(content.contains("adb 返回非零"), "executor 侧失败留痕必须透传: " + content);
+        }
     }
 
     @Test
