@@ -339,6 +339,68 @@ export function importStubsFromSpec(
   })
 }
 
+/** One named rule row of the contract-upgrade plan (admin MockSpecUpgradeRowView mirror). */
+export interface MockSpecUpgradeRowItem {
+  stubId: number
+  name: string
+  method: string
+  pathPattern: string
+}
+
+/**
+ * Advice-joined draft row (admin MockStubDraftAdviceView mirror): every
+ * deterministic draft field plus its pre-adjudication from core's single
+ * advice source. Advice fields are optional — a row served without space
+ * context honestly carries none, and the wizard shows no advice for it.
+ */
+export interface MockStubDraftAdviceItem extends MockStubDraftItem {
+  verdict?: string | null
+  reason?: string | null
+  conflictAction?: string | null
+  conflictStubId?: number | null
+  impactJson?: string | null
+  realism?: number | null
+  confidence?: number | null
+  origin?: string | null
+  adviceState?: string | null
+  defaultChecked?: boolean | null
+}
+
+/** One-frame contract-upgrade plan (admin MockSpecUpgradePlanView mirror). */
+export interface MockSpecUpgradePlan {
+  added: MockStubDraftAdviceItem[]
+  changed: MockSpecUpgradeRowItem[]
+  removed: MockSpecUpgradeRowItem[]
+  hasPrevious: boolean
+}
+
+/**
+ * Read the upgrade plan between the contract's previous and current version
+ * against the space's rules (wizard difference step). Read-only — persists
+ * nothing; the mark-removed door below is the only write.
+ */
+export function fetchSpecUpgradePlan(
+  spaceId: number,
+  specId: number,
+): Promise<MockSpecUpgradePlan> {
+  return request<MockSpecUpgradePlan>({
+    url: `/mock/spaces/${spaceId}/specs/${specId}/upgrade-plan`,
+    method: 'get',
+  })
+}
+
+/**
+ * Apply the removed-row advice: disable + stale-flag exactly the rules the
+ * plan named (never deletes, never touches the hit ledger). Replaying the
+ * call changes nothing, so the receipt honestly says "nothing changed".
+ */
+export function markRemovedUpgradePlan(spaceId: number, specId: number): Promise<number> {
+  return request<number>({
+    url: `/mock/spaces/${spaceId}/specs/${specId}/upgrade-plan/mark-removed`,
+    method: 'post',
+  })
+}
+
 /**
  * Cassette box /3b admin bridge MockRecordingView mirror —
  * field-for-field). status spectrum: recording | stopped | promoted | failed.

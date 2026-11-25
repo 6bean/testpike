@@ -133,6 +133,10 @@ jobs:
           # Factory demo admin seed password published in .env.example (throwaway CI
           # credential); the seed-admin guard test rebuilds the factory row and needs it.
           ADMIN_INIT_PASSWORD: "Admin#123"
+          # Factory demo storage signing key already published in .env.example
+          # (throwaway CI credential); without it the local-disk probe and the
+          # visual-baseline round-trip refuse with the missing-secret error.
+          STORAGE_URL_SIGN_SECRET: "dev-hmac-change-me"
         run: |
           set +e
           mvn -B -pl common,${{ matrix.module }} -am \

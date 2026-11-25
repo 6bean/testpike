@@ -3,10 +3,13 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
+  fetchSpecUpgradePlan,
   importStubsFromSpec,
   listSpaces,
+  markRemovedUpgradePlan,
   previewStubDrafts,
   type MockSpaceItem,
+  type MockSpecUpgradePlan,
   type MockStubDraftItem,
   type MockStubImportResult,
 } from '@/api/mock'
@@ -27,12 +30,15 @@ import { mockSpaceLabel } from '@/utils/mockSpaceLabel'
  * destination space arrives via presetSpaceId and the space picker collapses
  * to a read-only echo — the user picks the contract, the space is where they
  * already are.
- * Three steps over the two admin doors: pick contract -> GET stub-drafts
- * preview (a proposal, persists nothing) with per-endpoint checkbox
- * selection -> POST import-from-spec (each draft goes through the normal
- * stub save chain; same method+path already covered comes back skipped, so
- * re-import is idempotent and step 3 reports both counts). The wizard never
- * rewrites a proposal.
+ * Steps over the admin doors: pick contract -> GET stub-drafts preview (a
+ * proposal, persists nothing) read together with GET upgrade-plan; when the
+ * space already has rules from a previous contract version a difference
+ * step is inserted (three named sections + the disable/stale-flag door),
+ * otherwise the wizard jumps straight to per-endpoint checkbox selection ->
+ * POST import-from-spec (each draft goes through the normal stub save
+ * chain; same method+path already covered comes back skipped, so re-import
+ * is idempotent and the receipt step reports both counts). The wizard never
+ * rewrites a proposal and never overwrites a rule body.
  */
 
 const props = withDefaults(defineProps<{
@@ -187,17 +193,66 @@ const allChecked = computed(
   () => filteredDrafts.value.length > 0 && filteredDrafts.value.every((d) => selected.value.has(d.endpointKey)),
 )
 
+// ---------- difference step (contract upgrade): plan beside the preview ----------
+const plan = ref<MockSpecUpgradePlan | null>(null)
+const marking = ref(false)
+const markReceipt = ref('')
+const markError = ref('')
+
+const addedRows = computed(() => plan.value?.added ?? [])
+const changedRows = computed(() => plan.value?.changed ?? [])
+const removedRows = computed(() => plan.value?.removed ?? [])
+
+/**
+ * The difference step earns its place only when there IS a previous
+ * contract version AND the plan names at least one row — a first-version
+ * contract, or a re-import whose diff is empty, jumps straight to the
+ * selection step so the rail never shows a hollow step.
+ */
+const diffShown = computed(() =>
+  plan.value !== null &&
+  plan.value.hasPrevious &&
+  addedRows.value.length + changedRows.value.length + removedRows.value.length > 0,
+)
+
+function applyDraftSelection(): void {
+  // Default = everything checked: the contract is the trusted source here;
+  // the checkbox gate still means nothing writes without a human click.
+  selected.value = new Set(drafts.value.map((d) => d.endpointKey))
+}
+
+async function onMarkRemoved(): Promise<void> {
+  if (pickedSpaceId.value === null || pickedSpecId.value === null) return
+  marking.value = true
+  markError.value = ''
+  try {
+    const n = await markRemovedUpgradePlan(pickedSpaceId.value, pickedSpecId.value)
+    markReceipt.value = n > 0
+      ? t('apitest.stubImport.markReceiptDone', { n })
+      : t('apitest.stubImport.markReceiptNone')
+  } catch (e) {
+    markError.value = bizErrorMsg(e, t('apitest.stubImport.markRemovedFail'))
+  } finally {
+    marking.value = false
+  }
+}
+
 async function onPreview(): Promise<void> {
   if (pickedSpecId.value === null || pickedSpaceId.value === null) return
   previewing.value = true
   step1Error.value = ''
   try {
-    drafts.value = await previewStubDrafts(pickedSpecId.value)
-    // Default = everything checked: the contract is the trusted source here;
-    // the checkbox gate still means nothing writes without a human click.
-    selected.value = new Set(drafts.value.map((d) => d.endpointKey))
+    const [d, p] = await Promise.all([
+      previewStubDrafts(pickedSpecId.value),
+      fetchSpecUpgradePlan(pickedSpaceId.value, pickedSpecId.value),
+    ])
+    drafts.value = d
+    plan.value = p
+    applyDraftSelection()
+    markReceipt.value = ''
+    markError.value = ''
     step2Error.value = ''
-    step.value = 1
+    step.value = diffShown.value ? 1 : 2
   } catch (e) {
     step1Error.value = bizErrorMsg(e, t('apitest.stubImport.previewFail'))
   } finally {
@@ -241,7 +296,7 @@ async function onImport(): Promise<void> {
   try {
     importedTotal.value = chosen.length
     result.value = await importStubsFromSpec(pickedSpaceId.value, pickedSpecId.value, chosen)
-    step.value = 2
+    step.value = 3
   } catch (e) {
     step2Error.value = bizErrorMsg(e, t('apitest.stubImport.importFail'))
   } finally {
@@ -305,6 +360,9 @@ watch(
     selected.value = new Set()
     result.value = null
     importedTotal.value = 0
+    plan.value = null
+    markReceipt.value = ''
+    markError.value = ''
     keyword.value = ''
     pickedSpecId.value = null
     sourceMode.value = 'existing'
@@ -330,8 +388,9 @@ watch(
     <!-- The receipt step is shown only after the import finished, so the rail
          closes at active=3: every step takes its done state instead of the
          last circle staying hollow while the text reports completion. -->
-    <el-steps :active="step === 2 ? 3 : step" finish-status="success" simple>
+    <el-steps :active="step === 3 ? (diffShown ? 4 : 3) : step" finish-status="success" simple>
       <el-step :title="t('apitest.stubImport.step1')" />
+      <el-step v-if="diffShown" :title="t('apitest.stubImport.diffStep')" />
       <el-step :title="t('apitest.stubImport.step2')" />
       <el-step :title="t('apitest.stubImport.step3')" />
     </el-steps>
@@ -465,8 +524,81 @@ watch(
       </div>
     </div>
 
-    <!-- step 2: preview + checkbox selection (nothing written yet) -->
-    <div v-else-if="step === 1" class="sd-body">
+    <!-- difference step (contract upgrade, read-only plan): three named
+         sections — added rows are import-ready proposals, changed rows
+         point at the endpoint list for manual edits (rule bodies are never
+         overwritten here), removed rows offer the disable + stale-flag
+         door. Nothing writes until a human clicks. -->
+    <div v-else-if="step === 1" class="sd-body" data-test="stub-direct-diff-step">
+      <p class="sd-hint">
+        {{ t('apitest.stubImport.diffIntro', { a: addedRows.length, c: changedRows.length, r: removedRows.length }) }}
+      </p>
+      <template v-if="addedRows.length > 0">
+        <h4 class="sd-block-title">{{ t('apitest.stubImport.diffAdded') }}</h4>
+        <div data-test="stub-direct-diff-added">
+          <div v-for="a in addedRows" :key="a.endpointKey" class="sd-card">
+            <div class="sd-card-head">
+              <span class="sd-method">{{ a.method }}</span>
+              <span class="sd-path">{{ a.pathPattern }}</span>
+              <span class="sd-name">{{ a.name }}</span>
+              <el-tag size="small" type="success">{{ t('apitest.stubImport.advCreate') }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template v-if="changedRows.length > 0">
+        <h4 class="sd-block-title">{{ t('apitest.stubImport.diffChanged') }}</h4>
+        <div data-test="stub-direct-diff-changed">
+          <div v-for="c in changedRows" :key="c.stubId" class="sd-card">
+            <div class="sd-card-head">
+              <span class="sd-method">{{ c.method }}</span>
+              <span class="sd-path">{{ c.pathPattern }}</span>
+              <span class="sd-name">{{ c.name }}</span>
+              <el-tag size="small" type="warning">{{ t('apitest.stubImport.advUpdateBody') }}</el-tag>
+            </div>
+          </div>
+          <p class="sd-hint">{{ t('apitest.stubImport.changedHint') }}</p>
+        </div>
+      </template>
+      <template v-if="removedRows.length > 0">
+        <h4 class="sd-block-title">{{ t('apitest.stubImport.diffRemoved') }}</h4>
+        <div data-test="stub-direct-diff-removed">
+          <div v-for="r in removedRows" :key="r.stubId" class="sd-card">
+            <div class="sd-card-head">
+              <span class="sd-method">{{ r.method }}</span>
+              <span class="sd-path">{{ r.pathPattern }}</span>
+              <span class="sd-name">{{ r.name }}</span>
+              <el-tag size="small" type="danger">{{ t('mockEndpoints.staleTag') }}</el-tag>
+              <el-tag size="small" type="info">{{ t('apitest.stubImport.advDisable') }}</el-tag>
+            </div>
+          </div>
+        </div>
+        <div class="sd-actions">
+          <el-button
+            :loading="marking"
+            data-test="stub-direct-mark-removed"
+            @click="onMarkRemoved"
+          >
+            {{ t('apitest.stubImport.markRemovedBtn') }}
+          </el-button>
+        </div>
+        <p v-if="markReceipt" class="sd-echo" data-test="stub-direct-mark-removed-receipt">{{ markReceipt }}</p>
+        <p v-if="markError" class="sd-error" data-test="stub-direct-mark-removed-error">{{ markError }}</p>
+      </template>
+      <div class="sd-actions">
+        <el-button data-test="stub-direct-diff-back" @click="step = 0">{{ t('apitest.specImport.back') }}</el-button>
+        <el-button
+          type="primary"
+          data-test="stub-direct-diff-continue"
+          @click="applyDraftSelection(); step = 2"
+        >
+          {{ t('apitest.stubImport.diffContinue') }}
+        </el-button>
+      </div>
+    </div>
+
+    <!-- selection step: preview + checkbox selection (nothing written yet) -->
+    <div v-else-if="step === 2" class="sd-body">
       <p class="sd-hint" data-test="stub-direct-detected">
         {{ t('apitest.stubImport.detected', { n: drafts.length }) }}
       </p>
@@ -512,7 +644,7 @@ watch(
       </div>
       <p v-if="step2Error" class="sd-error" data-test="stub-direct-step2-error">{{ step2Error }}</p>
       <div class="sd-actions">
-        <el-button data-test="stub-direct-back-btn" @click="step = 0">{{ t('apitest.specImport.back') }}</el-button>
+        <el-button data-test="stub-direct-back-btn" @click="step = diffShown ? 1 : 0">{{ t('apitest.specImport.back') }}</el-button>
         <el-tooltip :content="step2DisabledReason()" :disabled="!step2DisabledReason()">
           <el-button
             type="primary"
@@ -527,7 +659,7 @@ watch(
       </div>
     </div>
 
-    <!-- step 3: outcome in plain words -->
+    <!-- receipt step: outcome in plain words -->
     <div v-else class="sd-body sd-done">
       <p data-test="stub-direct-done-created">
         {{ t('apitest.stubImport.doneCreated', { n: result?.createdStubIds?.length ?? 0 }) }}
