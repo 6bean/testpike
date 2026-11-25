@@ -38,7 +38,7 @@ public class MockStubServiceImpl implements MockStubService {
             id, space_id, name, priority, method, path_match_type, path_pattern,
             matchers_json::text AS matchers_json, response_json::text AS response_json,
             scenario_name, required_state, new_state, source, source_ref, enabled,
-            version, created_at, updated_at, enriched_by
+            version, created_at, updated_at, enriched_by, contract_stale
             """;
 
     private static final BeanPropertyRowMapper<MockStubDO> MAPPER =
@@ -359,7 +359,8 @@ public class MockStubServiceImpl implements MockStubService {
                 row.getMethod(), row.getPathMatchType(), row.getPathPattern(), row.getMatchersJson(),
                 row.getResponseJson(), row.getScenarioName(), row.getRequiredState(), row.getNewState(),
                 row.getSource(), row.getSourceRef(), row.getEnabled(), row.getVersion(),
-                row.getCreatedAt(), row.getUpdatedAt(), row.getEnrichedBy());
+                row.getCreatedAt(), row.getUpdatedAt(), row.getEnrichedBy(),
+                row.getContractStale());
     }
 
     private String blankToNull(String value) {

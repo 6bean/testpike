@@ -142,6 +142,11 @@
                   <el-tag v-if="row.enabled === false" size="small" type="warning" class="state-gap">
                     {{ t('mockEndpoints.disabledTag') }}
                   </el-tag>
+                  <el-tooltip v-if="row.contractStale" :content="t('mockEndpoints.staleTip')" placement="top">
+                    <el-tag size="small" type="danger" class="state-gap" data-test="mock-endpoints-stale-tag">
+                      {{ t('mockEndpoints.staleTag') }}
+                    </el-tag>
+                  </el-tooltip>
                 </template>
                 <template v-else-if="col.key === 'hits7d'">
                   <span v-if="row.spaceStatus === 1 && row.enabled !== false" data-test="mock-endpoints-hits">

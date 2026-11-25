@@ -24,6 +24,7 @@ public class MockStubDO {
     private String source;
     private String sourceRef;
     private String enrichedBy;
+    private Boolean contractStale;
     private Boolean enabled;
     private Integer version;
     private LocalDateTime createdAt;
@@ -147,6 +148,14 @@ public class MockStubDO {
 
     public void setEnrichedBy(String enrichedBy) {
         this.enrichedBy = enrichedBy;
+    }
+
+    public Boolean getContractStale() {
+        return contractStale;
+    }
+
+    public void setContractStale(Boolean contractStale) {
+        this.contractStale = contractStale;
     }
 
     public Boolean getEnabled() {

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -239,5 +240,22 @@ class MockSpecUpgradeServiceTest {
         upgradeService.markRemovedStale(spaceId, v2);
         assertEquals(hitsBefore,
                 jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tp_mock_hit_log", Long.class));
+    }
+
+    @Test
+    void serviceReadPathCarriesTheContractRemovalFlag() {
+        long projectId = newProject();
+        String name = "读取契约-" + UUID.randomUUID().toString().substring(0, 8);
+        long v1 = uploadSpec(projectId, name, V1_JSON);
+        long spaceId = newSpace(projectId);
+        spaceIdForImportedContract(projectId, v1, spaceId);
+        long v2 = uploadSpec(projectId, name, V2_JSON);
+        long legacyId = stubIdOf(spaceId, "GET", "/legacy");
+
+        upgradeService.markRemovedStale(spaceId, v2);
+
+        var row = stubService.get(legacyId);
+        assertEquals(Boolean.TRUE, row.contractStale());
+        assertEquals(Boolean.FALSE, row.enabled());
     }
 }

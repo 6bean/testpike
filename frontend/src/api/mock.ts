@@ -114,6 +114,8 @@ export interface MockStubItem {
   source: string | null
   sourceRef: string | null
   enrichedBy?: string | null
+  /** persisted flag: the imported endpoint left the contract */
+  contractStale?: boolean | null
   enabled: boolean | null
   /** Optimistic lock echo (V240) — the edit door must send it back. */
   version?: number | null
@@ -485,6 +487,8 @@ export interface MockServingEndpointItem {
   source: string | null
   sourceRef: string | null
   enrichedBy?: string | null
+  /** persisted flag: the imported endpoint left the contract */
+  contractStale?: boolean | null
   enabled: boolean | null
   version: number | null
   updatedAt: string | null

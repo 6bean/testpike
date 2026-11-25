@@ -26,6 +26,10 @@ import java.time.LocalDateTime;
  * @param updatedAt     last mutation time
  * @param enrichedBy    AI enrichment job anchor (job:{id}); null = the rule was
  *                      never improved by an enrichment run (contract-direct badge)
+ * @param contractStale true when the endpoint this rule was imported for
+ *                      disappeared from the contract; the row keeps its
+ *                      identity and traffic history, serving is switched
+ *                      off and the list view shows one honest badge
  */
 public record MockStubInfo(
         Long id,
@@ -46,7 +50,8 @@ public record MockStubInfo(
         Integer version,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String enrichedBy) {
+        String enrichedBy,
+        Boolean contractStale) {
 
     /**
      * 17-arg compatibility constructor (V240): callers written before the
@@ -78,5 +83,21 @@ public record MockStubInfo(
         this(id, spaceId, name, priority, method, pathMatchType, pathPattern,
                 matchersJson, responseJson, scenarioName, requiredState, newState,
                 source, sourceRef, enabled, version, createdAt, updatedAt, null);
+    }
+
+    /**
+     * 19-arg compatibility constructor (V670): callers written before the
+     * contract-removal flag exist read the row as never removed (null).
+     */
+    public MockStubInfo(Long id, Long spaceId, String name, Integer priority,
+                        String method, String pathMatchType, String pathPattern,
+                        String matchersJson, String responseJson,
+                        String scenarioName, String requiredState, String newState,
+                        String source, String sourceRef, Boolean enabled,
+                        Integer version, LocalDateTime createdAt, LocalDateTime updatedAt,
+                        String enrichedBy) {
+        this(id, spaceId, name, priority, method, pathMatchType, pathPattern,
+                matchersJson, responseJson, scenarioName, requiredState, newState,
+                source, sourceRef, enabled, version, createdAt, updatedAt, enrichedBy, null);
     }
 }

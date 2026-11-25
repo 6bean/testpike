@@ -76,6 +76,8 @@ public class ChatFrameServiceImpl implements ChatFrameService {
     /** Feedback states the per-turn thumbs door accepts (1 👍 / -1 👎 / 0 cleared). */
     private static final Set<Integer> FEEDBACK_STATES = Set.of(-1, 0, 1);
     private static final int FEEDBACK_REASON_MAX_LENGTH = 512;
+    /** Skip sentinel of the frame write door: 0 means the frame did not land. */
+    private static final long SKIP_SENTINEL = 0L;
 
     private static final Logger log = LoggerFactory.getLogger(ChatFrameServiceImpl.class);
 
@@ -287,9 +289,26 @@ public class ChatFrameServiceImpl implements ChatFrameService {
             throw new ServiceException(type.wireName()
                     + " 帧只是传输层保活注释，不进入帧账本，也不占用会话序号；请把需要留存的文字按正确写法改用 text 帧写入", BizErrorCode.VALIDATION_ERROR);
         }
+        // Purge-race posture: the project purge is the only delete channel for
+        // the message ledger, so a streaming turn can outlive its message row.
+        // The live service log showed 72 first-frame FK violations from exactly
+        // this race. A vanished message retires honestly at this door instead
+        // of raising one data-integrity error per remaining frame. The session
+        // read gate is re-entered first so an unknown session still raises its
+        // named refusal (single source) — the quiet skip only covers a live
+        // session whose message row is gone. Checking before allocateSeq keeps
+        // the skip from burning a seq, so surviving numbering stays gapless.
+        if (!messageRowExists(messageId)) {
+            sessionService.findById(sessionId);
+            return SKIP_SENTINEL;
+        }
         long seq = allocateSeq(sessionId);
-        named.update("INSERT INTO tp_ai_chat_frame (session_id, message_id, seq, event_type, payload, meta_json) "
-                        + "VALUES (:sessionId, :messageId, :seq, :type, :payload, CAST(:meta AS jsonb))",
+        // Conditional insert closes the window between the door check above and
+        // this write: under a committed purge the statement lands nothing
+        // instead of tripping tp_ai_chat_frame_message_id_fkey.
+        int landedFrames = named.update("INSERT INTO tp_ai_chat_frame (session_id, message_id, seq, event_type, payload, meta_json) "
+                        + "SELECT :sessionId, :messageId, :seq, :type, :payload, CAST(:meta AS jsonb) "
+                        + "WHERE EXISTS (SELECT 1 FROM tp_ai_chat_message WHERE id = :messageId)",
                 new MapSqlParameterSource()
                         .addValue("sessionId", sessionId)
                         .addValue("messageId", messageId)
@@ -297,6 +316,13 @@ public class ChatFrameServiceImpl implements ChatFrameService {
                         .addValue("type", type.wireName())
                         .addValue("payload", payload)
                         .addValue("meta", metaJson == null || metaJson.isBlank() ? "{}" : metaJson));
+        if (landedFrames == 0) {
+            // Rare race: the message vanished after the door check. The frame
+            // did not land, so nothing downstream (window seal, draft card,
+            // token accumulation) may run; the allocated seq stays burned —
+            // session numbering never promises contiguity.
+            return SKIP_SENTINEL;
+        }
         named.update("UPDATE tp_ai_chat_message SET seq_from = :seq WHERE id = :messageId AND seq_from IS NULL",
                 new MapSqlParameterSource().addValue("seq", seq).addValue("messageId", messageId));
         if (type == ChatFrameType.DRAFT) {
@@ -1005,6 +1031,13 @@ public class ChatFrameServiceImpl implements ChatFrameService {
                 new MapSqlParameterSource("sessionId", sessionId),
                 new BeanPropertyRowMapper<>(ChatMessageRow.class));
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** Row-existence read for the frame door: true while the message lives. */
+    private boolean messageRowExists(long messageId) {
+        Integer rows = named.queryForObject("SELECT count(*) FROM tp_ai_chat_message WHERE id = :id",
+                new MapSqlParameterSource("id", messageId), Integer.class);
+        return rows != null && rows > 0;
     }
 
     private ChatMessageRow requireMessage(long messageId) {

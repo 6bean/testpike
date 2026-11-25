@@ -47,7 +47,10 @@ public record MockStubView(
         Integer version,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String enrichedBy) {
+        String enrichedBy,
+        /** true when the imported endpoint left the contract (screen word:
+         *  a single removal badge on the rule row; history is kept). */
+        Boolean contractStale) {
 
     /**
      * 18-arg compatibility constructor for pre-enrichment bridge fixtures and
@@ -60,6 +63,21 @@ public record MockStubView(
                         Integer version, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, spaceId, name, priority, method, pathMatchType, pathPattern, matchersJson,
                 responseJson, scenarioName, requiredState, newState, source, sourceRef, enabled,
-                version, createdAt, updatedAt, null);
+                version, createdAt, updatedAt, null, null);
+    }
+
+    /**
+     * 19-arg compatibility constructor: bridge fixtures and producers written
+     * before the contract-removal flag read the row as never removed (null).
+     */
+    public MockStubView(Long id, Long spaceId, String name, Integer priority, String method,
+                        String pathMatchType, String pathPattern, String matchersJson,
+                        String responseJson, String scenarioName, String requiredState,
+                        String newState, String source, String sourceRef, Boolean enabled,
+                        Integer version, LocalDateTime createdAt, LocalDateTime updatedAt,
+                        String enrichedBy) {
+        this(id, spaceId, name, priority, method, pathMatchType, pathPattern, matchersJson,
+                responseJson, scenarioName, requiredState, newState, source, sourceRef, enabled,
+                version, createdAt, updatedAt, enrichedBy, null);
     }
 }

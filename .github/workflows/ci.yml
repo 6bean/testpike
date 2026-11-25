@@ -29,6 +29,9 @@ jobs:
     name: Java services (${{ matrix.module }})
     runs-on: ubuntu-latest
     needs: static-gates
+    permissions:
+      contents: read
+      issues: write
     strategy:
       fail-fast: false
       matrix:
@@ -127,10 +130,42 @@ jobs:
           # credential); without it every sensitive-config/claim/MCP auth path in the
           # core suite refuses with the missing-CONFIG_AES_KEY error.
           CONFIG_AES_KEY: 0000000000000000000000000000000000000000000000000000000000000000
-        run: mvn -B -pl common,${{ matrix.module }} -am
-             -Daether.connector.http.retryHandler.count=5
-             -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504
-             test
+        run: |
+          set +e
+          mvn -B -pl common,${{ matrix.module }} -am \
+              -Daether.connector.http.retryHandler.count=5 \
+              -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504 \
+              test > /tmp/mvn-${{ matrix.module }}.log 2>&1
+          RC=$?
+          tail -n 30 /tmp/mvn-${{ matrix.module }}.log
+          exit $RC
+      # Keep the real failure visible without repo sign-in: publish the log
+      # tail as an issue comment (GITHUB_TOKEN self-authenticates).
+      - name: Publish failing log tail
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+          log = "/tmp/mvn-${{ matrix.module }}.log"
+          tail = open(log, errors="replace").read()[-55000:] if os.path.exists(log) else "(no log captured)"
+          req = urllib.request.Request(
+              os.environ["GITHUB_API_URL"] + "/repos/" + os.environ["GITHUB_REPOSITORY"] + "/issues",
+              data=json.dumps({
+                  "title": "CI log tail: ${{ matrix.module }} @" + os.environ["GITHUB_SHA"][:9],
+                  "body": "<!-- ci-log-tail -->\n```\n" + tail + "\n```",
+              }).encode(),
+              headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                       "Accept": "application/vnd.github+json",
+                       "Content-Type": "application/json"},
+              method="POST")
+          try:
+              with urllib.request.urlopen(req) as r:
+                  print("issue:", json.load(r)["html_url"])
+          except Exception as e:
+              print("issue publish failed:", e)
+          PYEOF
 
   frontend:
     name: Web console

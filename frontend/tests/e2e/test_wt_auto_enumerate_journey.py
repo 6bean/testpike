@@ -73,16 +73,30 @@ def _login_pair() -> dict:
     return r.json()["data"]
 
 
-_TOKEN_FRESH_SINCE = {"t": 0.0}
-# Refresh well inside the 1800s factory TTL (hot-updatable server-side; the
-# fixture stays conservative and never relies on the ceiling).
-_RENEW_AFTER_S = 600.0
+# Monotonic deadline of the access token currently sitting in localStorage.
+# The r23 window (2026-11-25) proved the age-based floor was wrong twice
+# over: _keep_session_live swapped via _login_pair() without ever advancing
+# the freshness anchor, so every 180s segment re-logged-in (10 logins per
+# journey) and each swap raced the page's own silent renewal -- the reconnect
+# churn swallowed the open-case click at the TTL boundary. The deadline is
+# now recorded from the server's own expiresIn, never assumed.
+_TOKEN_EXP_AT = {"t": 0.0}
+
+
+def _renew_before_exp_s() -> float:
+    """Margin inside the real TTL at which the fixture re-swaps the pair."""
+    return max(60.0, float(os.environ.get("TP_E2E_RENEW_BEFORE_EXP_S", "600")))
+
+
+def _note_token(data: dict) -> None:
+    ttl = float(data.get("expiresIn") or 1800)
+    _TOKEN_EXP_AT["t"] = time.monotonic() + ttl
 
 
 def _login() -> str:
-    token = _login_pair()["accessToken"]
-    _TOKEN_FRESH_SINCE["t"] = time.monotonic()
-    return token
+    data = _login_pair()
+    _note_token(data)
+    return data["accessToken"]
 
 
 def _mk_project(api, uniq, tag):
@@ -161,16 +175,17 @@ def _recover_session(page, page_url: str) -> None:
 
 
 def _keep_session_live(page, target_url: str) -> None:
-    """Proactively swap a fresh access+refresh pair into localStorage mid-wait.
+    """Proactively swap a fresh access(+refresh) pair into localStorage mid-wait.
 
     The app attaches the token per request from localStorage, so a silent
     swap (no reload, no state loss) keeps background pollers green across the
-    whole long wait. Also injects tp_refresh_token so the product's own
-    single-flight renewal works as a second layer. A no-op while the token
-    is younger than _RENEW_AFTER_S; if the page was already bounced to
-    #/login, _recover_session owns the restore path.
+    whole long wait. The swap only happens when the recorded token lands
+    inside _renew_before_exp_s() of its own server-issued expiresIn, so the
+    fixture never re-logs-in every segment and never races the product's own
+    single-flight renewal. If the page was already bounced to #/login,
+    _recover_session owns the restore path.
     """
-    if time.monotonic() - _TOKEN_FRESH_SINCE["t"] < _RENEW_AFTER_S:
+    if _TOKEN_EXP_AT["t"] - time.monotonic() > _renew_before_exp_s():
         return
     if "/#/login" in page.url:
         _recover_session(page, target_url)
@@ -184,6 +199,11 @@ def _keep_session_live(page, target_url: str) -> None:
         page.evaluate(
             f"() => localStorage.setItem('tp_refresh_token', '{data['refreshToken']}')"
         )
+    # The live probe (2026-11-25) confirmed the login answer carries
+    # expiresIn=1800 plus a refresh token, so the deadline above comes from
+    # the server, and the product's single-flight renewal stays usable as a
+    # second layer between fixture swaps.
+    _note_token(data)
 
 
 def _tolerant_wait(panel, page, expect_text, budget_ms, page_url: str = ""):
@@ -278,6 +298,11 @@ def test_wt_batch_auto_enumerate_journey(logged_in, api_client, collectors, uniq
     expect(open_btns.first).to_be_visible(timeout=10_000)
     n_open = open_btns.count()
     assert n_open >= 2, f"成功≥2 但查看用例钮仅 {n_open} 枚（成功态渲染缺口）"
+    # Fresh token right before the click: the r23 failure was the open-case
+    # click landing mid renewal-churn at the TTL boundary (no navigation,
+    # URL stayed ai/generate?batchId=871). One deadline-aware no-op-or-swap
+    # here, then the click sees a settled page.
+    _keep_session_live(page, f"{BASE_URL}/#/ai/generate?projectId={pid}")
     open_btns.first.click()
     expect(page.locator('[data-test="case-detail-root"]')).to_be_visible(timeout=10_000)
     assert_detail_opened(page)

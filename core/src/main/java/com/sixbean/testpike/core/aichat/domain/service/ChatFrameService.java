@@ -44,6 +44,10 @@ public interface ChatFrameService {
     /**
      * Persist one frame and return its allocated session seq (the SSE {@code id:}).
      * Refuses non-ledger types (heartbeat) with a named reason.
+     * Skip sentinel: when the message row is already gone (a concurrent purge
+     * retired the conversation mid-turn) no frame lands and {@code 0} is
+     * returned — callers treat 0 as "this turn's ledger no longer exists, end
+     * the stream quietly" instead of catching a data-integrity error per frame.
      */
     long appendFrame(long sessionId, long messageId, ChatFrameType type, String payload, String metaJson);
 
