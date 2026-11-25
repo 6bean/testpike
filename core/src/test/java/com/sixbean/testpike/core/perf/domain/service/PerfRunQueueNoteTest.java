@@ -39,7 +39,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @SpringBootTest(classes = CoreApplication.class)
 @org.springframework.test.context.TestPropertySource(properties = "testpike.scheduling.enabled=false")
-class PerfRunQueueNoteTest {
+class PerfRunQueueNoteTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-perf-queue-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     @Autowired
     private PerfScenarioService perfScenarioService;
@@ -60,6 +63,11 @@ class PerfRunQueueNoteTest {
 
     @BeforeEach
     void seedFixtures() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+
         cleanupRows();
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
@@ -80,7 +88,12 @@ class PerfRunQueueNoteTest {
         cleanupRows();
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     private void cleanupRows() {
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "

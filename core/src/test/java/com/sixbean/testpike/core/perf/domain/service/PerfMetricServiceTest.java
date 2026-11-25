@@ -23,7 +23,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(classes = CoreApplication.class)
 @org.springframework.test.context.TestPropertySource(properties = "testpike.scheduling.enabled=false")
-class PerfMetricServiceTest {
+class PerfMetricServiceTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-perf-metric-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     @Autowired
     private PerfMetricService perfMetricService;
@@ -47,6 +50,11 @@ class PerfMetricServiceTest {
 
     @BeforeEach
     void seedFixtures() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+
         cleanupRows();
         long uniq = System.nanoTime() % 1_000_000_000L;
         String projectCode = "PERFMET" + uniq;
@@ -71,7 +79,12 @@ class PerfMetricServiceTest {
     @AfterEach
     void cleanup() {
         cleanupRows();
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     private void cleanupRows() {
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "

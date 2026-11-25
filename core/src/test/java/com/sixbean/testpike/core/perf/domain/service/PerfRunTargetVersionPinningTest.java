@@ -8,6 +8,7 @@ import com.sixbean.testpike.core.support.FixtureInserts;
 import com.sixbean.testpike.core.config.api.dto.ConfigInput;
 import com.sixbean.testpike.core.config.domain.service.ConfigService;
 import com.sixbean.testpike.core.perf.api.dto.PerfScenarioInput;
+import com.sixbean.testpike.core.support.FleetSeatFixture;
 import com.sixbean.testpike.core.support.FleetViewQuiescer;
 import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 import org.junit.jupiter.api.AfterEach;
@@ -69,7 +70,7 @@ class PerfRunTargetVersionPinningTest {
      *  suite only — teardown never reaches factory or live-service rows (R37). */
     private static final String EXEC_PREFIX = "tpf-perf-ver-";
 
-    private List<Long> agedExecutors;
+    private FleetSeatFixture fleetSeat;
 
     @BeforeEach
     void seedFixtures() {
@@ -91,17 +92,15 @@ class PerfRunTargetVersionPinningTest {
         // engine-capable executor and quiesce the rest for the window — the
         // routing verdict becomes deterministic on CI and on dev alike, and the
         // persistent runner can no longer mask or hijack these launches.
-        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
-        agedExecutors = FleetViewQuiescer.quiesceOthers(jdbcTemplate, EXEC_PREFIX + "%");
+        fleetSeat = FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
     }
 
     @AfterEach
     void cleanup() {
-        if (agedExecutors != null) {
-            FleetViewQuiescer.restore(jdbcTemplate, agedExecutors);
-            agedExecutors = null;
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
         }
-        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, EXEC_PREFIX);
         cleanupRows();
         restoreSeed("perf.production-enabled", "false");
         restoreSeed("perf.blocked-target-segments", "");

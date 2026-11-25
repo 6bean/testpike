@@ -11,7 +11,10 @@ import com.sixbean.testpike.core.explore.api.dto.ExploreCreateInput;
 import com.sixbean.testpike.core.session.api.dto.LoginStateInput;
 import com.sixbean.testpike.core.session.api.dto.SessionStateClaimBinding;
 import com.sixbean.testpike.core.session.domain.service.LoginStateService;
+import com.sixbean.testpike.core.support.FleetViewQuiescer;
 import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,6 +53,28 @@ class ExploreLoginStateChannelTest {
     @Autowired private ExecutorService executorService;
     @Autowired private LoginStateService loginStateService;
     @Autowired private JdbcTemplate jdbc;
+
+    private List<Long> fleetQuiesced;
+
+    /**
+     * Fresh-install determinism: a live runner polling the same database
+     * would steal this suite's pending explore task before the claim helper
+     * runs, flipping the "a pending explore task must be claimable" assertion.
+     * The quiesce window keeps only this suite's own executors (prefix
+     * ex-wecl-) in the online view per test; it consumes the existing
+     * FleetViewQuiescer helper (single source, R40) and restores it right
+     * after each test.
+     */
+    @BeforeEach
+    void holdFleetView() {
+        fleetQuiesced = FleetViewQuiescer.quiesceOthers(jdbc, "ex-wecl-%");
+    }
+
+    @AfterEach
+    void releaseFleetView() {
+        FleetViewQuiescer.restore(jdbc, fleetQuiesced);
+        fleetQuiesced = null;
+    }
 
     private long createProject(String suffix) {
         jdbc.update("INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",

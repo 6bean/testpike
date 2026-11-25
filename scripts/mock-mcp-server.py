@@ -152,7 +152,13 @@ def main():
     Handler.results_mode = args.results
     Handler.call_log = args.call_log
     Handler.args_log = args.args_log
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    class Server(ThreadingHTTPServer):
+        # Default request_queue_size=5 overflows under host load and the kernel
+        # answers fresh handshakes with RST ("Connection reset"); widen it so
+        # connectivity tests see a ready accept queue.
+        request_queue_size = 128
+
+    server = Server(("127.0.0.1", args.port), Handler)
     print(f"mock-mcp-server listening on 127.0.0.1:{args.port} mode={args.mode}", flush=True)
     try:
         server.serve_forever()

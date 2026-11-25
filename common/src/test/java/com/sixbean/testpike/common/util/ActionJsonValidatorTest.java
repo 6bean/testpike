@@ -95,6 +95,24 @@ class ActionJsonValidatorTest {
         assertFalse(validator.validate(json).passed());
     }
 
+    // The rejection text is the only repair material the regeneration loop
+    // folds back into the next model pass, so a shape violation must name a
+    // copyable literal fix, not only the missing key (error-guidance
+    // discipline: cause + concrete repair in one line).
+    @Test
+    void validate_locator缺chain_错误自带可抄修法示例() {
+        String json = """
+                {"version":"v2","caseId":"TC-RTL-001","endType":"web",
+                 "steps":[{"action":"click","target":{"css":"#login-btn"}}],
+                 "env":{"ENV":"x"}}
+                """;
+        var result = validator.validate(json);
+        String joined = String.join("；", result.errors());
+        assertTrue(joined.contains("locator.chain"), joined);
+        assertTrue(joined.contains("\"chain\":["), joined);
+        assertTrue(joined.contains("chain"), joined);
+    }
+
     @Test
     void validate_含if分支合法动作_通过() {
         String json = """

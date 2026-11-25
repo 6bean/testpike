@@ -27,6 +27,19 @@ class NonUiActionContractTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    // Same repair-material discipline as the locator.chain line: a model
+    // revising a rejected script needs the full step skeleton in the error,
+    // not only the missing field name (the field-name-only wording failed to
+    // converge within the retry budget on the live truth-source window).
+    @Test
+    void netAssert缺match_错误自带步骤级修法示例() {
+        var step = MAPPER.createObjectNode().put("action", "net.assert");
+        String violation = NonUiActionContract.netAssertViolation(step);
+        assertNotNull(violation);
+        assertTrue(violation.contains("\"urlPattern\""), violation);
+        assertTrue(violation.contains("\"match\""), violation);
+    }
+
     private static JsonNode fixture() {
         Path dir = Path.of(System.getProperty("user.dir"));
         for (int i = 0; i < 4 && dir != null; i++) {

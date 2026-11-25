@@ -110,7 +110,12 @@ public final class NonUiActionContract {
     public static String netAssertViolation(JsonNode step) {
         JsonNode match = step.get("match");
         if (match == null || match.isNull() || !match.isObject()) {
-            return "net.assert 还差匹配条件：请在该步骤填写 match 规则（含 urlPattern，例 {\"urlPattern\":\"*/api/v1/orders*\"}）";
+            // Step-level skeleton, not a field name: the regeneration loop
+            // feeds this line back as the model's only repair example and the
+            // field-name-only wording failed to converge inside the budget.
+            return "net.assert 还差匹配条件：请在该步骤补 match 对象，整步形如 "
+                    + "{\"action\":\"net.assert\",\"match\":{\"urlPattern\":\"*/api/v1/orders*\",\"method\":\"POST\"}}，"
+                    + "其中 match.urlPattern 为必填 glob";
         }
         String patternViolation = globViolation(match.path("urlPattern").asText(null), "match.urlPattern");
         if (patternViolation != null) {

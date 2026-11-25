@@ -26,7 +26,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(classes = CoreApplication.class)
 @org.springframework.test.context.TestPropertySource(properties = "testpike.scheduling.enabled=false")
-class GatlingAdapterTest {
+class GatlingAdapterTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-perf-gatl-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     @Autowired
     private GatlingAdapter gatlingAdapter;
@@ -45,6 +48,11 @@ class GatlingAdapterTest {
 
     @BeforeEach
     void seedFixtures() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+
         SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "PERFADP");
         // Single-source seed (R40): RETURNING-anchored ids so a foreign fixture
         // row can never re-parent these inserts on the shared dev database.
@@ -58,7 +66,12 @@ class GatlingAdapterTest {
     @AfterEach
     void cleanup() {
         SharedDbFixtureSweep.sweepPerfFixtureProject(jdbcTemplate, "PERFADP");
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     private static List<Map<String, Object>> requestSteps() {
         return List.of(Map.of("action", "http.request", "method", "POST", "url", "{{ENV:BASE}}/orders"));

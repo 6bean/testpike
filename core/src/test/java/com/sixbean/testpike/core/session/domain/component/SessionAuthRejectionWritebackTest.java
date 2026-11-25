@@ -62,7 +62,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * services against the chain-slot DB; fixtures cleaned by project scope.
  */
 @SpringBootTest(classes = CoreApplication.class)
-class SessionAuthRejectionWritebackTest {
+class SessionAuthRejectionWritebackTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-sess-auth-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     private static final AtomicLong SEQ = new AtomicLong();
 
@@ -95,6 +98,11 @@ class SessionAuthRejectionWritebackTest {
 
     @BeforeEach
     void seedTopology() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+
         long tag = SEQ.incrementAndGet();
         String code = "SC" + System.currentTimeMillis() % 100000000L + tag;
         projectId = projectService.create(1L, new ProjectCreateInput(
@@ -113,7 +121,12 @@ class SessionAuthRejectionWritebackTest {
         fixtures.purgeSnapshots(projectId);
         fixtures.purgeProjectFixtures(projectId);
         SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "ex-scs-");
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     @Test
     void marksStateInvalidWhenSnapshotCarriesUnexpectedUnauthorized() {

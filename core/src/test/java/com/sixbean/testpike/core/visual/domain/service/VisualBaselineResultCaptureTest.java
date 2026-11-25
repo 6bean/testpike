@@ -34,7 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 
 @SpringBootTest(classes = CoreApplication.class)
-class VisualBaselineResultCaptureTest {
+class VisualBaselineResultCaptureTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-visual-cap-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     @Autowired
     private ExecTaskService execTaskService;
@@ -59,6 +62,11 @@ class VisualBaselineResultCaptureTest {
     @BeforeEach
     @AfterEach
     void cleanTables() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
+
         // Shared dev database (R37): no blanket table wipe — the tracked-project
         // FK sweep purges this suite's cases, tasks, envs and audit rows;
         // tp_visual_baseline carries project_id without an FK, so it is named
@@ -71,7 +79,12 @@ class VisualBaselineResultCaptureTest {
         captureProjects.clear();
         SharedDbFixtureSweep.byIdTree(jdbcTemplate, "tp_executor", captureExecutors);
         captureExecutors.clear();
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     private long createProject() {
         String code = "VR" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();

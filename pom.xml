@@ -53,20 +53,45 @@
                 <artifactId>shedlock-provider-jdbc-template</artifactId>
                 <version>${shedlock.version}</version>
             </dependency>
+            <!-- gatling-netty-util hard-depends on the Netty io_uring transport.
+                 Once it is on the classpath Lettuce prefers io_uring for Redis,
+                 but ring mmap fails under container memlock limits (default
+                 64 KiB) or host memory pressure and surfaces as runtime Redis
+                 connection errors ("failed to allocate memory for io_uring
+                 ring"). Excluding keeps Gatling on its epoll/NIO path and
+                 Lettuce deterministic. -->
             <dependency>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-core</artifactId>
                 <version>${gatling.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty.incubator</groupId>
+                        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-http</artifactId>
                 <version>${gatling.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty.incubator</groupId>
+                        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-app</artifactId>
                 <version>${gatling.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty.incubator</groupId>
+                        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>

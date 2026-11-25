@@ -66,9 +66,17 @@ class PerfEngineCapabilityRoutingTest {
     private long projectId;
     private long envId;
 
+    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-perf-caprt-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
     @BeforeEach
     @AfterEach
     void cleanupRows() {
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
         // Fixture-scoped teardown :
         // sweep this suite's PERFROUTE project family with its FK tree (tp_exec_task
         // and the tp_perf_* tables are reached from tp_project) plus its own
@@ -85,6 +93,11 @@ class PerfEngineCapabilityRoutingTest {
                 "能力-路由测", "http://perf-route-target.local/api");
         projectId = ids[0];
         envId = ids[1];
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(
+                jdbcTemplate, EXEC_PREFIX, "GATLING", "K6");
     }
 
     private long newRunRow() {

@@ -25,7 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(classes = CoreApplication.class)
 @org.springframework.test.context.TestPropertySource(properties = "testpike.scheduling.enabled=false")
-class PerfRunLaunchDispatchTest {
+class PerfRunLaunchDispatchTest {    /** Suite-exclusive executor seat prefix (fresh-install determinism). */
+    private static final String EXEC_PREFIX = "tpf-perf-ldisp-";
+    private com.sixbean.testpike.core.support.FleetSeatFixture fleetSeat;
+
 
     @Autowired
     private ExecTaskService execTaskService;
@@ -54,6 +57,14 @@ class PerfRunLaunchDispatchTest {
 
     @BeforeEach
     void seedLaunchFixture() {
+        // Fresh-install determinism: this suite routes on the shared fleet
+        // registry, so it brings its own engine-capable seat and quiesces the
+        // rest of the online view for the window (single-source fixture, R40).
+        // The suite pins JMETER in one envelope case, so the seat must
+        // advertise every engine value the routing gate can match on
+        // (PerfRunDispatchSupport.ENGINE_VALUES = K6/GATLING/JMETER).
+        fleetSeat = com.sixbean.testpike.core.support.FleetSeatFixture.open(jdbcTemplate, EXEC_PREFIX, "GATLING", "K6", "JMETER");
+
         cleanupLaunchRows();
         long[] ids = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "派发链测试项目_", "PERFLAUNCH",
@@ -65,7 +76,12 @@ class PerfRunLaunchDispatchTest {
     @AfterEach
     void cleanupLaunchFixture() {
         cleanupLaunchRows();
-    }
+    
+        if (fleetSeat != null) {
+            fleetSeat.close();
+            fleetSeat = null;
+        }
+}
 
     private void cleanupLaunchRows() {
         Long engineCfgId = jdbcTemplate.query("SELECT id FROM tp_sys_config WHERE config_key = ?",

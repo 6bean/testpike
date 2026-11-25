@@ -148,7 +148,13 @@ public class ActionJsonValidator {
                 JsonNode chain = target.path("chain");
                 if (chain.isMissingNode() || chain.isEmpty()) {
                     if (!target.has("text") && !target.has("url")) {
-                        errors.add(stepLabel + " " + action + " target 缺少 locator.chain（04 契约规则 3）");
+                        // The repair loop folds this line back verbatim as the
+                        // model's only correction material, so it carries a
+                        // copyable literal fix beside the missing key.
+                        errors.add(stepLabel + " " + action
+                                + " target 缺少 locator.chain（04 契约规则 3，修法示例 "
+                                + "\"target\":{\"css\":\"#login-btn\",\"chain\":[\"css\"]}，"
+                                + "chain 为定位器种类数组、至少 1 项）");
                     }
                 }
             }
