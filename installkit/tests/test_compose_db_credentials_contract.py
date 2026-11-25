@@ -107,6 +107,83 @@ def test_substitute_mode_never_probes_real_docker(monkeypatch, capsys):
     monkeypatch.setattr(s1_bootstrap.subprocess, "run", explode)
     tail = 'service "seaweedfs-dbinit" didn\'t complete successfully: exit 1'
     assert s1_bootstrap._surface_dependency_logs(["docker", "compose"], tail) == ""
-    # And a healthy tail without the marker never probes either.
+    tail_unhealthy = "dependency failed to start: container testpike-core is unhealthy"
+    assert s1_bootstrap._surface_dependency_logs(["docker", "compose"], tail_unhealthy) == ""
+    # And a healthy tail without either marker never probes.
     monkeypatch.delenv("INSTALLKIT_COMPOSE_BIN")
     assert s1_bootstrap._surface_dependency_logs(["docker", "compose"], "everything fine") == ""
+
+
+def test_unhealthy_service_logs_are_surfaced(monkeypatch, capsys):
+    # compose blames `container X is unhealthy` and prints nothing of the
+    # Spring startup failure; the stage must echo the app log tail.
+    import s1_bootstrap
+    monkeypatch.delenv("INSTALLKIT_COMPOSE_BIN", raising=False)
+    tail = ("Container testpike-core  Error\ndependency failed to start: "
+            "container testpike-core is unhealthy\n")
+    seen = []
+
+    class _Done:
+        stdout = ("APPLICATION FAILED TO START\n"
+                  "Config AES key missing: set CONFIG_AES_KEY in .env\n")
+
+    def fake_run(cmd, **kw):
+        seen.append(cmd)
+        return _Done()
+
+    monkeypatch.setattr(s1_bootstrap.subprocess, "run", fake_run)
+    joined = s1_bootstrap._surface_dependency_logs(["docker", "compose", "-f", "x"], tail)
+    assert seen == [["docker", "logs", "--tail", "60", "testpike-core"]], seen
+    assert "CONFIG_AES_KEY" in joined
+    out = capsys.readouterr().out
+    assert "the unhealthy service" in out
+
+
+def test_config_aes_key_prefill_gate(tmp_path, monkeypatch):
+    # A passphrase-shaped CONFIG_AES_KEY used to burn every image build and
+    # only die later as a core crash loop; the compose step must refuse it
+    # first, name the key and the generation command, and never echo values.
+    import argparse
+    import s1_bootstrap
+    bogus = "0VerySecretPassphraseThatIsNotHexAtAll"
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+    (root / ".env").write_text("CONFIG_AES_KEY=%s\n" % bogus, encoding="utf-8")
+    monkeypatch.delenv("CONFIG_AES_KEY", raising=False)
+    args = argparse.Namespace(answers_file=str(tmp_path / "missing.json"),
+                              repo_root=str(root))
+    monkeypatch.setattr(s1_bootstrap, "compose_stages",
+                        lambda *a, **k: [{"phase": "middleware", "cmd": ["true"]}])
+    touched = []
+    monkeypatch.setattr(s1_bootstrap, "_run_stage",
+                        lambda cmd: touched.append(cmd) or (0, ""))
+    monkeypatch.setattr(s1_bootstrap, "relay_stage_images",
+                        lambda *a, **k: touched.append("relay") or True)
+    monkeypatch.setattr(s1_bootstrap.mq_vhost, "ensure_vhost",
+                        lambda **kw: (True, []))
+    monkeypatch.setattr(s1_bootstrap, "four_services_guide", lambda tier=None: ["g"])
+    assert s1_bootstrap.cmd_compose(args) == 1
+    assert touched == [], "the gate must fire before any image build or compose stage"
+
+    # Accepted shapes pass the gate: 64-hex, and empty (= feature off).
+    (root / ".env").write_text("CONFIG_AES_KEY=%s\n" % ("0f" * 32), encoding="utf-8")
+    assert s1_bootstrap.cmd_compose(args) == 0
+    (root / ".env").write_text("CONFIG_AES_KEY=\n", encoding="utf-8")
+    assert s1_bootstrap.cmd_compose(args) == 0
+    # Wrong length but valid hex chars: also refused (no silent disable).
+    touched.clear()
+    (root / ".env").write_text("CONFIG_AES_KEY=%s\n" % ("ab" * 20), encoding="utf-8")
+    assert s1_bootstrap.cmd_compose(args) == 1
+
+
+def test_failure_guide_classifies_config_key_crash():
+    legacy = ("Caused by: java.lang.NumberFormatException: For input string: \"0V\" "
+              "under radix 16\n\tat com.sixbean.testpike.core.config.domain.component."
+              "ConfigCipher.hexToBytes(ConfigCipher.java:89)")
+    assert failure_guide.classify_failure(legacy) == "config_key_invalid"
+    fast = "CONFIG_AES_KEY must be a hex string of exactly 32, 48 or 64 characters"
+    assert failure_guide.classify_failure(fast) == "config_key_invalid"
+    note = failure_guide.note_for_failure(fast)
+    for needle in ("CONFIG_AES_KEY", "openssl rand -hex 32", ".env", "re-run"):
+        assert needle in note, needle

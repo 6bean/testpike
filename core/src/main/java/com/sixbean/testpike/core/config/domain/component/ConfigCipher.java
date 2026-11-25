@@ -31,7 +31,22 @@ public class ConfigCipher {
             this.secretKey = null;
             this.enabled = false;
         } else {
-            byte[] raw = hexToBytes(hexKey.trim());
+            String trimmed = hexKey.trim();
+            // Validate before parsing: a non-hex value used to die inside
+            // Integer.parseInt as a bare NumberFormatException deep in the
+            // Spring wiring, and a hex value of the wrong length was silently
+            // demoted to "cipher disabled", making later refusals claim the key
+            // is missing when it is present but malformed. Fail fast, name the
+            // key and the expected shape, never echo the value.
+            if (!trimmed.matches("(?i)[0-9a-f]{32}|[0-9a-f]{48}|[0-9a-f]{64}")) {
+                throw new IllegalStateException("CONFIG_AES_KEY must be a hex string "
+                        + "of exactly 32, 48 or 64 characters (a 16/24/32-byte AES key). "
+                        + "The configured value is not valid hex of an accepted length. "
+                        + "Generate one with: openssl rand -hex 32, set it in the "
+                        + "deployment .env under the key CONFIG_AES_KEY, then restart "
+                        + "the services. The key value itself is never logged.");
+            }
+            byte[] raw = hexToBytes(trimmed);
             this.secretKey = new SecretKeySpec(raw, "AES");
             this.enabled = raw.length == 16 || raw.length == 24 || raw.length == 32;
         }

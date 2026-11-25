@@ -90,25 +90,41 @@ def _execute_tee(cmd):
     return rc, "".join(lines)[-_STAGE_TAIL_CHARS:]
 
 
-def _surface_dependency_logs(stage_cmd, tail):
-    """Print the real stderr of a one-shot dependency that failed to complete.
+_INPROBE_RE = re.compile(r'service "([^"]+)" didn\'t complete')
+_UNHEALTHY_RE = re.compile(r"container ([A-Za-z0-9_.-]+) is unhealthy")
 
-    `compose up -d` reports `service "X" didn't complete successfully: exit 1`
-    but never shows what X actually printed, so the recovery claim (the cause
-    is in the output above) would be a lie without this surfacing step. The
-    returned text joins the tail for classification.
+
+def _surface_dependency_logs(stage_cmd, tail):
+    """Print the real stderr of what a failed bring-up stage actually blames.
+
+    Two shapes hide the cause behind a bare marker: a one-shot dependency
+    prints `service "X" didn't complete successfully` without its own logs,
+    and an app service prints `container Y is unhealthy` without the startup
+    error. The stage claims the cause is on screen, so this fetches and
+    echoes both (compose logs for the one-shot, docker logs for the container).
+    The returned text joins the tail for classification.
     """
-    match = re.search(r'service "([^"]+)" didn\'t complete', tail)
-    if not match or os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
+    if os.environ.get("INSTALLKIT_COMPOSE_BIN", "").strip():
         return ""
-    probe = list(stage_cmd) + ["logs", "--tail", "40", match.group(1)]
+    chunks = []
+    for name in dict.fromkeys(_INPROBE_RE.findall(tail)):
+        probe = list(stage_cmd) + ["logs", "--tail", "40", name]
+        chunks.append(_probe_logs(probe, "logs from %s (the failing dependency)" % name))
+    for container in dict.fromkeys(_UNHEALTHY_RE.findall(tail)):
+        probe = ["docker", "logs", "--tail", "60", container]
+        chunks.append(_probe_logs(probe, "logs from %s (the unhealthy service)" % container))
+    return "\n".join(chunks)
+
+
+def _probe_logs(probe, header):
     try:
-        out = subprocess.run(probe, capture_output=True, text=True, timeout=60).stdout
+        out = subprocess.run(probe, capture_output=True, text=True,
+                             stderr=subprocess.STDOUT, timeout=60).stdout
     except (OSError, subprocess.TimeoutExpired):
         return ""
-    logs = "\n".join(out.splitlines()[-40:])
+    logs = "\n".join(out.splitlines()[-60:])
     if logs.strip():
-        print("--- logs from %s (the failing dependency) ---" % match.group(1))
+        print("--- %s ---" % header)
         print(logs)
     return logs
 
@@ -199,6 +215,29 @@ def admin_ready(base_url, timeout=5.0):
         return False
 
 
+def _config_aes_key_note(root):
+    """Pre-check the cipher key the core service constructor will parse.
+
+    Same shape rule as ConfigCipher in the Java product: pure hex of 32/48/64
+    characters; empty means the feature is off (allowed). A malformed value
+    would otherwise burn image builds and only surface as a crash loop on the
+    service stage. Returns None when the key is absent or well-formed; the
+    precedence (exported env over project .env) mirrors compose interpolation.
+    """
+    try:
+        dotenv_map = host_ports.read_dotenv(root)
+    except OSError:
+        dotenv_map = {}
+    key = (os.environ.get("CONFIG_AES_KEY") or dotenv_map.get("CONFIG_AES_KEY") or "").strip()
+    if not key or re.fullmatch(r"(?i)[0-9a-f]{32}|[0-9a-f]{48}|[0-9a-f]{64}", key):
+        return None
+    return ("CONFIG_AES_KEY in .env is not a usable AES key: it must be pure hex of "
+            "exactly 32, 48 or 64 characters (a 16/24/32-byte key). "
+            "Generate a valid one with: openssl rand -hex 32, write it to "
+            "CONFIG_AES_KEY in .env, then re-run the same command to resume from "
+            "the breakpoint. The key value itself is never echoed here.")
+
+
 def cmd_compose(args):
     stages = compose_stages(args.answers_file, repo_root=args.repo_root or None)
     if not stages:
@@ -212,6 +251,10 @@ def cmd_compose(args):
               "(or point --repo-root at the repo root)" % compose_file, file=sys.stderr)
         return 1
     print("Bringing up middleware (postgres/redis/rabbitmq/seaweedfs; already in place = idempotent pass)...")
+    key_gate = _config_aes_key_note(root)
+    if key_gate:
+        print(key_gate, file=sys.stderr)
+        return 1
     # Image delivery is decided here, not by hoping compose can reach the hub:
     # a host with a blocked registry gets the accelerator detour before the
     # first pull is attempted (missing images only, nothing local is touched).

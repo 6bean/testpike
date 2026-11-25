@@ -106,6 +106,14 @@ _SIGNATURES = (
         "swf-dbinit: cannot connect",
         "password authentication failed",
     )),
+    # ConfigCipher constructor failure (fast message) and the legacy bare-hex
+    # parse crash both map here; the note names the key, the shape and the
+    # regeneration command instead of a radix stack trace.
+    ("config_key_invalid", (
+        "must be a hex string",
+        "configcipher",
+        "under radix 16",
+    )),
     ("egress_dead", (
         "temporary failure in name resolution",
         "name or service not known",
@@ -190,6 +198,18 @@ def teach(kind, **facts):
             "Server state: docker compose logs postgres — a schema init over "
             "25k SQL lines can take a few minutes on slow disks; wait, then "
             "re-run.\n"
+            "%s" % RESUME_HINT
+        )
+    if kind == "config_key_invalid":
+        return (
+            "CONFIG_AES_KEY in .env is not a usable AES key: it must be pure "
+            "hex of exactly 32, 48 or 64 characters (a 16/24/32-byte key) - "
+            "passphrases or base64 strings die in the core service constructor.\n"
+            "Generate a valid one:  openssl rand -hex 32\n"
+            "Write that value to CONFIG_AES_KEY in .env, then re-run. Warning: "
+            "sensitive config entries already encrypted under another key "
+            "will not decrypt afterwards, so set the final key before saving "
+            "real secrets.\n"
             "%s" % RESUME_HINT
         )
     if kind == "registry_blocked":
