@@ -59,6 +59,10 @@ class PerfApprovalAutoLaunchTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-approval-launch-ex-",
+                "GATLING", "K6");
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "审批自动起压测试项目_", "PFAAL", "开发-自动起压", 1,
@@ -77,6 +81,7 @@ class PerfApprovalAutoLaunchTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-approval-launch-ex-");
         // FK order: tp_perf_approval.scenario_id references tp_perf_scenario — tickets
         // must go before scenarios (P6-style dependency, delete children first).
         jdbcTemplate.update("DELETE FROM tp_perf_approval WHERE project_id IN "

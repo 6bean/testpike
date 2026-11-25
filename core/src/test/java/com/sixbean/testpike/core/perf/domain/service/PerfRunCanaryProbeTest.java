@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * CF-6 canary pre-flight at the perf launch point .
@@ -81,6 +82,10 @@ class PerfRunCanaryProbeTest {
     @BeforeEach
     void seedFixtures() throws Exception {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-canary-ex-",
+                "GATLING", "K6");
         responseDelayMs = 0;
         target = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         target.createContext("/orders", exchange -> {
@@ -129,6 +134,7 @@ class PerfRunCanaryProbeTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-canary-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFCAN%')");
         jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "

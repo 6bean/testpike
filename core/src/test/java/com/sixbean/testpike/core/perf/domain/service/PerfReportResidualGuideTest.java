@@ -48,6 +48,10 @@ class PerfReportResidualGuideTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-residual-ex-",
+                "GATLING", "K6");
         long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "残留巡检测试项目_", "PERFREPG", "性能-残留测", 1,
                 "http://perf-target.local/api", 1000, "[\"SHADOW_TABLE\",\"NS_ACCOUNT\",\"HEADER_MARK\"]");
@@ -61,6 +65,7 @@ class PerfReportResidualGuideTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-residual-ex-");
         for (String sql : List.of(
                 "DELETE FROM tp_perf_sample WHERE project_id IN (SELECT id FROM tp_project WHERE code LIKE 'PERFREPG%')",
                 "DELETE FROM tp_perf_metric WHERE project_id IN (SELECT id FROM tp_project WHERE code LIKE 'PERFREPG%')",

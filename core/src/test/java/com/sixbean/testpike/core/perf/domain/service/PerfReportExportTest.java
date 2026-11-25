@@ -58,6 +58,10 @@ class PerfReportExportTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-export-ex-",
+                "GATLING", "K6");
         long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "压测导出测试项目_", "PERFEXP", "性能-导出测", 1,
                 "http://perf-target.local/api", 1000, null);
@@ -71,6 +75,7 @@ class PerfReportExportTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-export-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFEXP%')");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "

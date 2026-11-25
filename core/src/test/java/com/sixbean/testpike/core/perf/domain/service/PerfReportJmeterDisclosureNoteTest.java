@@ -66,6 +66,10 @@ class PerfReportJmeterDisclosureNoteTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-jmtr-disc-ex-",
+                "GATLING", "K6", "JMETER");
         long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "JMeter口径披露测试项目_", "PFJMTR", "测试-口径披露", 2,
                 "https://perf-jmeter-disclosure.local/api", 100, "[\"SHADOW_TABLE\"]");
@@ -83,6 +87,7 @@ class PerfReportJmeterDisclosureNoteTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-jmtr-disc-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_sample WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFJMTR%')");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "

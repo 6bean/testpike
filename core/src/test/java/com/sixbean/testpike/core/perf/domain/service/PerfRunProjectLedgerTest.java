@@ -51,6 +51,10 @@ class PerfRunProjectLedgerTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-ledger-ex-",
+                "GATLING", "K6");
         long[] seeded = SharedDbFixtureSweep.seedPerfFixtureProject(jdbcTemplate,
                 "运行台账测试项目_", "PERFLEDGER", "性能-运行台账", 1,
                 "http://perf-target.local/api", 0, null);
@@ -64,6 +68,7 @@ class PerfRunProjectLedgerTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-ledger-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PERFLEDGER%')");
         jdbcTemplate.update("DELETE FROM tp_perf_scenario WHERE project_id IN "

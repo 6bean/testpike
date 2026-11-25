@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sixbean.testpike.core.support.FixtureInserts;
+import com.sixbean.testpike.core.support.SharedDbFixtureSweep;
 
 /**
  * GB-1 environment override at the perf launch point (scenario × environment decoupling).
@@ -68,6 +69,10 @@ class PerfLaunchEnvOverrideTest {
     @BeforeEach
     void seedFixtures() {
         cleanupRows();
+        // Fresh-install CI has no runner process online with an engine face,
+        // so the perf launch gate would reject every run: seed one capable seat.
+        SharedDbFixtureSweep.seedCapableExecutor(jdbcTemplate, "perf-env-override-ex-",
+                "GATLING", "K6");
         operatorId = jdbcTemplate.queryForObject("SELECT min(id) FROM tp_user", Long.class);
         long uniq = System.nanoTime() % 1_000_000_000L;
         projectId = FixtureInserts.insertReturningId(jdbcTemplate, "INSERT INTO tp_project (name, code, status) VALUES (?, ?, 1)",
@@ -92,6 +97,7 @@ class PerfLaunchEnvOverrideTest {
     }
 
     private void cleanupRows() {
+        SharedDbFixtureSweep.executorsByNamePrefixes(jdbcTemplate, "perf-env-override-ex-");
         jdbcTemplate.update("DELETE FROM tp_perf_metric WHERE project_id IN "
                 + "(SELECT id FROM tp_project WHERE code LIKE 'PFENVO%')");
         jdbcTemplate.update("DELETE FROM tp_perf_run WHERE project_id IN "
