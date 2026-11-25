@@ -15,6 +15,10 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
+    # the vhost follows the install declaration like core/ai-service do;
+    # without it a chain-slot server publishes hit batches into the default
+    # vhost and that slot's own hit ledger never fills
+    virtual-host: ${MQ_VHOST:/}
     username: ${RABBITMQ_USERNAME:testpike}
     password: ${RABBITMQ_PASSWORD:}
   # Scenario lane state store : keys tp:mock:scen:* hold the
@@ -23,6 +27,9 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # same posture as the vhost above: scenario lane state stays inside
+      # the logical database this chain's install declares
+      database: ${REDIS_DATABASE:0}
       password: ${REDIS_PASSWORD:}
 
 testpike:

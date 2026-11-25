@@ -156,13 +156,18 @@ class CaseExportTest {
         assertEquals("导出测试员", rowA.get(10), "分配人列=display_name");
         assertEquals("打开登录页; 输入账号密码 => 登录成功", rowA.get(6), "步骤列=「操作 => 预期」;分隔（模板口径）");
 
+        // Scope the audit read to this fixture's project: the ledger is
+        // append-only and other suites legitimately write export audits too,
+        // so a global count made this order-dependent (ghost red in full runs).
         Long auditCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM tp_audit_log WHERE object_type = 'case' AND action = 'export'",
-                Long.class);
+                "SELECT count(*) FROM tp_audit_log WHERE object_type = 'case' AND action = 'export'"
+                        + " AND project_id = ?",
+                Long.class, pid);
         assertEquals(1L, auditCount, "导出审计一条");
         String auditAfter = jdbcTemplate.queryForObject(
-                "SELECT after_json::text FROM tp_audit_log WHERE object_type='case' AND action='export' LIMIT 1",
-                String.class);
+                "SELECT after_json::text FROM tp_audit_log WHERE object_type='case' AND action='export'"
+                        + " AND project_id = ? ORDER BY id DESC LIMIT 1",
+                String.class, pid);
         String compact = auditAfter.replace(" ", "");
         assertTrue(compact.contains("\"total\":3") && compact.contains("removed"),
                 "审计 after 含导出范围 total/removed：" + auditAfter);

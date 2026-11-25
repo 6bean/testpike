@@ -1416,12 +1416,7 @@
  "fb4_touch_reconcile": {
   "armed": true,
   "touched": [
-   "db/migration/V674__ocr_dialog_tool_desc_mutex.sql",
-   "db/schema-init.sql",
-   "docs/.ui-audit-struct.json",
-   "scripts/parallel_readiness_ledger.py",
-   "src/main/java/com/sixbean/testpike/core/tool/domain/component/OcrDialogToolSeedInitializer.java",
-   "src/test/java/com/sixbean/testpike/core/tool/domain/service/OcrDialogToolSeedTest.java"
+   "src/test/java/com/sixbean/testpike/core/cluster/domain/service/UpgradePlanServiceTest.java"
   ],
   "violations": [],
   "deferred": [],
