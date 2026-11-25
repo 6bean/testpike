@@ -57,6 +57,8 @@ const router = useRouter()
 
 const step = ref(0)
 
+import { createLateFrameNotice, loadPreviewFirstFrameConfig, previewFirstFrameMs } from '@/composables/previewFirstFrameNotice'
+
 // ---------- step 1: contract + destination space ----------
 const specs = ref<ApiSpecView[]>([])
 const specsLoading = ref(false)
@@ -66,6 +68,8 @@ const spacesLoading = ref(false)
 const pickedSpaceId = ref<number | null>(null)
 const step1Error = ref('')
 const previewing = ref(false)
+// honest waiting line when a large contract preview passes the budget
+const firstFrameNotice = createLateFrameNotice(() => previewFirstFrameMs.value)
 
 // ---------- step 1a: contract source choice (upload vs existing) ----------
 // Upload runs through the spec-domain single source (same door the contract
@@ -240,6 +244,8 @@ async function onMarkRemoved(): Promise<void> {
 async function onPreview(): Promise<void> {
   if (pickedSpecId.value === null || pickedSpaceId.value === null) return
   previewing.value = true
+  void loadPreviewFirstFrameConfig()
+  firstFrameNotice.arm()
   step1Error.value = ''
   try {
     const [d, p] = await Promise.all([
@@ -256,6 +262,7 @@ async function onPreview(): Promise<void> {
   } catch (e) {
     step1Error.value = bizErrorMsg(e, t('apitest.stubImport.previewFail'))
   } finally {
+    firstFrameNotice.disarm()
     previewing.value = false
   }
 }
@@ -521,6 +528,13 @@ watch(
             {{ t('apitest.stubImport.previewBtn') }}
           </el-button>
         </el-tooltip>
+        <p
+          v-if="firstFrameNotice.late.value"
+          data-test="stub-preview-late-notice"
+          class="sd-hint"
+        >
+          {{ t('apitest.stubImport.previewLateNotice') }}
+        </p>
       </div>
     </div>
 

@@ -6794,6 +6794,7 @@ projects: '多项目协作',
       detectedAi: 'AI 已从文档抽取 {n} 个接口，低置信条目已标「存疑」且不默认勾选',
     },
     stubImport: {
+      previewLateNotice: '预览内容较多，仍在处理中，请稍候即可，无需重复点击生成预览', // error-guidance-keep: first-response waiting notice while a large preview renders; not an error state
       entry: '契约直出 Mock 规则',
       title: '契约直出 Mock 规则',
       intro: '选一份已上传的接口契约，系统按端点确定性生成可保存的 Mock 规则草稿（零大模型消耗）——预览不落库，勾选确认后才写入所选仿真空间。',

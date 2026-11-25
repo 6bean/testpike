@@ -6759,6 +6759,10 @@ projects: '多项目协作',
       detectedAi: 'AI extracted {n} endpoints from the document; low-confidence items are marked and unchecked by default',
     },
     stubImport: {
+      // error-guidance-keep: first-response waiting notice shown while a large
+      // preview is still rendering; not an error or rejection state, so the
+      // three-element fix-guidance form does not apply here.
+      previewLateNotice: 'The preview is still being prepared for this large contract — please wait; there is no need to click Generate preview again.',
       entry: 'Contract-to-Mock Rules',
       title: 'Contract-to-Mock Rules',
       intro: 'Pick an uploaded API contract — the system deterministically turns its endpoints into save-ready mock rules (zero LLM tokens). The preview writes nothing; rules land in the chosen mock space only after you confirm.',
