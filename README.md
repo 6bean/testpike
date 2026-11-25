@@ -182,7 +182,7 @@ Planned / on track
 | `api` | machine-facing integrations (CI/CD, executor protocol, MCP server) | 8082 |
 | `core` | service layer — domain logic, data, scheduling (consumed via Feign by admin/api) | 8083 |
 | `ai-service` | AI orchestration — LLM/embedding clients, generation & review pipelines | 18084 |
-| `mock-server` | contract-driven API simulator | 18085 (mgmt) / 18086 (traffic) |
+| `mock-server` | contract-driven API simulator — see [mock-server/README.md](mock-server/README.md) for a sample-spec quick start | 18085 (mgmt) / 18086 (traffic) |
 | `common` | shared primitives (Response, exceptions, validation) | — |
 | `executor` | Python cluster: browser, app, API and perf task types (register/heartbeat/claim/result) | — |
 | `frontend` | Vue 3 + TypeScript + Element Plus console | 5173 (dev) |

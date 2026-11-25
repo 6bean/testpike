@@ -154,7 +154,7 @@ MCP 双向打通 · 内置 mock LLM，零外网 API 也能全链路跑通。
 | `api` | 面向机器的对接入口（CI/CD、执行器协议、MCP Server） | 8082 |
 | `core` | 服务层——领域逻辑、数据、调度（admin/api 经 Feign 调用） | 8083 |
 | `ai-service` | AI 编排——LLM/Embedding 客户端、生成与评审管线 | 18084 |
-| `mock-server` | 契约驱动的接口仿真服务 | 18085（管理）/ 18086（流量） |
+| `mock-server` | 契约驱动的接口仿真服务 — 示例规格快速上手见 [mock-server/README.md](mock-server/README.md) | 18085（管理）/ 18086（流量） |
 | `common` | 跨模块共享基础件（Response、异常、校验） | — |
 | `executor` | Python 执行器集群：浏览器/App/接口/性能四类任务（注册/心跳/领取/回传） | — |
 | `frontend` | Vue 3 + TypeScript + Element Plus 控制台 | 5173（dev） |
