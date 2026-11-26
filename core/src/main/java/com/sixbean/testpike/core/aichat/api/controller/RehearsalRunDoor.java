@@ -69,7 +69,7 @@ public class RehearsalRunDoor {
             // a real connection failure propagates as a 500, never mislabeled
             // as a missing batch.
             throw new ServiceException("批次 " + batchId + " 不存在或已被删除，未启动任何执行——"
-                    + "请使用草案确认回执中给出的批次编号", BizErrorCode.VALIDATION_ERROR);
+                    + "请使用「草案确认卡」回执中给出的批次编号 batchId 重试；批次是否仍在可在「执行中心」批次列表核对", BizErrorCode.VALIDATION_ERROR);
         }
         long projectId = ((Number) row.get("project_id")).longValue();
 
@@ -83,7 +83,7 @@ public class RehearsalRunDoor {
     private static void requireKnownOperator(Long operatorId) {
         if (operatorId == null || operatorId <= 0) {
             throw new ServiceException("演练启动缺少操作人身份（X-Operator-Id），已拒绝执行——"
-                    + "启动执行批次必须由登录用户的对话发起", BizErrorCode.FORBIDDEN);
+                    + "请先登录后在「AI 对话」中重新发起该执行批次，操作人身份会随登录会话自动携带", BizErrorCode.FORBIDDEN);
         }
     }
 
@@ -93,7 +93,7 @@ public class RehearsalRunDoor {
         long batchId = raw instanceof Number number ? number.longValue() : -1L;
         if (batchId <= 0) {
             throw new ServiceException("演练启动请求缺少批次编号 batchId，已拒绝执行——"
-                    + "批次编号来自草案确认回执", BizErrorCode.VALIDATION_ERROR);
+                    + "批次编号来自「草案确认卡」回执——请先在「AI 对话」对目标草案点「接受」，再用回执中的 batchId 重试", BizErrorCode.VALIDATION_ERROR);
         }
         return batchId;
     }

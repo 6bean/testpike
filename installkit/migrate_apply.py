@@ -44,6 +44,14 @@ PROTECTED_DATABASES = {"testpike", "testpike_prod", "postgres"}
 
 LEDGER_TABLE = "tp_migration_ledger"
 
+
+def _db_user() -> str:
+    # Single source: the install .env key is DB_USERNAME (compose and every
+    # consumer read it); DB_USER stays honored as an explicit override so
+    # existing slot recipes keep working.
+    return (os.environ.get("DB_USER") or os.environ.get("DB_USERNAME")
+            or "testpike").strip()
+
 _VNUM_RE = re.compile(r"^V(\d+)__")
 _CREATE_TABLE_RE = re.compile(
     r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"
@@ -60,7 +68,7 @@ class TargetDatabaseRefused(RuntimeError):
 def _psql_cmd(db: str, extra: list[str]) -> list[str]:
     prefix = os.environ.get("INSTALLKIT_DOCKER_EXEC_PREFIX", "docker exec")
     return (prefix.split() + [instance_names.name("postgres"),
-                              "psql", "-U", os.environ.get("DB_USER", "testpike"),
+                              "psql", "-U", _db_user(),
                               "-d", db, "-v", "ON_ERROR_STOP=1"] + extra)
 
 
@@ -75,7 +83,7 @@ def _run_sql(db: str, sql: str) -> str:
 
 def _run_file(db: str, content: str) -> None:
     cmd = (["docker", "exec", "-i", instance_names.name("postgres"), "psql",
-            "-U", os.environ.get("DB_USER", "testpike"), "-d", db,
+            "-U", _db_user(), "-d", db,
             "-v", "ON_ERROR_STOP=1", "-f", "-"])
     res = subprocess.run(cmd, capture_output=True, text=True, input=content)
     if res.returncode != 0:

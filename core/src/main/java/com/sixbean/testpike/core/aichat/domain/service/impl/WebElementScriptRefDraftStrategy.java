@@ -58,7 +58,7 @@ public class WebElementScriptRefDraftStrategy implements DraftWriteStrategy {
         Object caseAnchor = draftRow.get("target_id");
         Object projectAnchor = draftRow.get("project_id");
         if (caseAnchor == null || projectAnchor == null) {
-            throw new ServiceException("该引用替换草案缺少用例或项目归属，确认落版已拒绝（请重新发起存量普查）",
+            throw new ServiceException("该引用替换草案缺少用例或项目归属，确认落版已拒绝——请到「页面元素库」对应页面行重新点击「批量引用替换」发起存量普查",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long caseId = ((Number) caseAnchor).longValue();
@@ -69,7 +69,7 @@ public class WebElementScriptRefDraftStrategy implements DraftWriteStrategy {
         String actionJson = body.path("actionJson").asText("");
         String elementName = body.path("elementName").asText("");
         if (actionJson.isBlank() || elementName.isBlank()) {
-            throw new ServiceException("该引用替换草案缺少替换后的脚本内容或元素名，确认落版已拒绝（请重新发起存量普查）",
+            throw new ServiceException("该引用替换草案缺少替换后的脚本内容 actionJson 或元素名 elementName，确认落版已拒绝——请到「页面元素库」对应页面行重新点击「批量引用替换」发起存量普查",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Integer live = jdbc.queryForObject("""
@@ -80,12 +80,12 @@ public class WebElementScriptRefDraftStrategy implements DraftWriteStrategy {
                 Integer.class);
         if (live == null || live == 0) {
             throw new ServiceException("页面元素「" + elementName
-                    + "」已停用或失效，本次引用替换未写入——请在页面元素库恢复该元素，或重新发起存量普查",
+                    + "」已停用或失效，本次引用替换未写入——请到「页面元素库」按名称检索该元素并重新启用，或重新点击「批量引用替换」发起存量普查",
                     BizErrorCode.FORBIDDEN);
         }
         ScriptInfo current = scriptService.getByCaseId(caseId);
         if (current == null) {
-            throw new ServiceException("该用例当前没有脚本，引用替换草案无法落版（请先生成脚本）",
+            throw new ServiceException("该用例当前没有脚本，引用替换草案无法落版——请在「测试用例」打开该用例详情的脚本区点击「生成脚本」，再回来确认本草案",
                     BizErrorCode.NOT_FOUND);
         }
         int baseVersion = body.path("baseScriptVersion").asInt(-1);

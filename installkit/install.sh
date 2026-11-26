@@ -11,12 +11,15 @@ PY="${PYTHON_BIN:-python3}"
 usage() {
     cat <<'USAGE'
 Usage: install.sh --scenario=<scenario> [options]
-Scenarios (S1-S5, aliases accepted):
+Scenarios (S1-S6, aliases accepted):
   first      S1 first install (role questions + compose/services/executor + demo seed + sample run commands)
   scale-out  S2 scale out: enroll a new machine with a one-time token + heartbeat reports
   scale-in   S3 scale in / remove: drain first, uninstall only what installkit itself installed
   engines    S4 add/replace an engine: run the install recipe published as a descriptor (recipe.py)
   repair     S5 repair / health check: idempotent rerun that fills missing pieces + structured report
+  upgrade    S6 upgrade an installed checkout: fast-forward fetch + migration ledger
+             baseline/apply/verify + image rebuild + rolling re-create + health probe
+             (data volumes untouched; every step checkpoints and resumes)
 Options:
   --role=<executor|ai-node|platform>   scale-out machine profile (token value-domain gate)
   --token=<one-time enroll token>      required for scale-out (copied from the fleet-page generated command)
@@ -329,6 +332,7 @@ case "$SCENARIO" in
     S3|s3) SCENARIO=scale-in ;;
     S4|s4) SCENARIO=engines ;;
     S5|s5) SCENARIO=repair ;;
+    S6|s6) SCENARIO=upgrade ;;
 esac
 
 if [ -z "$SCENARIO" ]; then
@@ -337,9 +341,9 @@ if [ -z "$SCENARIO" ]; then
     exit 2
 fi
 case "$SCENARIO" in
-    first|scale-out|scale-in|engines|repair) ;;
+    first|scale-out|scale-in|engines|repair|upgrade) ;;
     *)
-        echo "Unknown scenario \"$SCENARIO\" -- choose: first / scale-out / scale-in / engines / repair (aliases S1-S5)" >&2
+        echo "Unknown scenario \"$SCENARIO\" -- choose: first / scale-out / scale-in / engines / repair / upgrade (aliases S1-S6)" >&2
         exit 2 ;;
 esac
 
@@ -552,6 +556,34 @@ case "$SCENARIO" in
             say "Re-check (probe again after refill):"
             "$PY" "$DIR/doctor.py" --state-dir "$STATE_DIR" --host "$(detect_host)" || rc=1
         fi
+        ;;
+    upgrade)
+        # S6 upgrade: fetch runs on EVERY invocation (checkpointing it would
+        # freeze the pipeline at a stale head, the same no-bookkeeping rule the
+        # repair probes follow). When the head moved, all checkpoints of this
+        # scenario reset so the pipeline re-walks against the new code; when it
+        # did not, checkpoints stand and the rerun is a no-op resume.
+        "$PY" "$DIR/upgrade_recipe.py" fetch --state-dir "$STATE_DIR" || rc=1
+        if [ "$rc" = 0 ]; then
+            NEW_HEAD="$("$PY" "$DIR/upgrade_recipe.py" current-head)"
+            RUN_KEY="$STATE_DIR/upgrade-run-head"
+            if [ "$(cat "$RUN_KEY" 2>/dev/null)" != "$NEW_HEAD" ]; then
+                echo "$NEW_HEAD" > "$RUN_KEY"
+                : > "$STATE"
+            fi
+        fi
+        [ "$rc" = 0 ] && { run_step upgrade-ledger "Migration ledger baseline" \
+            "$PY" "$DIR/upgrade_recipe.py" baseline --state-dir "$STATE_DIR" || rc=1; }
+        [ "$rc" = 0 ] && { run_step upgrade-migrate "Apply new database migrations" \
+            "$PY" "$DIR/upgrade_recipe.py" migrate --state-dir "$STATE_DIR" || rc=1; }
+        [ "$rc" = 0 ] && { run_step upgrade-images "Rebuild application images" \
+            "$PY" "$DIR/upgrade_recipe.py" images \
+            --answers-file "$STATE_DIR/answers-S1.json" || rc=1; }
+        [ "$rc" = 0 ] && { run_step upgrade-rollout "Rolling service re-create" \
+            "$PY" "$DIR/upgrade_recipe.py" rollout \
+            --answers-file "$STATE_DIR/answers-S1.json" || rc=1; }
+        [ "$rc" = 0 ] && { run_step upgrade-probe "Post-upgrade health check" \
+            "$PY" "$DIR/upgrade_recipe.py" probe || rc=1; }
         ;;
 esac
 

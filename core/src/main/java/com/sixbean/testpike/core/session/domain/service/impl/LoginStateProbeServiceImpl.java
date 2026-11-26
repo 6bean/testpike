@@ -273,7 +273,7 @@ public class LoginStateProbeServiceImpl implements LoginStateProbeService {
     private void buildAuthHeaders(String kind, byte[] rawState, Map<String, String> headers) {
         String content = new String(rawState, StandardCharsets.UTF_8).strip();
         if (content.isEmpty()) {
-            throw new ServiceException("快照对象内容为空，无法构造会话头。", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("快照对象内容为空，无法构造会话头——请到「登录态账本」对该行点「立即测试」重试；若仍为空，请在「AI 对话」重新粘贴 DevTools 面板截图登记该登录态。", BizErrorCode.VALIDATION_ERROR);
         }
         if ("token".equals(kind)) {
             String token = content.startsWith("{") ? jsonText(content, "token") : content;
@@ -316,7 +316,7 @@ public class LoginStateProbeServiceImpl implements LoginStateProbeService {
         }
         if (pairs.isEmpty()) {
             throw new ServiceException("快照里解析不出任何 cookie（形态=" + kind
-                    + "），请确认采集内容或改用页面指定地址＋手工核对。", BizErrorCode.VALIDATION_ERROR);
+                    + "），请到「登录态账本」该行重新采集后再点「立即测试」重试；也可确认采集内容或改用页面指定地址＋手工核对。", BizErrorCode.VALIDATION_ERROR);
         }
         return pairs;
     }
@@ -325,13 +325,13 @@ public class LoginStateProbeServiceImpl implements LoginStateProbeService {
         try {
             String value = objectMapper.readTree(content).path(field).asText("");
             if (value.isEmpty()) {
-                throw new ServiceException("快照 JSON 里缺少 " + field + " 字段。", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("快照 JSON 里缺少 " + field + " 字段——请到「登录态账本」重新登记令牌类登录态，使快照包含 " + field + " 字段，再点「立即测试」重试。", BizErrorCode.VALIDATION_ERROR);
             }
             return value;
         } catch (ServiceException explicit) {
             throw explicit;
         } catch (Exception malformed) {
-            throw new ServiceException("token 快照不是可解析的 JSON 或明文。", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("token 快照不是可解析的 JSON 或明文——请到「登录态账本」重新登记令牌类登录态（直接粘贴 JSON 或令牌明文均可），再点「立即测试」重试。", BizErrorCode.VALIDATION_ERROR);
         }
     }
 
