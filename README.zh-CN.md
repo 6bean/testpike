@@ -229,8 +229,9 @@ mvn spring-boot:run       # admin:8081 / api:8082 / core:8083 / ai-service:18084
 > .gitignore 排除，永不入库。
 > 数据库初始化：全新安装零手动——`docker compose up -d` 首次启动（空数据卷）自动执行
 > `db/schema-init.sql`（全量增量迁移史与种子数据合并产物：约 2.2 MB、199 表）；若卷已有旧数据
-> 需重建：`docker compose down -v && docker compose up -d`。存量库升级仍按 `db/migration/`
-> 增量手动执行（Flyway 未启用）。`db/schema-init.sql` 是生成物，新增迁移后跑
+> 需重建：`docker compose down -v && docker compose up -d`。存量库升级一条命令：
+> `bash installkit/install.sh --scenario=upgrade`，按迁移台账自动补放 `db/migration/`
+> 增量脚本（Flyway 未启用）。`db/schema-init.sql` 是生成物，新增迁移后跑
 > `bash tools/ops/gen_schema_init.sh` 再生，勿手改。
 > LLM：默认 `LLM_MOCK_ENABLED=true` 走内置 mock 替身，无外网 API 也能全链路跑通；
 > 关闭后把 `LLM_BASE_URL` / `LLM_API_KEY` 指向任意 OpenAI 兼容网关即可。

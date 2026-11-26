@@ -63,7 +63,7 @@ public class PromptTplWriteDraftStrategy implements DraftWriteStrategy {
         if (name == null || name.isBlank() || domain == null || domain.isBlank()
                 || content == null || content.isBlank()) {
             throw new ServiceException(
-                    "AI 提示词模板草案缺少模板名、业务域或正文，无法保存新版本（请重新让 AI 生成提案）",
+                    "AI 提示词模板草案缺少模板名 name、业务域 domain 或正文 content，无法保存新版本——请在「AI 对话」补全三项后重新生成提案；也可在「Prompt 模板管理」页编辑保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // createdBy = the human who confirmed the card, never the model and

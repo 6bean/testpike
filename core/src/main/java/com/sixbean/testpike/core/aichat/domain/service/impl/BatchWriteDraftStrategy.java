@@ -75,7 +75,7 @@ public class BatchWriteDraftStrategy implements DraftWriteStrategy {
         List<Long> caseIds = readLongList(body.get("caseIds"));
         if (name == null || name.isBlank() || caseIds.isEmpty()) {
             throw new ServiceException(
-                    "AI 批次草案缺少批次名或未勾选任何用例，无法创建批次（请重新让 AI 生成提案）",
+                    "AI 批次草案缺少批次名 name 或未勾选任何用例 caseIds，无法创建批次——请在「AI 对话」补全批次名并勾选要纳入的用例后重新生成提案",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // envId is optional here exactly like on the form (null = pick the

@@ -190,16 +190,16 @@ public class CostServiceImpl implements CostService {
  
     private static void validateOverride(BreakOverrideInput input) {
         if (input == null || input.reason() == null || input.reason().isBlank()) {
-            throw new ServiceException("恢复理由必填（审批式解除留痕，≤" + OVERRIDE_REASON_MAX + " 字）",
+            throw new ServiceException("恢复理由必填（审批式解除留痕，≤" + OVERRIDE_REASON_MAX + " 字），请在「成本中心」的「熔断临时恢复（管理员）」弹窗填写 reason 后提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.reason().length() > OVERRIDE_REASON_MAX) {
             throw new ServiceException("恢复理由超长: " + input.reason().length()
-                    + " 字（上限 " + OVERRIDE_REASON_MAX + " 字）", BizErrorCode.VALIDATION_ERROR);
+                    + " 字（上限 " + OVERRIDE_REASON_MAX + " 字），请在「成本中心」的「熔断临时恢复（管理员）」弹窗精简 reason 后重新提交", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.hours() == null || input.hours() < 1 || input.hours() > OVERRIDE_HOURS_MAX) {
             throw new ServiceException("恢复时限非法: " + input.hours()
-                    + " 小时（合法域 1~" + OVERRIDE_HOURS_MAX + " 小时）", BizErrorCode.VALIDATION_ERROR);
+                    + " 小时（合法域 1~" + OVERRIDE_HOURS_MAX + " 小时），请在「成本中心」的「熔断临时恢复（管理员）」弹窗把 hours 改回合法域内", BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -224,7 +224,7 @@ public class CostServiceImpl implements CostService {
         }
         if (!wellFormed) {
             throw new ServiceException(
-                    "月份格式非法: " + month + "（应为自然月 yyyy-MM，如 2026-09）",
+                    "月份格式非法: " + month + "（应为自然月 yyyy-MM，如 2026-09），可在「成本中心」页顶部的月份选择器重新选定",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> params = new java.util.HashMap<>();
@@ -237,24 +237,24 @@ public class CostServiceImpl implements CostService {
     private static void validate(BudgetInput input) {
         if (input == null || input.budgetCents() == null || input.alertPct() == null) {
             throw new ServiceException(
-                    "预算参数不完整: budgetCents（分，0=不限）与 alertPct（水位 1~100）均必填",
+                    "预算参数不完整: budgetCents（分，0=不限）与 alertPct（水位 1~100）均必填，请在「成本中心」的「覆写项目预算」弹窗把两栏补齐",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.budgetCents() < 0 || input.budgetCents() > BUDGET_CENTS_MAX) {
             throw new ServiceException(
                     "预算非法: " + input.budgetCents() + " 分（合法域 0~" + BUDGET_CENTS_MAX
-                            + "，0=不限额）", BizErrorCode.VALIDATION_ERROR);
+                            + "，0=不限额），请在「成本中心」的「覆写项目预算」弹窗把 budgetCents 改到合法域（月度预算（元）×100）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.alertPct() < 1 || input.alertPct() > 100) {
             throw new ServiceException(
-                    "预警水位非法: " + input.alertPct() + "（合法域 1~100 百分比）",
+                    "预警水位非法: " + input.alertPct() + "（合法域 1~100 百分比），请在「成本中心」的「覆写项目预算」弹窗把 alertPct 改到 1~100",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
 
     private void assertProjectExists(long projectId) {
         if (!projectService.exists(projectId)) {
-            throw new ServiceException("项目不存在: " + projectId, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在: " + projectId + "，请在顶栏切换到有权限的项目，或在「项目集管理」页新建项目后重试", BizErrorCode.NOT_FOUND);
         }
     }
 

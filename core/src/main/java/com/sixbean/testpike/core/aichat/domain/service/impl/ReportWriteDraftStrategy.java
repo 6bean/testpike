@@ -76,7 +76,7 @@ public class ReportWriteDraftStrategy implements DraftWriteStrategy {
         // this strategy only refuses a body that cannot even reach it.
         if (rangeType != 1 && rangeType != 2) {
             throw new ServiceException(
-                    "AI 报告草案缺少合法的报告范围（1=按计划 2=按时间范围），无法生成报告（请重新让 AI 生成提案）",
+                    "AI 报告草案缺少合法的报告范围 rangeType（1=按计划 2=按时间范围），无法生成报告——请在「AI 对话」写明范围类型与取值后重新生成提案；也可在「总结报告」页直接生成",
                     BizErrorCode.VALIDATION_ERROR);
         }
         ReportRecordInfo created = testReportService.generate(operatorId,

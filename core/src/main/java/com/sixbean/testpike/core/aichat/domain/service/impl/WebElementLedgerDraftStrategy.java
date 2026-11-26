@@ -57,7 +57,7 @@ public class WebElementLedgerDraftStrategy implements DraftWriteStrategy {
     public Integer land(Map<String, Object> draftRow, long operatorId) {
         Object anchor = draftRow.get("project_id");
         if (anchor == null) {
-            throw new ServiceException("该草案缺少所属项目，无法确认写入（请重新发起存量普查）",
+            throw new ServiceException("该草案缺少所属项目，无法确认写入——请将顶栏切换到目标项目后，到「页面元素库」重新发起存量普查",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long projectId = ((Number) anchor).longValue();

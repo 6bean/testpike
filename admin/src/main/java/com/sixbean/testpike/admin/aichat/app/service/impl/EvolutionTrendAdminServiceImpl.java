@@ -36,7 +36,7 @@ public class EvolutionTrendAdminServiceImpl implements EvolutionTrendAdminServic
             // The verdict rows are cards of a project's evolution session — a
             // platform-wide report has nothing to anchor to. Same sentence
             // family as the proposal-run door (no second stance per read/write).
-            throw new ServiceException("自进化趋势报告需要选定项目：请先在顶栏选择项目，或请求里带上 projectId",
+            throw new ServiceException("自进化趋势报告需要选定项目——请将顶栏切换到目标项目后重新生成报告，或调用时带上项目编号参数 projectId（示例：projectId=7）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         guard.assertCanManage(user, projectId);

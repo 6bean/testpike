@@ -69,7 +69,7 @@ public class ApiSpecPullDraftStrategy implements DraftWriteStrategy {
         String url = body.path("url").asText("").trim();
         if (name.isEmpty() || url.isEmpty()) {
             throw new ServiceException(
-                    "AI 契约拉取草案缺少契约名称或文档地址，无法入库（请重新让 AI 生成提案）",
+                    "AI 契约拉取草案缺少契约名称 name 或文档地址 url，无法入库——请在「AI 对话」写明契约名称与 OpenAPI 文档地址后重新生成提案；也可在「接口清单」页发起契约导入",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The fetch chain re-checks everything else itself (whitelist, size,

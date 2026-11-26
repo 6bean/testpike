@@ -98,7 +98,8 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
     @Override
     public SpecSubscriptionInfo create(long operatorId, SpecSubscriptionSaveRequest request) {
         if (request.projectId() == null) {
-            throw new ServiceException("订阅归属项目不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("订阅归属项目不能为空，请先在顶栏选定项目，再到「API 测试」页打开「契约订阅」新建",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         long projectId = request.projectId();
         String trimmedName = requireText(request.name(), "订阅名称不能为空");
@@ -182,7 +183,8 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
         int rows = jdbc.update("DELETE FROM tp_spec_subscription WHERE id = :id",
                 new MapSqlParameterSource("id", id));
         if (rows == 0) {
-            throw new ServiceException("契约订阅不存在: " + id, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("契约订阅不存在: " + id + "，请在「API 测试」页打开「契约订阅」刷新列表确认后再操作",
+                    BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -215,7 +217,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
     private static String requireHttpUrl(String url) {
         String trimmedUrl = url == null ? "" : url.trim();
         if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-            throw new ServiceException("订阅地址只支持 http/https（当前: " + trimmedUrl + "）",
+            throw new ServiceException("订阅地址只支持 http/https（当前: " + trimmedUrl + "），请在「API 测试」页的「契约订阅」中改成以 http:// 或 https:// 开头的地址后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return trimmedUrl;
@@ -228,7 +230,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
     private static String normalizeSourceKind(String raw, String fallback) {
         String kind = raw == null || raw.isBlank() ? fallback : raw.trim();
         if (!SOURCE_URL.equals(kind) && !SOURCE_PROGRAM_SPEC.equals(kind)) {
-            throw new ServiceException("订阅来源只支持 url 或 program_spec（当前: " + kind + "）",
+            throw new ServiceException("订阅来源只支持 url 或 program_spec（当前: " + kind + "），请在「API 测试」页的「契约订阅」中把来源改成 url 或 program_spec 后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return kind;
@@ -243,7 +245,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
     private void requireProgramReference(long consumerProjectId, Long providerProjectId,
                                          String providerSpecName) {
         if (providerProjectId == null || providerSpecName == null || providerSpecName.isBlank()) {
-            throw new ServiceException("集内契约订阅必须指定提供方项目与提供方契约名",
+            throw new ServiceException("集内契约订阅必须指定提供方项目与提供方契约名，请在「API 测试」页的「契约订阅」中新建订阅时补填这两项",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Long shared = jdbc.queryForObject("""
@@ -254,7 +256,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
                 """, new MapSqlParameterSource("consumer", consumerProjectId)
                 .addValue("provider", providerProjectId), Long.class);
         if (shared == null || shared == 0) {
-            throw new ServiceException("订阅方项目与提供方项目不属于同一个项目集，无法建立集内契约订阅",
+            throw new ServiceException("订阅方项目与提供方项目不属于同一个项目集，无法建立集内契约订阅；请先在「项目集管理」页把两个项目归入同一个项目集，或改用 URL 来源订阅",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Long held = jdbc.queryForObject("""
@@ -264,7 +266,8 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
                 .addValue("specName", providerSpecName.trim()), Long.class);
         if (held == null || held == 0) {
             throw new ServiceException("提供方项目内还没有契约「" + providerSpecName.trim()
-                    + "」，请先由提供方项目导入或上传后再订阅", BizErrorCode.VALIDATION_ERROR);
+                    + "」，请先在顶栏切到提供方项目、于「API 测试」页导入契约，再切回来订阅",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -272,7 +275,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
         int interval = checkIntervalMinutes == null ? DEFAULT_INTERVAL_MINUTES : checkIntervalMinutes;
         if (interval < MIN_INTERVAL_MINUTES || interval > MAX_INTERVAL_MINUTES) {
             throw new ServiceException("检查间隔须在 " + MIN_INTERVAL_MINUTES + "~"
-                    + MAX_INTERVAL_MINUTES + " 分钟之间（当前: " + interval + "）",
+                    + MAX_INTERVAL_MINUTES + " 分钟之间（当前: " + interval + "），请在「API 测试」页的「契约订阅」中把检查间隔改到该区间后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return interval;
@@ -287,7 +290,7 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
                 .addValue("excludeId", excludeId), Integer.class);
         if (dup != null && dup > 0) {
             throw new ServiceException("项目内已有同名契约订阅「" + name
-                    + "」，请改用其它名称或直接编辑现有订阅", BizErrorCode.RESOURCE_CONFLICT);
+                    + "」，请在「API 测试」页打开「契约订阅」改用其它名称，或直接编辑现有订阅", BizErrorCode.RESOURCE_CONFLICT);
         }
     }
 
@@ -296,7 +299,8 @@ public class SpecSubscriptionServiceImpl implements SpecSubscriptionService {
         List<SpecSubscriptionInfo> rows = jdbc.query(SELECT_COLUMNS + " WHERE id = :id",
                 new MapSqlParameterSource("id", id), MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("契约订阅不存在: " + id, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("契约订阅不存在: " + id + "，请在「API 测试」页打开「契约订阅」刷新列表确认后再操作",
+                    BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

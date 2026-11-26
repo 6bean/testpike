@@ -71,7 +71,7 @@ public class ChatRunServiceImpl implements ChatRunService {
                                List<ChatImageAttachment> attachments,
                                boolean systemManager, String questionContextJson) {
         if (prompt == null || prompt.isBlank()) {
-            throw new ServiceException("对话问题不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("对话问题内容不能为空——请在「AI 对话」输入框输入问题后发送", BizErrorCode.VALIDATION_ERROR);
         }
         List<ChatObjectRef> canonicalRefs = ChatObjectRefs.canonicalize(
                 refObjects, maxRefsPerQuestion());
@@ -85,7 +85,7 @@ public class ChatRunServiceImpl implements ChatRunService {
             long issuerProject = ChatImageAttachments.projectIdOf(attachment.objectKey());
             if (issuerProject != session.projectId()) {
                 throw new ServiceException("图片附件不属于当前项目（存储键："
-                        + attachment.objectKey() + "），请重新上传本项目内的图片后发送",
+                        + attachment.objectKey() + "）——请在「AI 对话」重新选择并上传当前项目内的图片后发送",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }

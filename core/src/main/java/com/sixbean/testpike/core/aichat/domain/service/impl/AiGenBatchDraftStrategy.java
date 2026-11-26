@@ -75,7 +75,7 @@ public class AiGenBatchDraftStrategy implements DraftWriteStrategy {
         List<String> requirements = readRequirements(body);
         if (requirements.isEmpty()) {
             throw new ServiceException(
-                    "AI 生成批次草案没有可用的需求条目，无法提交生成（请重新让 AI 生成提案）",
+                    "AI 生成批次草案没有可用的需求条目，无法提交生成——请将顶栏切换到有需求条目的项目后在「AI 对话」重新发起；也可到「需求点管理」页勾选需求点后再生成",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The enqueue chain owns every legality decision (blank line, line

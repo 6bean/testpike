@@ -75,7 +75,7 @@ public final class EvolutionNegativeGate {
             findViolation(candidate).ifPresent(label -> {
                 throw new ServiceException(
                         "自进化提案被拒绝：" + candidate + " 属于禁止项（" + label
-                                + "：进化环不能改平台自身代码、不能改配置闸与键值、不能代签人工确认、不能跳过评审自动发布）",
+                                + "：进化环不能改平台自身代码、不能改配置闸与键值、不能代签人工确认、不能跳过评审自动发布）——这类改动需要人工处理，可在「AI 对话」调整诉求后重新提案",
                         BizErrorCode.VALIDATION_ERROR);
             });
         }

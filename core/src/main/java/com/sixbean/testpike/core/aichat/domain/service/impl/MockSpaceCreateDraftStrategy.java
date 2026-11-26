@@ -73,7 +73,7 @@ public class MockSpaceCreateDraftStrategy implements DraftWriteStrategy {
         String spaceKey = body.path("spaceKey").asText("").trim();
         if (name.isEmpty() || spaceKey.isEmpty()) {
             throw new ServiceException(
-                    "AI Mock 空间草案缺少空间名称或路由标识，无法创建（请重新让 AI 生成提案）",
+                    "AI Mock 空间草案缺少空间名称 name 或路由标识 spaceKey，无法创建——请在「AI 对话」补全两项后重新生成提案；也可在「仿真空间」页新建空间",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Every other legality decision (key shape, mode/auth/policy one-of,

@@ -239,4 +239,48 @@ class GroundingServiceTest {
         row.put("closed_reason", closedReason);
         return row;
     }
+
+    // --- notice-noise split (configured state vs real fault) -----------------
+
+    private ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>
+            attachCapture() {
+        ch.qos.logback.classic.Logger log = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(GroundingService.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        return appender;
+    }
+
+    @Test
+    void unconfiguredEmbeddingNoticesOnceAsInfoAndNeverWarns() {
+        var appender = attachCapture();
+        when(gateway.listHelpDocs()).thenReturn(List.of());
+        when(searchService.search(any())).thenThrow(new RuntimeException(
+                "embedding 服务不可用：当前为 mock 替身模式，请配置真实 embedding 供应商"));
+        service.assemble(7L, "升级中心怎么升级");
+        service.assemble(7L, "升级中心怎么升级");
+        long warns = appender.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && String.valueOf(e.getFormattedMessage()).contains("knowledge")).count();
+        long infos = appender.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.INFO
+                        && String.valueOf(e.getFormattedMessage()).contains("not configured")).count();
+        assertEquals(0, warns, "expected-state grounding must not emit per-turn warnings");
+        assertEquals(1, infos, "the expected-state notice appears once, then stays quiet");
+    }
+
+    @Test
+    void transportFailureKeepsWarningEveryRun() {
+        var appender = attachCapture();
+        when(gateway.listHelpDocs()).thenReturn(List.of());
+        when(searchService.search(any())).thenThrow(new RuntimeException("Connection refused"));
+        service.assemble(9L, "批次执行细节有哪些");
+        service.assemble(9L, "批次执行细节有哪些");
+        long warns = appender.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && String.valueOf(e.getFormattedMessage()).contains("unreachable")).count();
+        assertTrue(warns >= 2, "a genuine outage must keep warning per run, got " + warns);
+    }
 }

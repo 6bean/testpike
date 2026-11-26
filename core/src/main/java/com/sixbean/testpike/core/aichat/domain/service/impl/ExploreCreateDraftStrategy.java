@@ -73,7 +73,7 @@ public class ExploreCreateDraftStrategy implements DraftWriteStrategy {
         String startUrl = body.path("startUrl").asText("").trim();
         if (goal.isEmpty() || startUrl.isEmpty()) {
             throw new ServiceException(
-                    "AI 探索草案缺少探索目标或起始地址，无法发起（请重新让 AI 生成提案）",
+                    "AI 探索草案缺少探索目标 goal 或起始地址 startUrl，无法发起——请在「AI 对话」写明要探索的目标与入口网址后重新生成提案；也可在「自主探索」页新建探索任务",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The budget fuse, the goal length cap, the SSRF floor and the

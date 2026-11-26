@@ -41,6 +41,7 @@ bash installkit/install.sh --scenario=first
 | 命令 | 用途 |
 | --- | --- |
 | `--scenario=first` | 首装：问答 → compose 基础栈 → 服务拉起 → 演示数据播种 → 试跑指引 |
+| `--scenario=upgrade` | 一条命令升级已装实例：拉新代码（仅快进）→ 补数据库增量迁移 → 重建应用镜像 → 滚动重建容器 → 就绪探测；数据卷不动，每步断点可续 |
 | `--scenario=repair` | 体检（探测件清单）+ 就地补齐缺件，补完复检 |
 | `--scenario=scale-out --token=<一次性令牌> --base-url=http://<主机>:18082` | 新机器凭平台集群页生成的一次性令牌接入执行器池 |
 | `--scenario=scale-in` | 先排空队列，再只卸载 installkit 自己安装的东西 |
@@ -101,7 +102,8 @@ ai-service 18084、前端 dev 5173、演示靶站 8899（`executor/` 下 `python
 - 空数据卷上首次 `docker compose up -d` 自动执行 `db/schema-init.sql`——全部迁移件与
   出厂种子合并（69 表：角色权限、系统配置出厂值、提示词包、数据字典、演示账号）。
 - 推倒重建：`docker compose down -v && docker compose up -d`。
-- 存量库升级：按 `db/migration/` 里的增量脚本手动执行（未启用 Flyway）。
+- 存量库升级：跑 `bash installkit/install.sh --scenario=upgrade`，按迁移台账自动补放
+  `db/migration/` 增量脚本（未启用 Flyway；详见 §7）。
   `db/schema-init.sql` 是生成物，新增迁移后跑 `bash tools/ops/gen_schema_init.sh` 再生，勿手改。
 
 ## 5. 首次登录
@@ -153,7 +155,12 @@ python3 installkit/s1_bootstrap.py seed-demo --base-url http://localhost:18081
 
 ## 7. 升级、扩容、退场
 
-- **升级服务**：`git pull` → `docker compose build` → `docker compose up -d`；存量库按 §4 补增量脚本。
+- **升级**：进入安装目录，`git pull` 后跑
+  `bash installkit/install.sh --scenario=upgrade`。向导只接受快进拉新（本地有未提交
+  改动或分支分叉会点名拒件，绝不改写历史），按迁移台账补放你库基线之后的
+  `db/migration/*.sql` 增量，重建应用镜像，按装机资源档位原地滚动重建服务，
+  最后等待 admin 就绪收尾。已有数据卷全程不动。任一步失败都会点名原因与修法，
+  重跑同一命令从断点续；拉到更新代码后再跑会自动重走全流程。
 - **加执行器**：平台集群页生成一次性令牌，新机器跑
   `bash installkit/install.sh --scenario=scale-out --token=<令牌> --base-url=http://<平台主机>:18082`。
 - **机器退场**：`--scenario=scale-in` 先排空在跑队列，再只移除 installkit 装的部件。

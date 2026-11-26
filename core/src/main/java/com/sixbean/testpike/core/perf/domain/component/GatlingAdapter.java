@@ -135,7 +135,7 @@ public class GatlingAdapter implements EngineAdapter {
                 throw new ServiceException("Gatling 引擎暂不支持「多链路配比 + 数据池」组合："
                         + "多总体下每条链路各自持有一份馈器，行租约会按链路重新起算="
                         + "伪造申报的行分配口径（k6 引擎支持该组合，或把混合链路拆成"
-                        + "各自绑定数据池的独立场景）", BizErrorCode.VALIDATION_ERROR);
+                        + "各自绑定数据池的独立场景）；建议改用 k6 引擎，或在「压测工作台」场景编辑把混合链路拆成各自绑定数据池的独立场景后重新发起；入口：「压测工作台」场景编辑的「链路分组」与「数据池」绑定项", BizErrorCode.VALIDATION_ERROR);
             }
             long datasetId = Long.parseLong(datasetIdRaw);
             String allocMode = PerfRowAllocModes.firstNonBlank(
@@ -182,7 +182,8 @@ public class GatlingAdapter implements EngineAdapter {
                     ((Number) scenario.get("project_id")).longValue(), simulationName,
                     flattenRunDir(runDir));
         } catch (IOException ioFailure) {
-            throw new ServiceException("压测仿真产物落盘失败：" + ioFailure.getMessage(),
+            throw new ServiceException("压测仿真产物落盘失败：" + ioFailure.getMessage()
+                    + "；可在「压测工作台」重新发起编译打包，持续失败时核对对象存储（S3 网关）可达性",
                     BizErrorCode.VALIDATION_ERROR);
         } finally {
             deleteTreeQuietly(runDir);
@@ -236,7 +237,7 @@ public class GatlingAdapter implements EngineAdapter {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             throw new ServiceException("Gatling 压测无法编译：当前 JVM 非 JDK 运行（无 javac 编译器），"
-                    + "请确认 core 服务以 JDK 21 启动，禁止静默跳过编译段",
+                    + "请确认 core 服务以 JDK 21 启动（JAVA_HOME 指向 JDK 目录而非 JRE），禁止静默跳过编译段；正确写法示例：JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
                     BizErrorCode.VALIDATION_ERROR);
         }
         final Throwable[] workerFailure = new Throwable[1];
@@ -260,22 +261,24 @@ public class GatlingAdapter implements EngineAdapter {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new ServiceException("Gatling 仿真编译被中断：等待编译线程时被取消，"
-                    + "请重新发起压测运行", BizErrorCode.VALIDATION_ERROR);
+                    + "请重新发起压测运行（入口：「压测运行台账」页新建运行）", BizErrorCode.VALIDATION_ERROR);
         }
         if (compileThread.isAlive()) {
             compileThread.interrupt();
             throw new ServiceException("Gatling 仿真编译超时（" + JAVAC_JOIN_TIMEOUT_MILLIS
-                    / 1000 + " 秒）：拒绝无限等待，请检查步骤规模或引擎依赖状态",
+                    / 1000 + " 秒）：拒绝无限等待，请在「压测工作台」精简场景步骤规模或核对引擎依赖状态后重新发起",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (workerFailure[0] != null) {
-            throw new ServiceException("压测仿真编译失败：" + workerFailure[0],
+            throw new ServiceException("压测仿真编译失败：" + workerFailure[0]
+                    + "；请在「压测工作台」重新发起编译，反复失败时把本行报错转给平台管理员排查引擎依赖",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!okBox[0]) {
             String first = diagnostics.getDiagnostics().stream()
                     .map(d -> d.getMessage(null)).findFirst().orElse("（无诊断输出）");
-            throw new ServiceException("Gatling 仿真编译失败：" + first,
+            throw new ServiceException("Gatling 仿真编译失败：" + first
+                    + "；请按该行编译诊断修正场景步骤后，在「压测工作台」重新发起编译",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -284,12 +287,12 @@ public class GatlingAdapter implements EngineAdapter {
     public String launch(String artifact, Map<String, Object> runContext) {
         if (!engineRuntimePresent()) {
             throw new ServiceException("Gatling 引擎运行件缺失（依赖未随包就位），无法启动压测；"
-                    + "请检查 gatling-core/http/app 3.13.5 打包，禁止静默切换其它引擎顶替",
+                    + "请检查 gatling-core/http/app 3.13.5 打包（装机时随 core 服务依赖就位），禁止静默切换其它引擎顶替；示例：服务 lib 目录应就位 gatling-core-3.13.5.jar 等 3 件，缺失时请按部署手册重装引擎依赖",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!artifactBundler.handleReadable(artifact)) {
             throw new ServiceException("Gatling 压测无法启动：编译产物（manifest）不存在或不可读「"
-                    + artifact + "」，请先重新编译场景", BizErrorCode.VALIDATION_ERROR);
+                    + artifact + "」，请在「压测工作台」重新编译场景后再发起运行", BizErrorCode.VALIDATION_ERROR);
         }
         // The real press runs on the executor side: perf_worker materializes this
         // object-key bundle , reads the manifest and launches

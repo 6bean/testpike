@@ -71,17 +71,20 @@ public class AnalysisFunctionDispatcher {
         String name = function == null ? "" : function.trim();
         if (name.isEmpty()) {
             throw new ServiceException("未指定分析函数，已拒绝执行——可调用："
-                    + String.join("、", callableFunctions()), BizErrorCode.VALIDATION_ERROR);
+                    + String.join("、", callableFunctions())
+                    + "；请在「AI 对话」中说明要分析的对象，让 AI 从上述函数中选一个重新发起", BizErrorCode.VALIDATION_ERROR);
         }
         GenFunction registryFunction = GenFunction.byName(name);
         if (registryFunction == null) {
             throw new ServiceException("分析函数「" + name + "」不在函数注册表内——可调用："
-                    + String.join("、", callableFunctions()), BizErrorCode.VALIDATION_ERROR);
+                    + String.join("、", callableFunctions())
+                    + "；请在「AI 对话」中改用上述函数名重新提问", BizErrorCode.VALIDATION_ERROR);
         }
         if (!registryFunction.isAnalysis()) {
             throw new ServiceException("函数「" + name + "」不是只读分析函数（造数函数在数据工厂模板内"
                     + "生成参数值，不在此通道执行）——本通道可调用："
-                    + String.join("、", callableFunctions()), BizErrorCode.VALIDATION_ERROR);
+                    + String.join("、", callableFunctions())
+                    + "；如需造数，请前往「自动造数」页在数据工厂模板内生成", BizErrorCode.VALIDATION_ERROR);
         }
         JsonNode filters = requireFilterObject(name, args);
         return switch (registryFunction) {
@@ -94,7 +97,8 @@ public class AnalysisFunctionDispatcher {
             case REHEARSAL_RISK_REPORT -> riskReportComposer.compose(projectId,
                     idFilter(filters, "batchId", name));
             default -> throw new ServiceException("分析函数「" + name + "」尚未接通服务端取数，"
-                    + "当前可调用：" + String.join("、", callableFunctions()),
+                    + "当前可调用：" + String.join("、", callableFunctions())
+                    + "；请在「AI 对话」中改用上述已接通的函数重新提问",
                     BizErrorCode.VALIDATION_ERROR);
         };
     }
@@ -106,14 +110,16 @@ public class AnalysisFunctionDispatcher {
         }
         if (!args.isObject()) {
             throw new ServiceException("分析函数「" + name + "」的入参需要 JSON 对象（如 "
-                    + "{\"chapter\":\"登录\"}），当前形态无法解析", BizErrorCode.VALIDATION_ERROR);
+                    + "{\"chapter\":\"登录\"}），当前形态无法解析；请在「AI 对话」中按上述示例改成对象形态后重新发起",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         Set<String> declared = DECLARED_ARGS.getOrDefault(name, Set.of());
         for (String key : new TreeSet<>(iterableKeys(args)) ) {
             if (!declared.contains(key)) {
                 throw new ServiceException("分析函数「" + name + "」不接受参数 " + key
                         + "（忽略它会让结果变成项目全量口径，与提问范围不符）——该函数支持的参数："
-                        + (declared.isEmpty() ? "无" : String.join("、", declared)),
+                        + (declared.isEmpty() ? "无" : String.join("、", declared))
+                        + "；请在「AI 对话」中删去该参数或改用上列参数重新发起",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -140,7 +146,8 @@ public class AnalysisFunctionDispatcher {
         }
         if (!node.isTextual()) {
             throw new ServiceException("分析函数「" + name + "」的参数 " + key
-                    + " 需要文本值（如 \"登录\"），当前无法作为筛选条件", BizErrorCode.VALIDATION_ERROR);
+                    + " 需要文本值（如 \"登录\"），当前无法作为筛选条件；请在「AI 对话」中把该筛选值改成文本后重新发起",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String value = node.asText().trim();
         return value.isEmpty() ? null : value;
@@ -163,12 +170,13 @@ public class AnalysisFunctionDispatcher {
                 return Long.parseLong(node.asText().trim());
             } catch (NumberFormatException ignored) {
                 throw new ServiceException("分析函数「" + name + "」的参数 " + key
-                        + " 需要整数 ID（如 77），当前值「" + node.asText() + "」无法作为编号",
+                        + " 需要整数 ID（如 77），当前值「" + node.asText() + "」无法作为编号；请在「AI 对话」中改成整数编号后重新发起",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
         throw new ServiceException("分析函数「" + name + "」的参数 " + key
-                + " 需要整数 ID（如 77），当前形态无法解析", BizErrorCode.VALIDATION_ERROR);
+                + " 需要整数 ID（如 77），当前形态无法解析；请在「AI 对话」中改成整数编号（示例：77）后重新发起",
+                BizErrorCode.VALIDATION_ERROR);
     }
 
     /** Callable set plus its filter vocabulary, read straight off the registry. */

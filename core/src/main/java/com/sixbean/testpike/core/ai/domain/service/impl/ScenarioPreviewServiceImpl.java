@@ -41,7 +41,7 @@ public class ScenarioPreviewServiceImpl implements ScenarioPreviewService {
     @Override
     public long create(ScenarioPreviewInput input) {
         if (input.requirementText() == null || input.requirementText().isBlank()) {
-            throw new ServiceException("需求内容不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("需求内容不能为空，请在「AI 生成」页先输入需求内容或从「需求点管理」选取需求点再发起场景预览", BizErrorCode.VALIDATION_ERROR);
         }
         ScenarioPreviewResult result = previewClient.enumerate(input.projectId(),
                 input.requirementText(), input.priority(), input.operatorId(), input.seq());
@@ -95,7 +95,7 @@ public class ScenarioPreviewServiceImpl implements ScenarioPreviewService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException broken) {
-            throw new ServiceException("场景预览数据序列化失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("场景预览数据序列化失败，请在「AI 生成」页重新发起场景预览；反复失败请联系管理员查看服务端日志", BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -103,7 +103,7 @@ public class ScenarioPreviewServiceImpl implements ScenarioPreviewService {
         try {
             return objectMapper.readerForListOf(ScenarioPreviewItem.class).readValue(json);
         } catch (JsonProcessingException corrupted) {
-            throw new ServiceException("场景预览数据损坏，无法读取圈选清单", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("场景预览数据损坏，无法读取圈选清单，请在「AI 生成」页对该批次重新生成场景预览", BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -111,7 +111,7 @@ public class ScenarioPreviewServiceImpl implements ScenarioPreviewService {
         try {
             return objectMapper.readerForListOf(String.class).readValue(json);
         } catch (JsonProcessingException corrupted) {
-            throw new ServiceException("场景预览数据损坏，无法读取残余分歧", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("场景预览数据损坏，无法读取残余分歧，请在「AI 生成」页对该批次重新生成场景预览", BizErrorCode.INTERNAL_ERROR);
         }
     }
 }

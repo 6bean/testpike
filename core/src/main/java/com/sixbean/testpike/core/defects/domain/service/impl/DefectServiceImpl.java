@@ -55,16 +55,16 @@ public class DefectServiceImpl implements DefectService {
     public DefectInfo link(long operatorId, DefectLinkInput input) {
         String key = input.defectKey() == null ? "" : input.defectKey().trim();
         if (key.isEmpty()) {
-            throw new ServiceException("缺陷 key 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺陷 key 不能为空，请在「缺陷库」新建缺陷表单填写 key（正确写法：BUG-123）", BizErrorCode.VALIDATION_ERROR);
         }
         if (key.length() > 50) {
-            throw new ServiceException("缺陷 key 长度不能超过 50 个字符", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺陷 key 长度不能超过 50 个字符，请在「缺陷库」新建缺陷表单精简 key 后提交", BizErrorCode.VALIDATION_ERROR);
         }
         Long caseId = jdbcTemplate.query(
                 "SELECT id FROM tp_test_case WHERE id = ? AND deleted = 0",
                 rs -> rs.next() ? rs.getLong(1) : null, input.caseId());
         if (caseId == null) {
-            throw new ServiceException("用例不存在", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("用例不存在，请在「用例管理」确认该用例是否在当前顶栏项目下", BizErrorCode.VALIDATION_ERROR);
         }
         String status = normalizeStatus(input.defectStatus(), "open");
         Long existing = jdbcTemplate.query(
@@ -87,7 +87,7 @@ public class DefectServiceImpl implements DefectService {
         String status = normalizeStatus(input.defectStatus(), null);
         DefectInfo current = getById(id);
         if (current == null) {
-            throw new ServiceException("缺陷关联记录不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("缺陷关联记录不存在，请在「缺陷库」刷新列表确认该记录是否已被删除", BizErrorCode.NOT_FOUND);
         }
         int rows = jdbcTemplate.update("""
                 UPDATE tp_case_defect
@@ -134,7 +134,7 @@ public class DefectServiceImpl implements DefectService {
     public DefectInfo get(long id) {
         DefectInfo info = getById(id);
         if (info == null) {
-            throw new ServiceException("缺陷关联记录不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("缺陷关联记录不存在，请在「缺陷库」刷新列表确认该记录是否已被删除", BizErrorCode.NOT_FOUND);
         }
         return info;
     }
@@ -147,11 +147,11 @@ public class DefectServiceImpl implements DefectService {
         try {
             caseInfo = caseService.get(caseId);
         } catch (ServiceException e) {
-            throw new ServiceException("用例不存在", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("用例不存在，请在「用例管理」确认该用例是否在当前顶栏项目下", BizErrorCode.VALIDATION_ERROR);
         }
         ScriptInfo script = scriptService.getByCaseId(caseId);
         if (script == null || script.actionJson() == null || script.actionJson().isBlank()) {
-            throw new ServiceException("该用例还没有可执行的脚本，请先生成脚本再重跑",
+            throw new ServiceException("该用例还没有可执行的脚本，请先生成脚本再重跑；入口：「用例管理」打开该用例的脚本区生成脚本",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (script.status() == 2) {
@@ -163,7 +163,7 @@ public class DefectServiceImpl implements DefectService {
                 ORDER BY (env_type = 1) DESC, env_type, id LIMIT 1
                 """, rs -> rs.next() ? rs.getLong(1) : null, caseInfo.projectId());
         if (envId == null) {
-            throw new ServiceException("项目暂无可用执行环境，请先在环境配置中添加（开发/测试/预发）",
+            throw new ServiceException("项目暂无可用执行环境，请先在环境配置中添加（开发/测试/预发）；可在「环境配置」页新增环境后重跑",
                     BizErrorCode.VALIDATION_ERROR);
         }
         execTaskService.create(new ExecTaskCreateInput(caseInfo.projectId(), caseId,
@@ -191,12 +191,12 @@ public class DefectServiceImpl implements DefectService {
         String s = raw == null ? "" : raw.trim();
         if (s.isEmpty()) {
             if (defaultVal == null) {
-                throw new ServiceException("缺陷状态不能为空", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("缺陷状态不能为空，请在「缺陷库」缺陷详情完成状态流转", BizErrorCode.VALIDATION_ERROR);
             }
             return defaultVal;
         }
         if (!DEFECT_STATUSES.contains(s)) {
-            throw new ServiceException("缺陷状态仅支持 open/in_progress/closed，实际: " + s,
+            throw new ServiceException("缺陷状态仅支持 open/in_progress/closed，实际: " + s + "；请改成上述三值之一（可在「缺陷库」状态流转弹窗选择）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return s;

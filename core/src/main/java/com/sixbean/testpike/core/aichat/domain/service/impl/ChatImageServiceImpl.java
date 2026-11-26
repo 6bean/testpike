@@ -44,7 +44,7 @@ public class ChatImageServiceImpl implements ChatImageService {
         Long hostProject = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM tp_project WHERE id = ?", Long.class, projectId);
         if (hostProject == null || hostProject == 0) {
-            throw new ServiceException("项目不存在，无法上传对话图片（项目 id：" + projectId + "）",
+            throw new ServiceException("项目不存在，无法上传对话图片（项目 id：" + projectId + "）——请将顶栏切换到已有项目后，在「AI 对话」重新上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String mime = UploadFileTypes.validateAttachment(fileName, declaredContentType, content);
@@ -72,11 +72,11 @@ public class ChatImageServiceImpl implements ChatImageService {
         // name (exec-artifact and every other scene stays out of this door).
         long owner = ChatImageAttachments.projectIdOf(objectKey);
         if (owner != projectId) {
-            throw new ServiceException("对话图片不属于当前项目，无法读取（该图片由项目 "
-                    + owner + " 上传）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("对话图片不属于当前项目，无法读取（该图片由项目 id "
+                    + owner + " 上传）——请将顶栏切换到该图片所属项目，或在「AI 对话」重新上传本项目的图片", BizErrorCode.VALIDATION_ERROR);
         }
         if (!storageRouter.systemProvider().exists(objectKey)) {
-            throw new ServiceException("对话图片不存在或已被清理，无法读取：" + objectKey,
+            throw new ServiceException("对话图片不存在或已被清理，无法读取（存储键：" + objectKey + "）——请在「AI 对话」重新粘贴截图或选择本地图片后发送",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return storageRouter.systemProvider()

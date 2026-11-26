@@ -266,7 +266,8 @@ mvn spring-boot:run       # admin:8081 / api:8082 / core:8083 / ai-service:18084
 > Database initialization: fully automatic for a fresh install — the first `docker compose up -d` on an empty
 > data volume runs `db/schema-init.sql` (the full incremental-migration history merged with seed data:
 > ≈2.2 MB, 199 tables). To rebuild from an existing volume: `docker compose down -v && docker compose up -d`.
-> Upgrading an existing database still applies incremental scripts from `db/migration/` manually
+> Upgrading an existing database is one command — `bash installkit/install.sh --scenario=upgrade`
+> applies the incremental `db/migration/` scripts through the migration ledger
 > (Flyway is not enabled). `db/schema-init.sql` is a generated artifact — regenerate it with
 > `bash tools/ops/gen_schema_init.sh` after adding migrations; do not edit by hand.
 > LLM: with `LLM_MOCK_ENABLED=true` (default) a built-in mock provider keeps everything runnable with no

@@ -102,8 +102,8 @@ class EvolutionProposalBridgeTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> controller.generateProposals("2026-10", null));
         assertEquals(40001, ex.getCode());
-        assertEquals("自进化提案需要选定项目：请先在顶栏选择项目，或请求里带上 projectId",
-                ex.getMessage());
+        assertEquals("自进化提案需要选定项目——请将顶栏切换到目标项目后在「AI 对话」重新发起生成，"
+                + "或调用时带上项目编号参数 projectId", ex.getMessage());
         verifyNoInteractions(coreClient);
     }
 

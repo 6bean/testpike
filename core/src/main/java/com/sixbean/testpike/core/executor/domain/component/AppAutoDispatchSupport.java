@@ -90,7 +90,7 @@ public class AppAutoDispatchSupport {
                                              List<Map<String, Object>> steps) {
         if (steps == null || steps.isEmpty()) {
             throw new ServiceException("APP 自动化任务步骤为空——请先在用例的 App 步骤区"
-                    + "编排动作（app.launch/app.tap 等）再建单", BizErrorCode.VALIDATION_ERROR);
+                    + "编排动作（app.launch/app.tap 等）再建单；入口：「用例管理」打开该用例的 App 步骤编排区", BizErrorCode.VALIDATION_ERROR);
         }
         String code = resolveEngineCodeForDispatch(engineCode, automationTarget);
         AppautoEngineInfo engine = engineService.getByCode(code);
@@ -244,14 +244,14 @@ public class AppAutoDispatchSupport {
         Map<String, Object> envelope = parseEnvelopeStrict(actionJson);
         if (!ENVELOPE_KIND.equals(str(envelope.get("kind")))) {
             throw new ServiceException("APP 自动化任务信封 kind 必须为 " + ENVELOPE_KIND
-                    + "（当前=" + orMissing(envelope.get("kind")) + "）",
+                    + "（当前=" + orMissing(envelope.get("kind")) + "）；可在「用例管理」把用例自动化目标设为 app 后重新建单",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!(envelope.get("engine") instanceof Map<?, ?> engineMap)
                 || str(engineMap.get("code")) == null
                 || str(engineMap.get("code")).isBlank()) {
             throw new ServiceException("APP 自动化任务信封缺少引擎描述（engine.code）——"
-                    + "请经建单装配面下发，或选择有效引擎后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请经建单装配面下发，或选择有效引擎后重试；可在「用例管理」编辑用例改选引擎（engine.code 格式：已启用引擎的编码）", BizErrorCode.VALIDATION_ERROR);
         }
         AppautoEngineInfo engine = engineService.getByCode(
                 str(engineMap.get("code")).trim().toUpperCase(Locale.ROOT));
@@ -330,7 +330,7 @@ public class AppAutoDispatchSupport {
         String target = normalizeTarget(rawTarget);
         if (rawTarget != null && !rawTarget.isBlank() && target == null) {
             throw new ServiceException("用例自动化目标仅支持 web/app/mp/harmony/api（当前=" + rawTarget.trim()
-                    + "）——APP/小程序/鸿蒙用例请选 app/mp/harmony，接口用例选 api，网页用例保持 web 或不挂",
+                    + "）——APP/小程序/鸿蒙用例请选 app/mp/harmony，接口用例选 api，网页用例保持 web 或不挂（入口：「用例管理」编辑用例的自动化目标）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String engine = rawEngine == null || rawEngine.isBlank() ? null
@@ -339,7 +339,7 @@ public class AppAutoDispatchSupport {
         if (target == null || "web".equals(target) || "api".equals(target)) {
             if (engine != null || profileId != null) {
                 throw new ServiceException("网页（web）、接口（api）或未挂自动化目标的用例不能指定引擎/环境档案"
-                        + "——APP 自动化用例请先把自动化目标设为 app（移动 App）、mp（小程序）或 harmony（鸿蒙）",
+                        + "——APP 自动化用例请先把自动化目标设为 app（移动 App）、mp（小程序）或 harmony（鸿蒙）（入口：「用例管理」编辑用例）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             return new AppAutoCaseTarget(target, null, null);
@@ -387,7 +387,7 @@ public class AppAutoDispatchSupport {
                 : normalizeTarget(rawTarget);
         if (rawTarget != null && !rawTarget.isBlank() && effTarget == null) {
             throw new ServiceException("用例自动化目标仅支持 web/app/mp/harmony/api（当前=" + rawTarget.trim()
-                    + "）——清空挂位请传 web", BizErrorCode.VALIDATION_ERROR);
+                    + "）——清空挂位请传 web；可在「用例管理」编辑用例调整", BizErrorCode.VALIDATION_ERROR);
         }
         // Linkage: explicitly switching the target back to web/api/unmounted clears engine
         // and profile automatically (one operation intent stays self-consistent — do not
@@ -428,26 +428,26 @@ public class AppAutoDispatchSupport {
         if (face == null || !face.contains(s)) {
             throw new ServiceException("任务引擎「" + str(engineMap.get("code")) + "」不支持"
                     + dimName + " " + s + "（描述符声明面=" + face + "）——请换引擎或修正目标"
-                    + dimName, BizErrorCode.VALIDATION_ERROR);
+                    + dimName + "；可在「用例管理」编辑用例换选支持该维度值的引擎", BizErrorCode.VALIDATION_ERROR);
         }
     }
 
     private Map<String, Object> parseEnvelopeStrict(String actionJson) {
         if (actionJson == null || actionJson.isBlank()) {
-            throw new ServiceException("APP 自动化任务信封不能为空",
+            throw new ServiceException("APP 自动化任务信封不能为空，请经「用例管理」建单装配面提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         try {
             Object parsed = objectMapper.readValue(actionJson, Map.class);
             if (!(parsed instanceof Map)) {
-                throw new ServiceException("APP 自动化任务信封必须是 JSON 对象",
+                throw new ServiceException("APP 自动化任务信封必须是 JSON 对象，请按「用例管理」建单装配面模板改成合法 JSON 对象后提交",
                         BizErrorCode.VALIDATION_ERROR);
             }
             return castMap(parsed);
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("APP 自动化任务信封不是合法 JSON：" + e.getMessage(),
+            throw new ServiceException("APP 自动化任务信封不是合法 JSON：" + e.getMessage() + "；请修正 JSON 拼写后重新提交（入口：「用例管理」建单装配面）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

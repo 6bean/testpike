@@ -63,13 +63,13 @@ public class FlakyIsolationDraftStrategy implements DraftWriteStrategy {
         long projectId = sessionService.findById(sessionId).projectId();
         Object targetRaw = draftRow.get("target_id");
         if (!(targetRaw instanceof Number caseAnchor)) {
-            throw new ServiceException("隔离草案缺少目标用例，无法确认写入（请重新让 AI 分析失败原因）",
+            throw new ServiceException("隔离草案缺少目标用例编号 caseId，无法确认写入——请在「执行中心」对失败任务发起 AI 失败分析，生成新的隔离草案后再确认",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long caseId = caseAnchor.longValue();
         CaseInfo current = caseService.get(caseId);
         if (current.projectId() != projectId) {
-            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝——请将顶栏切换到该用例所属项目后，再到「草案确认卡」重新确认",
                     BizErrorCode.FORBIDDEN);
         }
         Object anchorRaw = draftRow.get("base_version");

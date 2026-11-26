@@ -45,6 +45,7 @@ a default, so you can press Enter through), then installs step by step. Guarante
 | Command | What it does |
 | --- | --- |
 | `--scenario=first` | First install: questions → compose stack → services → demo-data seed → trial-run pointer |
+| `--scenario=upgrade` | Upgrade an installed checkout in one command: fetch newer code (fast-forward only) → apply new database migrations → rebuild images → rolling re-create → health probe; data volumes are kept and every step is resumable |
 | `--scenario=repair` | Health check (doctor probes) + fills missing pieces in place, then re-checks |
 | `--scenario=scale-out --token=<one-time token> --base-url=http://<host>:18082` | Enrols another machine into the executor pool (token generated on the platform's cluster page) |
 | `--scenario=scale-in` | Drains first, then removes only what installkit itself installed |
@@ -108,8 +109,9 @@ No manual steps for a fresh install:
   `db/schema-init.sql` — all migrations plus factory seed data merged
   (69 tables: RBAC roles, system config defaults, prompt pack, dictionaries, demo accounts).
 - Rebuild from scratch: `docker compose down -v && docker compose up -d`.
-- Upgrading an existing database: apply the incremental scripts in `db/migration/` manually
-  (Flyway is not enabled). `db/schema-init.sql` is a generated artifact — regenerate with
+- Upgrading an existing database: run `bash installkit/install.sh --scenario=upgrade` —
+  it applies the incremental scripts in `db/migration/` through the migration ledger
+  (Flyway is not enabled; see §7). `db/schema-init.sql` is a generated artifact — regenerate with
   `bash tools/ops/gen_schema_init.sh` after adding migrations; do not edit by hand.
 
 ## 5. First login
@@ -166,8 +168,16 @@ missing in place, prints a structured report, and re-checks after fixing.
 
 ## 7. Upgrading, scaling, removing
 
-- **Upgrade services:** `git pull`, rebuild images (`docker compose build`),
-  `docker compose up -d`; apply new `db/migration/*.sql` on existing databases as above.
+- **Upgrade:** `cd` to the checkout, `git pull`, then
+  `bash installkit/install.sh --scenario=upgrade`. The wizard fetches newer code
+  (fast-forward only — it refuses to rewrite local commits or a dirty tree),
+  applies the `db/migration/*.sql` files added since your database's baseline
+  through the migration ledger, rebuilds the application images, re-creates the
+  services with the same resource-tier profile set, and finishes by waiting for
+  the admin service to answer. Existing data volumes are never touched. If a
+  step fails it names the cause and the fix entry; re-running the same command
+  resumes where it stopped, and a rerun after newer commits landed re-walks the
+  whole pipeline.
 - **Add executor capacity:** on the platform's cluster page generate a one-time token, then
   on the new machine run `bash installkit/install.sh --scenario=scale-out --token=<token>
   --base-url=http://<platform-host>:18082`.

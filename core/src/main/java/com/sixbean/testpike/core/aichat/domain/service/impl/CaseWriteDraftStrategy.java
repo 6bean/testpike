@@ -122,7 +122,7 @@ public class CaseWriteDraftStrategy implements DraftWriteStrategy {
     private Integer landCreate(long draftId, long projectId, JsonNode body, long operatorId) {
         String title = DraftPayloadReads.text(body, "title");
         if (title == null || title.isBlank()) {
-            throw new ServiceException("AI 用例草案缺少标题，无法创建用例（请重新让 AI 生成提案）",
+            throw new ServiceException("AI 用例草案缺少标题 title，无法创建用例——请在「AI 对话」补充用例标题后重新生成草案，再到「草案确认卡」点「接受」",
                     BizErrorCode.VALIDATION_ERROR);
         }
         CaseInfo created = caseService.create(operatorId, new CaseCreateInput(
@@ -145,7 +145,7 @@ public class CaseWriteDraftStrategy implements DraftWriteStrategy {
         int baseVersion = ((Number) draftRow.get("base_version")).intValue();
         CaseInfo current = caseService.get(caseId);
         if (current.projectId() != projectId) {
-            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝——请将顶栏切换到该用例所属项目后，再到「草案确认卡」重新确认",
                     BizErrorCode.FORBIDDEN);
         }
         int anchor = baseVersion;
@@ -157,7 +157,7 @@ public class CaseWriteDraftStrategy implements DraftWriteStrategy {
                     current.version(), proposalFields(body), snapshotSteps(steps));
             if (outcome.status() == RevisionMergeStatus.BASELINE_MISSING) {
                 throw new ServiceException("无法核对草案的基线内容（草案基于版本 " + baseVersion
-                        + " 的历史快照缺失或不可读），为避免覆盖他人的修改，本次编辑未写入——请基于最新版本重新确认",
+                        + " 的历史快照缺失或不可读），为避免覆盖他人的修改，本次编辑未写入——请在「测试用例」打开该用例核对最新版本，到「AI 对话」基于最新版本重新生成提案后再到「草案确认卡」确认",
                         BizErrorCode.VERSION_CONFLICT);
             }
             if (outcome.status() == RevisionMergeStatus.CONFLICT && !forceLatest) {

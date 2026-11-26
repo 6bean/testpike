@@ -77,7 +77,7 @@ public class PlanWriteDraftStrategy implements DraftWriteStrategy {
         JsonNode scope = body.get("caseScope");
         if (name == null || name.isBlank() || envIds.isEmpty() || scope == null || scope.isNull()) {
             throw new ServiceException(
-                    "AI 计划草案缺少计划名、环境集合或范围规则，无法创建计划（请重新让 AI 生成提案）",
+                    "AI 计划草案缺少计划名 name、环境集合 envIds 或范围规则 caseScope，无法创建计划——请在「AI 对话」补全三项后重新生成提案；也可在「执行计划」页新建计划",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // CaseScopeRule.of is the shared value-range door (phases 1~4,

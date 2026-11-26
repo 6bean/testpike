@@ -75,7 +75,7 @@ public class PopupRuleLearnDraftStrategy implements DraftWriteStrategy {
         long taskId = body.path("taskId").asLong(0L);
         if (taskId <= 0) {
             throw new ServiceException(
-                    "AI 弹窗规则学习草案缺少执行任务编号，无法学习（请重新让 AI 生成提案）",
+                    "AI 弹窗规则学习草案缺少执行任务编号 taskId，无法学习——请在「执行中心」打开该任务详情后从任务行发起弹窗规则学习",
                     BizErrorCode.VALIDATION_ERROR);
         }
         ExecTaskInfo task = execTaskService.get(taskId);

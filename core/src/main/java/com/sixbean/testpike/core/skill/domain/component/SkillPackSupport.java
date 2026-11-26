@@ -32,14 +32,15 @@ public class SkillPackSupport {
             }
         }
         throw new ServiceException("zip 包内未找到 .md 主文件"
-                + "（SKILL 包需包含一个与 frontmatter name 对应的 Markdown 文件）",
+                + "（SKILL 包需包含一个与 frontmatter name 对应的 Markdown 文件）；请在「SKILL 管理」页修正包内容后重新导入",
                 BizErrorCode.VALIDATION_ERROR);
     }
 
     
     public SkillMarkdownParsed parseMarkdown(String content) {
         if (content == null || content.stripLeading().isEmpty()) {
-            throw new ServiceException("SKILL 文件内容为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("SKILL 文件内容为空，请在「SKILL 管理」页编辑该技能补充正文，或重新导入有效文件",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String text = content.replace("\r\n", "\n");
         List<String> lines = text.lines().toList();
@@ -49,7 +50,7 @@ public class SkillPackSupport {
         }
         if (i >= lines.size() || !lines.get(i).trim().equals("---")) {
             throw new ServiceException("SKILL 文件缺少 YAML frontmatter"
-                    + "（文件开头需以 --- 包裹元数据块：name/type/stages/scope/version）",
+                    + "（文件开头需以 --- 包裹元数据块：name/type/stages/scope/version）；请在「SKILL 管理」页按上述结构补齐后重新导入",
                     BizErrorCode.VALIDATION_ERROR);
         }
         int end = -1;
@@ -60,7 +61,7 @@ public class SkillPackSupport {
             }
         }
         if (end < 0) {
-            throw new ServiceException("SKILL frontmatter 未闭合（缺少结束分隔线 ---）",
+            throw new ServiceException("SKILL frontmatter 未闭合（缺少结束分隔线 ---），请在「SKILL 管理」页补上结束分隔线后重新导入",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String yamlBlock = String.join("\n", lines.subList(i + 1, end));
@@ -79,24 +80,27 @@ public class SkillPackSupport {
     private void validateRequired(Map<String, Object> meta) {
         Object name = meta.get("name");
         if (name == null || name.toString().isBlank()) {
-            throw new ServiceException("frontmatter 缺少必填字段 name（SKILL 名称）",
+            throw new ServiceException("frontmatter 缺少必填字段 name（SKILL 名称），请在「SKILL 管理」页编辑该技能的元数据块补填 name 后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Object type = meta.get("type");
         if (type == null) {
             throw new ServiceException("frontmatter 缺少必填字段 type（SKILL 类型，可选："
-                    + SkillType.allLabels() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + SkillType.allLabels() + "），请在「SKILL 管理」页补填上述类型之一后保存",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         int typeCode;
         try {
             typeCode = Integer.parseInt(type.toString().trim());
         } catch (NumberFormatException e) {
             throw new ServiceException("frontmatter type「" + type + "」不是合法类型（可选："
-                    + SkillType.allLabels() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + SkillType.allLabels() + "），请在「SKILL 管理」页改成上述类型之一后重新导入",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (SkillType.of(typeCode) == null) {
             throw new ServiceException("frontmatter type " + typeCode + " 不在合法枚举（可选："
-                    + SkillType.allLabels() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + SkillType.allLabels() + "），请在「SKILL 管理」页改成上述类型之一后重新导入",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -106,7 +110,7 @@ public class SkillPackSupport {
             options.setAllowDuplicateKeys(false);
             Object loaded = new Yaml(new SafeConstructor(options)).load(yamlBlock);
             if (!(loaded instanceof Map)) {
-                throw new ServiceException("frontmatter 需为键值结构（name/type/stages/scope/version）",
+                throw new ServiceException("frontmatter 需为键值结构（name/type/stages/scope/version），请在「SKILL 管理」页按上述键结构改正后重新导入",
                         BizErrorCode.VALIDATION_ERROR);
             }
             @SuppressWarnings("unchecked")
@@ -115,7 +119,8 @@ public class SkillPackSupport {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("frontmatter YAML 解析失败：" + rootCauseMessage(e),
+            throw new ServiceException("frontmatter YAML 解析失败：" + rootCauseMessage(e)
+                    + "；请在「SKILL 管理」页检查元数据块的缩进与冒号后重新导入",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

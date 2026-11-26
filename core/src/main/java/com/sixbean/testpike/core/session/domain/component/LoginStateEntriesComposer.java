@@ -85,7 +85,7 @@ public class LoginStateEntriesComposer {
         try {
             return objectMapper.writeValueAsString(rows);
         } catch (JsonProcessingException e) {
-            throw new ServiceException("勾选条目无法入册，请重新发起采集。", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("勾选条目无法入册——请到「登录态账本」对该行重新发起采集并勾选确认后再入册。", BizErrorCode.INTERNAL_ERROR);
         }
     }
 

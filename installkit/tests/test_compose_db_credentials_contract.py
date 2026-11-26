@@ -41,6 +41,17 @@ def test_rabbitmq_credentials_read_install_env_keys():
     assert "RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-testpike_dev}" in mq, mq
 
 
+def test_backend_services_map_the_host_gateway():
+    # Containers reach a host-side LLM gateway only through this mapping; the
+    # fresh-install chat trap (base URL pointed at a container-local
+    # localhost) is closed by declaring the gateway and shipping a URL that
+    # resolves with it.
+    for service in ("tp-core", "tp-admin", "tp-api", "tp-ai-service"):
+        block = _block(r"^  %s:" % service)
+        assert "host.docker.internal:host-gateway" in block, \
+            "%s lacks the host-gateway mapping" % service
+
+
 def test_dbinit_wait_is_bounded_and_diagnoses():
     init = _block(r"^  seaweedfs-dbinit:")
     assert "until psql" not in init, "unbounded ready-wait loop is back"

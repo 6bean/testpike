@@ -41,18 +41,18 @@ public class ApiCollectionServiceImpl implements ApiCollectionService {
     @Audit(objectType = "apitestCollection", action = "create", after = "#result")
     public ApiCollectionInfo create(Long operatorId, CollectionSaveInput input) {
         if (input == null || input.projectId() == null || input.projectId() <= 0) {
-            throw new ServiceException("集合必须挂在项目下", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合必须挂在项目下，请在顶栏选定项目后，于「接口测试」页左侧集合树新建集合", BizErrorCode.VALIDATION_ERROR);
         }
         String name = requireName(input.name());
         long parentId = input.parentId() == null ? 0L : input.parentId();
         if (parentId > 0) {
             ApiCollectionRow parent = requireCollection(parentId);
             if (parent.getParentId() != 0) {
-                throw new ServiceException("集合目录最多两级，不能在子目录下再建子目录",
+                throw new ServiceException("集合目录最多两级，不能在子目录下再建子目录；请在「接口测试」集合树把目录建在顶层或一级目录下",
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (parent.getProjectId() != input.projectId()) {
-                throw new ServiceException("父集合与项目不匹配", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("父集合与项目不匹配，请在「接口测试」集合树重选同一顶栏项目下的父集合后提交", BizErrorCode.VALIDATION_ERROR);
             }
         }
         String tags = normalizeTags(input.tags());
@@ -134,11 +134,11 @@ public class ApiCollectionServiceImpl implements ApiCollectionService {
                  WHERE parent_id = :id AND id <> :id
                 """, new MapSqlParameterSource("id", collectionId), Long.class);
         if (children != null && children > 0) {
-            throw new ServiceException("该集合下还有子目录，请先删除子目录和请求",
+            throw new ServiceException("该集合下还有子目录，请先删除子目录和请求；入口：「接口测试」集合树逐级删除后再删本目录",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
         if (countRequests(collectionId) > 0) {
-            throw new ServiceException("该集合下还有 API 请求，请先删除请求",
+            throw new ServiceException("该集合下还有 API 请求，请先删除请求；入口：「接口测试」集合树展开该目录逐条删除",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
         namedJdbc.update("DELETE FROM tp_apitest_collection WHERE id = :id",
@@ -224,18 +224,18 @@ public class ApiCollectionServiceImpl implements ApiCollectionService {
                 """, new MapSqlParameterSource("id", id),
                 new BeanPropertyRowMapper<>(ApiCollectionRow.class));
         if (rows.isEmpty()) {
-            throw new ServiceException("API 测试集合不存在或已删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("API 测试集合不存在或已删除，请在「接口测试」页刷新集合树确认后再操作", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
 
     private String requireName(String raw) {
         if (raw == null || raw.trim().isEmpty()) {
-            throw new ServiceException("集合名称不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合名称不能为空，请在「接口测试」的集合新建/重命名弹窗补填名称", BizErrorCode.VALIDATION_ERROR);
         }
         String name = raw.trim();
         if (name.length() > MAX_NAME) {
-            throw new ServiceException("集合名称最长 " + MAX_NAME + " 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合名称最长 " + MAX_NAME + " 字，请在「接口测试」重命名弹窗精简名称后重新提交", BizErrorCode.VALIDATION_ERROR);
         }
         return name;
     }
@@ -246,7 +246,7 @@ public class ApiCollectionServiceImpl implements ApiCollectionService {
         }
         String tags = raw.trim();
         if (tags.length() > MAX_TAGS) {
-            throw new ServiceException("集合标签最长 " + MAX_TAGS + " 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合标签最长 " + MAX_TAGS + " 字，请在「接口测试」集合编辑处精简标签", BizErrorCode.VALIDATION_ERROR);
         }
         return tags;
     }
@@ -262,7 +262,7 @@ public class ApiCollectionServiceImpl implements ApiCollectionService {
                 .addValue("name", name)
                 .addValue("excludeId", excludeId), Long.class);
         if (count != null && count > 0) {
-            throw new ServiceException("同层已存在同名集合「" + name + "」",
+            throw new ServiceException("同层已存在同名集合「" + name + "」，请在「接口测试」集合树换一个名称后重新提交",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
     }

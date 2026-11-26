@@ -211,7 +211,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
             // so admission here never burns two generations.
             if (lockProbe.liveGenerationRunning(documentId) && !preempt) {
                 throw new ServiceException("上一轮需求点提取仍在执行，本次继续将抢占并自动中止上一轮；"
-                                + "确认抢占请携带抢占标志重新提交，否则请等待本轮完成",
+                                + "确认抢占请携带抢占标志在「文档列表」重新提交提取，否则请等待本轮完成（进展可在「生成任务进度」查看）",
                         BizErrorCode.STATE_MACHINE_REJECT);
             }
         }
@@ -220,7 +220,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
         // non-parsed state keeps the honest rejection below.
         if (status != STATUS_PARSE_OK && status != STATUS_EXTRACTED
                 && status != STATUS_EXTRACTING) {
-            throw new ServiceException("文档尚未解析成功，无法提取需求点（请先完成解析）",
+            throw new ServiceException("文档尚未解析成功，无法提取需求点，请在「文档列表」等待解析完成或重新上传文档后再发起提取",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         // Usage-switch routing: a document switched off for requirement
@@ -276,7 +276,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
     public DocumentInfo cancelExtraction(long operatorId, long documentId) {
         int status = lockStatus(documentId);
         if (status != STATUS_EXTRACTING) {
-            throw new ServiceException("该文档当前没有进行中的提取任务，无需取消提取",
+            throw new ServiceException("该文档当前没有进行中的提取任务，无需取消提取；任务历史可在「生成任务进度」查看",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         int updated = jdbcTemplate.update(
@@ -285,7 +285,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
                 STATUS_PARSE_OK, CANCEL_ERROR_TEXT, UUID.randomUUID().toString(),
                 documentId, STATUS_EXTRACTING);
         if (updated == 0) {
-            throw new ServiceException("该提取任务刚刚已完成或状态已变化，本次取消未生效，请刷新查看结果",
+            throw new ServiceException("该提取任务刚刚已完成或状态已变化，本次取消未生效，请刷新「文档列表」查看最新提取结果",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         log.info("F2 提取任务被用户显式取消: docId={} operatorId={}", documentId, operatorId);
@@ -662,7 +662,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
     public ConfirmExtractionResult confirmAllExtraction(long operatorId, long documentId) {
         DocumentExtractState state = loadState(documentId);
         if (state.status() != STATUS_EXTRACTED) {
-            throw new ServiceException("文档尚未完成提取，暂无可入库的需求点",
+            throw new ServiceException("文档尚未完成提取，暂无可入库的需求点，请在「文档列表」先完成需求点提取再入库",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         return confirmExtraction(operatorId, documentId,
@@ -677,7 +677,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
         lockStatus(documentId);
         DocumentExtractState state = loadState(documentId);
         if (state.status() != STATUS_EXTRACTED) {
-            throw new ServiceException("文档尚未完成提取，暂无可确认的需求点预览",
+            throw new ServiceException("文档尚未完成提取，暂无可确认的需求点预览，请在「文档列表」等待提取完成后打开「提取预览」确认",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         List<ExtractionItem> preview = readExtractionJson(state.extractionJson());
@@ -856,11 +856,11 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
                     "SELECT status FROM tp_document WHERE id=? FOR UPDATE",
                     Integer.class, documentId);
             if (status == null) {
-                throw new ServiceException("文档不存在（或已删除）", BizErrorCode.NOT_FOUND);
+                throw new ServiceException("文档不存在（或已删除），请刷新「文档列表」确认后重新选择文档", BizErrorCode.NOT_FOUND);
             }
             return status;
         } catch (EmptyResultDataAccessException e) {
-            throw new ServiceException("文档不存在（或已删除）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("文档不存在（或已删除），请刷新「文档列表」确认后重新选择文档", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -873,7 +873,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
                             rs.getString(4), rs.getString(5), (Long) rs.getObject(6), rs.getString(7)),
                     documentId);
         } catch (EmptyResultDataAccessException e) {
-            throw new ServiceException("文档不存在（或已删除）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("文档不存在（或已删除），请刷新「文档列表」确认后重新选择文档", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -894,7 +894,7 @@ public class DocumentExtractionServiceImpl implements DocumentExtractionService 
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
-            throw new ServiceException("提取预览序列化失败", BizErrorCode.VALIDATION_ERROR, e);
+            throw new ServiceException("提取预览序列化失败，请在「文档列表」对该文档重新发起提取；反复失败请联系管理员查看服务端日志", BizErrorCode.VALIDATION_ERROR, e);
         }
     }
 

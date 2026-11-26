@@ -182,9 +182,10 @@ public class ChatFrameInternalController {
         try {
             return ChatFrameType.fromWireName(wireName);
         } catch (IllegalArgumentException ex) {
-            throw new ServiceException("未知的帧类型：" + wireName + "，合法值="
+            throw new ServiceException("未知的帧类型 wireName：" + wireName + "，合法值="
                     + Arrays.toString(Arrays.stream(ChatFrameType.values())
-                            .map(ChatFrameType::wireName).toArray()),
+                            .map(ChatFrameType::wireName).toArray())
+                    + "——请从上面列表里原样选取帧名传入（示例：delta）；在对话回看里看到本提示时，请回到「AI 对话」重新打开该会话查看完整回答",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

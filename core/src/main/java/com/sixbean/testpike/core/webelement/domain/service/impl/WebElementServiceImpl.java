@@ -81,7 +81,7 @@ public class WebElementServiceImpl implements WebElementService {
     @Override
     public WebElementView create(WebElementInput input) {
         if (input.projectId() == null) {
-            throw new ServiceException("请先选择项目再新建页面元素", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请先在顶栏选择项目，再到「页面元素库」页点「新建元素」", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.name() == null || input.name().isBlank()) {
             throw new ServiceException("元素名称不能为空，请使用团队看得懂的业务名（如「登录按钮」）",
@@ -113,7 +113,7 @@ public class WebElementServiceImpl implements WebElementService {
                 "SELECT " + SELECT_COLUMNS + "FROM tp_web_element WHERE id = :id",
                 new MapSqlParameterSource("id", id), this::mapRow);
         if (rows.isEmpty()) {
-            throw new ServiceException("该元素条目不存在（可能已被清理），请刷新后重试",
+            throw new ServiceException("该元素条目不存在（可能已被清理），请刷新「页面元素库」列表后重试；引用它的用例请按「用例管理」重新绑定元素",
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
@@ -209,7 +209,7 @@ public class WebElementServiceImpl implements WebElementService {
         }
         for (WebElementVariantInput variant : variants) {
             if (variant == null || variant.viewport() == null || variant.viewport().isBlank()) {
-                throw new ServiceException("视口变体缺少档位名（mobile/tablet/desktop 之一），无法保存",
+                throw new ServiceException("视口变体缺少档位名（mobile/tablet/desktop 之一），无法保存；请在「页面元素库」新建/编辑弹窗的视口变体区选定档位名",
                         BizErrorCode.VALIDATION_ERROR);
             }
             validated.add(new WebElementVariantInput(
@@ -223,7 +223,7 @@ public class WebElementServiceImpl implements WebElementService {
         try {
             return mapper.writeValueAsString(variants);
         } catch (Exception e) {
-            throw new ServiceException("视口变体无法保存（格式不受支持），请检查档位锚内容后重试",
+            throw new ServiceException("视口变体无法保存（格式不受支持），请在「页面元素库」编辑弹窗删除该行变体、重选档位后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -317,20 +317,20 @@ public class WebElementServiceImpl implements WebElementService {
 
     private List<WebElementAnchorInput> validateAnchors(List<WebElementAnchorInput> anchors) {
         if (anchors == null || anchors.isEmpty()) {
-            throw new ServiceException("请至少提供一个定位锚（如 testid / css / xpath），空锚条目无法被执行器定位",
+            throw new ServiceException("请至少提供一个定位锚（如 testid / css / xpath），空锚条目无法被执行器定位；入口：「页面元素库」新建/编辑弹窗的「定位锚」区",
                     BizErrorCode.VALIDATION_ERROR);
         }
         for (WebElementAnchorInput anchor : anchors) {
             if (anchor.type() == null || !ANCHOR_TYPES.contains(anchor.type().toLowerCase())) {
-                throw new ServiceException("锚类型「%s」不在支持范围，允许：css、xpath、text、placeholder、alt、testid、rel、role、label",
+                throw new ServiceException("锚类型「%s」不在支持范围，允许：css、xpath、text、placeholder、alt、testid、rel、role、label；请在「页面元素库」编辑弹窗把该锚的类型改为允许值之一",
                         BizErrorCode.VALIDATION_ERROR, anchor.type());
             }
             if (anchor.value() == null || anchor.value().isBlank()) {
-                throw new ServiceException("锚表达式不能为空（类型 " + anchor.type() + "）",
+                throw new ServiceException("锚表达式不能为空（类型 " + anchor.type() + "），请在「页面元素库」编辑弹窗的该锚行补填定位表达式",
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (anchor.strength() == null || anchor.strength() < 0 || anchor.strength() > 1) {
-                throw new ServiceException("锚强度必须是 0 到 1 之间的数字（当前 %s），它决定多锚尝试的排序权重",
+                throw new ServiceException("锚强度必须是 0 到 1 之间的数字（当前 %s），它决定多锚尝试的排序权重；请在「页面元素库」编辑弹窗的该锚行改填 0~1（如 0.8）",
                         BizErrorCode.VALIDATION_ERROR, anchor.strength());
             }
         }
@@ -377,7 +377,7 @@ public class WebElementServiceImpl implements WebElementService {
         try {
             return mapper.writeValueAsString(anchors);
         } catch (Exception e) {
-            throw new ServiceException("锚集无法保存（格式不受支持），请检查锚内容后重试",
+            throw new ServiceException("锚集无法保存（格式不受支持），请在「页面元素库」编辑弹窗删除异常锚行后重新添加",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

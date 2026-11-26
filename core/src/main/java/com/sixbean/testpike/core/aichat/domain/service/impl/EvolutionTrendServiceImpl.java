@@ -62,7 +62,7 @@ public class EvolutionTrendServiceImpl implements EvolutionTrendService {
         EvolutionSignalView before = signalService.observe(month, projectId);
         if (projectId == null) {
             throw new ServiceException(
-                    "趋势报告需要选定项目（提案卡落在具体项目的进化会话里，全平台视图不支持出报告）",
+                    "趋势报告需要选定项目——请将顶栏切换到目标项目后，在「AI 对话」的该项目进化会话里重新生成趋势报告（全平台视图不支持出报告）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         YearMonth runMonth = YearMonth.parse(month, MONTH_FORMAT);

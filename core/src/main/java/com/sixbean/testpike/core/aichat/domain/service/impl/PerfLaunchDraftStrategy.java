@@ -68,7 +68,7 @@ public class PerfLaunchDraftStrategy implements DraftWriteStrategy {
         long scenarioId = body.path("scenarioId").asLong(0L);
         if (scenarioId <= 0) {
             throw new ServiceException(
-                    "AI 压测发起草案缺少场景编号，无法发起运行（请重新让 AI 生成提案）",
+                    "AI 压测发起草案缺少场景编号 scenarioId，无法发起运行——请在「AI 对话」指定要运行的压测场景后重新生成提案；也可在「压测工作台」直接发起运行",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Long envId = body.hasNonNull("envId") ? body.get("envId").asLong() : null;

@@ -242,7 +242,7 @@ public class TraceChainServiceImpl implements TraceChainService {
                 (rs, i) -> new CaseRow(rs.getLong("id"), rs.getLong("project_id"),
                         rs.getString("case_no"), rs.getString("title"), rs.getInt("status")), caseId)
                 .stream().findFirst()
-                .orElseThrow(() -> new ServiceException("用例不存在或已被删除", BizErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new ServiceException("用例不存在或已被删除，请刷新「用例管理」列表后重新选择用例", BizErrorCode.NOT_FOUND));
     }
 
     private int countQuery(String sql, Object... args) {

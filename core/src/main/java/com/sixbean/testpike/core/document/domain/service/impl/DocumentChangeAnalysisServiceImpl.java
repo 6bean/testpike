@@ -92,7 +92,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
     public DocChangeAnalysisInfo analyze(long operatorId, long newDocumentId) {
         DocumentInfo newDoc = documentService.get(newDocumentId);
         if (newDoc.status() != 1) {
-            throw new ServiceException("文档尚未解析成功，无法做变更分析（当前状态需为解析成功）",
+            throw new ServiceException("文档尚未解析成功，无法做变更分析（当前状态需为解析成功），请在「文档列表」等待解析完成或重新上传文档后再发起",
                     BizErrorCode.VALIDATION_ERROR);
         }
         DocumentInfo oldDoc = findPreviousVersion(newDoc);
@@ -165,7 +165,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
         DocChangeAnalysisInfo current = getById(id);
         if (current.status() != DocChangeAnalysisStatus.PENDING) {
             throw new ServiceException("该变更分析已处置完毕，无需重复处置（处置人="
-                    + current.handledBy() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + current.handledBy() + "）；可在「变更分析」明细查看处置记录", BizErrorCode.VALIDATION_ERROR);
         }
         int flipped = named.update("UPDATE tp_doc_change_analysis SET status = :handled, handled_by = :operatorId,"
                         + " handled_at = now(), handle_note = :note WHERE id = :id AND status = :pending",
@@ -178,7 +178,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
         if (flipped != 1) {
             // Lost the compare-and-swap to a concurrent disposition: refuse instead
             // of running a second writeback pass over the same diff items.
-            throw new ServiceException("该变更分析已被并发处置，本次处置未生效（处置记录已留痕）",
+            throw new ServiceException("该变更分析已被并发处置，本次处置未生效（处置记录已留痕），请刷新「变更分析」列表查看最新处置结果",
                     BizErrorCode.VALIDATION_ERROR);
         }
         writeBackRequirements(operatorId, current);
@@ -253,7 +253,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
         List<DocChangeAnalysisInfo> rows = named.query(SELECT_COLUMNS + " WHERE id = :id",
                 new MapSqlParameterSource("id", id), this::mapRow);
         if (rows.isEmpty()) {
-            throw new ServiceException("变更分析记录不存在（id=" + id + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("变更分析记录不存在（id=" + id + "），请刷新「变更分析」列表确认记录后重新选择", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -261,7 +261,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
     
     private DocumentInfo findPreviousVersion(DocumentInfo current) {
         if (current.lineageGroupId() == null) {
-            throw new ServiceException("该文档缺少血缘组信息（历史数据未回填），请人工选择对照版本",
+            throw new ServiceException("该文档缺少血缘组信息（历史数据未回填），请在「变更分析」页人工选择对照版本后重新提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<DocumentInfo> rows = named.query("""
@@ -282,7 +282,7 @@ public class DocumentChangeAnalysisServiceImpl implements DocumentChangeAnalysis
                         rs.getBoolean(12), rs.getBoolean(13), rs.getBoolean(14), rs.getInt(15),
                         rs.getObject(16, Long.class), null, null));
         if (rows.isEmpty()) {
-            throw new ServiceException("该文档没有可对照的历史版本（重传分析需血缘组内存在已解析成功的旧版）",
+            throw new ServiceException("该文档没有可对照的历史版本（重传分析需血缘组内存在已解析成功的旧版），请先在「文档列表」上传旧版本并完成解析，或改用首次全量提取",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return rows.get(0);

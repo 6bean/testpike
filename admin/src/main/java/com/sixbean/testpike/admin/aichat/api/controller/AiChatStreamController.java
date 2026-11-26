@@ -68,7 +68,7 @@ public class AiChatStreamController {
         boolean systemManager = accessGuard.isSystemManager(UserContext.current());
         boolean fresh = request.prompt() != null && !request.prompt().isBlank();
         if (!fresh && request.resumeCursor() == null) {
-            throw new ServiceException("请填写问题内容，或携带续传游标重新连接本次回答。",
+            throw new ServiceException("问题内容为空且未携带续传游标——请在「AI 对话」输入框输入问题后发送；要继续一条中断的回答，从「AI 对话」历史重新进入该会话即可续传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Proxy buffering would batch the frames and recreate the "staring at a

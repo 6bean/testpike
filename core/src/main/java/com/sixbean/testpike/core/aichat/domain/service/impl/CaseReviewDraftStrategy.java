@@ -67,19 +67,19 @@ public class CaseReviewDraftStrategy implements DraftWriteStrategy {
             // A review decision without its case anchor cannot exist: the
             // emitter shape refuses it, so a ledger row missing the anchor is
             // a half-written snapshot, never a create attempt.
-            throw new ServiceException("AI 评审草案缺少用例编号，确认写入已拒绝（请重新让 AI 生成提案）",
+            throw new ServiceException("AI 评审草案缺少用例编号 caseId，确认写入已拒绝——请在「测试用例」列表确认目标用例后，在「AI 对话」重新发起针对该用例的评审",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long caseId = ((Number) targetRaw).longValue();
         int expectedVersion = ((Number) draftRow.get("base_version")).intValue();
         CaseInfo current = caseService.get(caseId);
         if (current.projectId() != session.projectId()) {
-            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝",
+            throw new ServiceException("该草案指向的用例不属于当前会话所在项目，确认写入已拒绝——请将顶栏切换到该用例所属项目后，再到「草案确认卡」重新确认",
                     BizErrorCode.FORBIDDEN);
         }
         String actionCode = DraftPayloadReads.text(body, "action");
         if (actionCode == null || actionCode.isBlank()) {
-            throw new ServiceException("AI 评审草案缺少评审动作（pass/need_change/reject），确认写入已拒绝",
+            throw new ServiceException("AI 评审草案缺少评审动作 action（取值 pass=通过 / need_change=需修改 / reject=驳回），确认写入已拒绝——请在「AI 对话」写明评审结论后重新生成该草案",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // The shared review chain owns every business rule from here on:

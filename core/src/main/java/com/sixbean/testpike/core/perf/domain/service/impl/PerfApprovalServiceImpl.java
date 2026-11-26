@@ -51,23 +51,23 @@ public class PerfApprovalServiceImpl implements PerfApprovalService {
     @Audit(objectType = "perf_approval", action = "apply", objectId = "#result")
     public long apply(long projectId, long applicantId, PerfApprovalInput input) {
         if (input.envId() == null) {
-            throw new ServiceException("请选择压测目标环境", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择压测目标环境；请在「压测工作台」场景向导选择环境，没有可选项时先到项目详情「环境配置」新建环境", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.requestedConcurrency() == null || input.requestedConcurrency() <= 0) {
-            throw new ServiceException("申请压力档位（RPS）必须大于 0", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("申请压力档位（RPS）必须大于 0；请在「压测工作台」场景向导的超档审批申请里改为正整数（示例：50）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.isolationMode() == null || !PerfAccessGate.ISOLATION_MODES.contains(input.isolationMode())) {
             throw new ServiceException("隔离模式必选且限三型（" + String.join("/", PerfAccessGate.ISOLATION_MODES)
-                    + "）", BizErrorCode.VALIDATION_ERROR);
+                    + "）；请在「压测工作台」场景向导的「隔离模式」中三选一后重新提交", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.reason() == null || input.reason().isBlank()) {
-            throw new ServiceException("申请理由必填（写清验收窗口/目标系统），便于审批人判断",
+            throw new ServiceException("申请理由必填（写清验收窗口/目标系统），便于审批人判断；请填写后在「压测工作台」场景向导的超档审批申请重新提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Long envOwn = jdbc.queryForObject("SELECT count(*) FROM tp_project_env WHERE id = :e AND project_id = :p",
                 new MapSqlParameterSource("e", input.envId()).addValue("p", projectId), Long.class);
         if (envOwn == null || envOwn == 0) {
-            throw new ServiceException("目标环境不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("目标环境不存在或不属于该项目；请在项目详情「环境配置」确认该环境仍在本项目下，或改选其它环境后重新提交", BizErrorCode.NOT_FOUND);
         }
         // D8 link is validated at the write point (fail-closed): an unverifiable ticket must
         // never reach the approve door, where the auto-launch would hit a missing/foreign
@@ -77,7 +77,7 @@ public class PerfApprovalServiceImpl implements PerfApprovalService {
                     "SELECT count(*) FROM tp_perf_scenario WHERE id = :s AND project_id = :p",
                     new MapSqlParameterSource("s", input.scenarioId()).addValue("p", projectId), Long.class);
             if (scOwn == null || scOwn == 0) {
-                throw new ServiceException("关联的压测场景不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+                throw new ServiceException("关联的压测场景不存在或不属于该项目；请在「压测工作台」重新选择本项目的场景，或先在本项目新建场景后再发起申请", BizErrorCode.NOT_FOUND);
             }
         }
         return jdbc.queryForObject("INSERT INTO tp_perf_approval "
@@ -133,7 +133,7 @@ public class PerfApprovalServiceImpl implements PerfApprovalService {
     @Audit(objectType = "perf_approval", action = "reject", objectId = "#id")
     public void reject(long id, long approverId, String rejectReason) {
         if (rejectReason == null || rejectReason.isBlank()) {
-            throw new ServiceException("拒绝必须填写理由（让申请人知道差什么），已保持不变",
+            throw new ServiceException("拒绝必须填写理由（让申请人知道差什么），已保持不变；请在该审批单的「拒绝」操作中填入理由后再次提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         int current = ((Number) requireTicket(id).get("status")).intValue();
@@ -159,7 +159,7 @@ public class PerfApprovalServiceImpl implements PerfApprovalService {
                 "SELECT id, project_id, status, scenario_id FROM tp_perf_approval WHERE id = :id",
                 new MapSqlParameterSource("id", id));
         if (rows.isEmpty()) {
-            throw new ServiceException("审批单不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("审批单不存在；请刷新「压测工作台」场景向导的审批列表后重新选择，列表没有该行=已被删除", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

@@ -34,7 +34,7 @@ public class EvolutionSignalsAdminServiceImpl implements EvolutionSignalsAdminSe
         if (projectId == null) {
             // Platform-wide rollup crosses projects — system administrators only.
             if (!guard.isAdmin(user)) {
-                throw new ServiceException("全局自进化观察信号仅系统管理员可查看", BizErrorCode.FORBIDDEN);
+                throw new ServiceException("全局自进化观察信号仅系统管理员可查看——请将顶栏切换到具体项目后，在「AI 对话」的该项目进化会话里查看观察信号", BizErrorCode.FORBIDDEN);
             }
         } else {
             guard.assertCanManage(user, projectId);

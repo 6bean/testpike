@@ -45,7 +45,7 @@ public class RepairDraftWriteStrategy implements DraftWriteStrategy {
         int baseVersion = ((Number) draftRow.get("base_version")).intValue();
         ScriptInfo current = scriptService.getByCaseId(caseId);
         if (current == null) {
-            throw new ServiceException("该用例当前没有脚本，修复草案无法落版（请先生成脚本）",
+            throw new ServiceException("该用例当前没有脚本，修复草案无法落版——请在「AI 对话」对该用例执行「生成脚本」后，再回到「草案确认卡」确认修复草案",
                     BizErrorCode.NOT_FOUND);
         }
         if (current.version() != baseVersion

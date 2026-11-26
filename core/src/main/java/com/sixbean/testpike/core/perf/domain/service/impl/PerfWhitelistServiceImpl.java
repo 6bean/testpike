@@ -36,16 +36,16 @@ public class PerfWhitelistServiceImpl implements PerfWhitelistService {
     @Audit(objectType = "perf_whitelist", action = "create", objectId = "#result")
     public long create(long projectId, PerfWhitelistInput input) {
         if (input.envId() == null) {
-            throw new ServiceException("请选择压测目标环境", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择压测目标环境；请在「压测工作台」场景向导的「本环境白名单备案」区选择环境，没有可选项时先到项目详情「环境配置」新建环境", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.maxConcurrency() == null || input.maxConcurrency() <= 0) {
-            throw new ServiceException("备案压力档位上限（RPS）必须大于 0", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("备案压力档位上限（RPS）必须大于 0；请在「压测工作台」场景向导「本环境白名单备案」区改为正整数（示例：200）", BizErrorCode.VALIDATION_ERROR);
         }
         List<String> modes = normalizeModes(input.allowedModes());
         Long envOwn = jdbc.queryForObject("SELECT count(*) FROM tp_project_env WHERE id = :e AND project_id = :p",
                 new MapSqlParameterSource("e", input.envId()).addValue("p", projectId), Long.class);
         if (envOwn == null || envOwn == 0) {
-            throw new ServiceException("目标环境不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("目标环境不存在或不属于该项目；请在项目详情「环境配置」确认环境归属本项目后重新提交", BizErrorCode.NOT_FOUND);
         }
         try {
             return jdbc.queryForObject("INSERT INTO tp_perf_whitelist "
@@ -55,7 +55,7 @@ public class PerfWhitelistServiceImpl implements PerfWhitelistService {
                             .addValue("c", input.maxConcurrency()).addValue("m", writeJson(modes)),
                     Long.class);
         } catch (DuplicateKeyException dup) {
-            throw new ServiceException("该环境已在压测白名单中，请直接修改压力档位上限",
+            throw new ServiceException("该环境已在压测白名单中，请直接修改压力档位上限（入口：「压测工作台」场景向导「本环境白名单备案」区重新备案该行）",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
     }
@@ -66,7 +66,7 @@ public class PerfWhitelistServiceImpl implements PerfWhitelistService {
         int deleted = jdbc.update("DELETE FROM tp_perf_whitelist WHERE id = :id AND project_id = :p",
                 new MapSqlParameterSource("id", id).addValue("p", projectId));
         if (deleted == 0) {
-            throw new ServiceException("白名单行不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("白名单行不存在或不属于该项目；请刷新「压测工作台」场景向导的「本环境白名单备案」列表后重试，列表没有该行=已被删除", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -86,13 +86,14 @@ public class PerfWhitelistServiceImpl implements PerfWhitelistService {
 
     private List<String> normalizeModes(List<String> raw) {
         if (raw == null || raw.isEmpty()) {
-            throw new ServiceException("至少备案一种隔离模式（影子表/账号命名空间/流量标记）",
+            throw new ServiceException("至少备案一种隔离模式（影子表/账号命名空间/流量标记）；请在「压测工作台」场景向导「本环境白名单备案」区的「隔离模式」至少勾选一种",
                     BizErrorCode.VALIDATION_ERROR);
         }
         for (String m : raw) {
             if (!PerfAccessGate.ISOLATION_MODES.contains(m)) {
                 throw new ServiceException("未知隔离模式「" + m + "」，可选值="
-                        + String.join("/", PerfAccessGate.ISOLATION_MODES), BizErrorCode.VALIDATION_ERROR);
+                        + String.join("/", PerfAccessGate.ISOLATION_MODES)
+                        + "；请在「压测工作台」场景向导「本环境白名单备案」的「隔离模式」中改选上述可选值", BizErrorCode.VALIDATION_ERROR);
             }
         }
         return raw.stream().distinct().sorted().toList();
@@ -102,7 +103,7 @@ public class PerfWhitelistServiceImpl implements PerfWhitelistService {
         try {
             return objectMapper.writeValueAsString(modes);
         } catch (Exception impossible) {
-            throw new ServiceException("隔离模式序列化失败", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("隔离模式序列化失败；请在「压测工作台」场景向导「本环境白名单备案」重新提交一次，仍失败时把本提示转平台管理员", BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

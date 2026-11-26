@@ -66,7 +66,7 @@ public class PerfReapprovalDraftStrategy implements DraftWriteStrategy {
         JsonNode body = parseBody(String.valueOf(draftRow.get("payload_json")));
         long scenarioId = body.path("scenarioId").asLong(0L);
         if (scenarioId <= 0) {
-            throw new ServiceException("联动重审草案缺少所属压测场景，无法提交审批申请（请重新让 AI 生成提案）",
+            throw new ServiceException("联动重审草案缺少所属压测场景编号 scenarioId，无法提交审批申请——请在「AI 对话」重新发起该场景的联动重审；也可在「压测工作台」选择场景后提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Every other field-legality decision (env in project, concurrency > 0,

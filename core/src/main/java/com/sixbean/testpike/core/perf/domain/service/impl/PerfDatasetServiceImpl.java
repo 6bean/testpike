@@ -86,10 +86,10 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
     @Audit(objectType = "perf_dataset", action = "upload", objectId = "#result")
     public long upload(long projectId, String name, String fileName, byte[] content) {
         if (name == null || name.isBlank()) {
-            throw new ServiceException("请填写数据集名称", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请填写数据集名称；请在「压测工作台」场景向导「数据池（CSV 数据集）」的名称项填写（示例：登录用户池）", BizErrorCode.VALIDATION_ERROR);
         }
         if (fileName == null || fileName.isBlank()) {
-            throw new ServiceException("请选择要上传的 CSV 文件", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择要上传的 CSV 文件；请在「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」先选择本地 .csv 文件再上传", BizErrorCode.VALIDATION_ERROR);
         }
         PerfCsvData data = csvParser.parse(content, configReader.datasetMaxRows());
         String objectKey = storage.buildProjectObjectKey(projectId, SCENE, fileName);
@@ -105,7 +105,7 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
                         .addValue("r", data.rowCount()).addValue("s", content.length),
                 Long.class);
         if (id == null) {
-            throw new ServiceException("数据集登记失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("数据集登记失败；请在「压测工作台」场景向导「数据池（CSV 数据集）」重新上传一次，持续失败时把本提示转平台管理员核查对象存储与数据库写入", BizErrorCode.INTERNAL_ERROR);
         }
         return id;
     }
@@ -157,13 +157,13 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
         Long refs = jdbc.queryForObject("SELECT count(*) FROM tp_perf_scenario WHERE dataset_id = :id",
                 new MapSqlParameterSource("id", id), Long.class);
         if (refs != null && refs > 0) {
-            throw new ServiceException("该数据集仍被 " + refs + " 个压测场景引用，请先解除场景绑定再删除",
+            throw new ServiceException("该数据集仍被 " + refs + " 个压测场景引用，请先解除场景绑定再删除（入口：「压测工作台」场景编辑的「数据池（CSV 数据集）」绑定项，逐个改绑或改选「未绑定」后重试）",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
         int deleted = jdbc.update("DELETE FROM tp_perf_dataset WHERE id = :id AND project_id = :p",
                 new MapSqlParameterSource("id", id).addValue("p", projectId));
         if (deleted == 0) {
-            throw new ServiceException("压测数据集不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("压测数据集不存在或不属于该项目；请刷新「压测工作台」场景向导的「数据池（CSV 数据集）」列表后重新选择，列表没有该行=已被删除", BizErrorCode.NOT_FOUND);
         }
         storage.deleteQuietly(String.valueOf(row.get("object_key")));
     }
@@ -185,7 +185,7 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
                 + " FROM tp_perf_dataset WHERE id = :id AND project_id = :p",
                 new MapSqlParameterSource("id", id).addValue("p", projectId));
         if (rows.isEmpty()) {
-            throw new ServiceException("压测数据集不存在或不属于该项目", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("压测数据集不存在或不属于该项目；请刷新「压测工作台」场景向导的「数据池（CSV 数据集）」列表后重新选择，列表没有该行=已被删除", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -202,7 +202,7 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
     private List<List<String>> readPreviewRows(String objectKey) {
         byte[] content = storage.readBytesQuietly(objectKey);
         if (content == null) {
-            throw new ServiceException("数据集文件在对象存储中缺失，请重新上传", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("数据集文件在对象存储中缺失，请在「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」重新上传同名文件即可恢复预览", BizErrorCode.NOT_FOUND);
         }
         // Budget switched off on read-back: the file already passed upload validation.
         PerfCsvData data = csvParser.parse(content, Integer.MAX_VALUE);
@@ -233,7 +233,7 @@ public class PerfDatasetServiceImpl implements PerfDatasetService {
             return objectMapper.writeValueAsString(values);
         } catch (JsonProcessingException e) {
             log.warn("数据集列名序列化失败（不应发生，列名已是安全标识符）", e);
-            throw new ServiceException("数据集列名保存失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("数据集列名保存失败；请在「压测工作台」场景向导「数据池（CSV 数据集）」重新上传，仍失败时把本提示转平台管理员排查存储", BizErrorCode.INTERNAL_ERROR);
         }
     }
 }

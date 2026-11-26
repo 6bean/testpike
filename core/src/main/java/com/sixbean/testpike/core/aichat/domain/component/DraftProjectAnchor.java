@@ -62,7 +62,7 @@ public class DraftProjectAnchor {
     public long requireStoredAnchor(Map<String, Object> draftRow) {
         Object anchor = draftRow.get("project_id");
         if (anchor == null) {
-            throw new ServiceException("该草案缺少所属项目，无法确认写入（请重新让 AI 生成提案）",
+            throw new ServiceException("该草案缺少所属项目，无法确认写入——请将顶栏切换到该草案所属项目后，在「AI 对话」重新发起生成提案",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return ((Number) anchor).longValue();

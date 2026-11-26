@@ -50,6 +50,18 @@ public class GroundingService {
     static final String KEY_STALE_WINDOW_DAYS = "ai.ground.stale-window-days";
     private static final int DEFAULT_STALE_WINDOW_DAYS = 7;
     /**
+     * Sources whose failure is an expected configuration state (no embedding
+     * provider / mock replacement) get one informational notice instead of a
+     * per-turn warning; keys are "source:projectId" style, one JVM lifetime.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, Boolean> configStateNoticed =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Configured-state reasons thrown by the embedding chain (both wordings shipped today). */
+    static boolean isConfigState(String message) {
+        return message != null && (message.contains("mock 替身") || message.contains("未配置可用 embedding"));
+    }
+    /**
  * Defect corpus depth key : how many newest
  * defects of the asking project enter the candidate pool. Hot-updatable —
  * the seeded default below is only the fallback when the key is absent.
@@ -165,6 +177,18 @@ public class GroundingService {
             items = knowledgeSearchService.search(new KnowledgeSearchRequest(projectId,
                     question, KnowledgeSearchScene.BUSINESS.name(), KNOWLEDGE_CANDIDATES, null));
         } catch (RuntimeException e) {
+            // Configured-state vs fault split: an absent/mock embedding provider is an
+            // expected install state (the feature guidance already reached the operator
+            // once), so it logs INFO once per project instead of a WARN line every turn;
+            // a genuinely broken retrieval path keeps warning per run.
+            if (isConfigState(e.getMessage())) {
+                if (configStateNoticed.putIfAbsent("knowledge:" + projectId, Boolean.TRUE) == null) {
+                    log.info("Grounding knowledge search is not configured for projectId={} — "
+                                    + "no knowledge candidates until an embedding provider is set "
+                                    + "(one notice per service run): {}", projectId, e.getMessage());
+                }
+                return List.of();
+            }
             log.warn("Grounding knowledge search unreachable, no knowledge candidates this run projectId={}: {}", projectId, e.getMessage());
             return List.of();
         }

@@ -81,3 +81,12 @@ def test_failure_guide_teaches_the_jwt_floor():
     note = failure_guide.note_for_failure(crash)
     for needle in ("SSO_JWT_SECRET", "openssl rand -hex 16", ".env", "re-run"):
         assert needle in note, needle
+
+
+# --- container-path gateway guidance (fresh-install trap found live) ---------
+
+def test_env_example_llm_base_url_is_container_reachable():
+    value = _example_value("LLM_BASE_URL")
+    assert "host.docker.internal" in value, value
+    assert "localhost" not in value, \
+        "a localhost gateway URL silently fails inside containers on a fresh install"

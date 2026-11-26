@@ -71,7 +71,7 @@ public class ApitestDefaultsDraftStrategy implements DraftWriteStrategy {
         long collectionId = body.path("collectionId").asLong(0L);
         if (collectionId <= 0) {
             throw new ServiceException(
-                    "AI 接口集草案缺少合法的接口集编号，无法保存默认配置（请重新让 AI 生成提案）",
+                    "AI 接口集草案缺少合法的接口集编号 setId，无法保存默认配置——请在「AI 对话」让 AI 重新生成携带该接口集编号的草案，再到「草案确认卡」点「接受」",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String headersJson = DraftPayloadReads.text(body, "headersJson");
@@ -79,7 +79,7 @@ public class ApitestDefaultsDraftStrategy implements DraftWriteStrategy {
         if ((headersJson == null || headersJson.isBlank())
                 && (authJson == null || authJson.isBlank())) {
             throw new ServiceException(
-                    "AI 接口集草案既没有默认请求头也没有默认认证配置，没有可保存的内容（请重新让 AI 生成提案）",
+                    "AI 接口集草案既没有默认请求头 headers 也没有默认认证配置 authConfig，没有可保存的内容——请在「AI 对话」说明要设置的默认请求头或认证方式后重新生成草案",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Existence (404 free) + cross-project refusal in plain words naming
@@ -87,7 +87,7 @@ public class ApitestDefaultsDraftStrategy implements DraftWriteStrategy {
         ApiCollectionInfo collection = apiCollectionService.get(collectionId);
         if (collection.projectId() != projectId) {
             throw new ServiceException(
-                    "AI 接口集草案指向的接口集「" + collection.name() + "」不属于当前会话项目，已拒绝保存",
+                    "AI 接口集草案指向的接口集「" + collection.name() + "」不属于当前会话项目，已拒绝保存——请将顶栏切换到该接口集所属项目后，再到「草案确认卡」重新确认",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Full save face with patch semantics: null name/tags = keep stored.

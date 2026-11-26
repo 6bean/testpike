@@ -74,7 +74,7 @@ public class SkillWriteDraftStrategy implements DraftWriteStrategy {
         if (name == null || name.isBlank() || skillBody == null || skillBody.isBlank()
                 || type == null) {
             throw new ServiceException(
-                    "AI 技能草案缺少技能名、类型或正文，无法创建技能（请重新让 AI 生成提案）",
+                    "AI 技能草案缺少技能名 name、技能类型或正文，无法创建技能——请在「AI 对话」补全三项后重新生成提案；也可在「SKILL 管理」页新建技能",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String frontmatterJson = null;
@@ -88,7 +88,7 @@ public class SkillWriteDraftStrategy implements DraftWriteStrategy {
             try {
                 objectMapper.readTree(frontmatterJson);
             } catch (Exception malformed) {
-                throw new ServiceException("AI 技能草案的元数据不是合法 JSON，创建未执行（请重新让 AI 生成提案）",
+                throw new ServiceException("AI 技能草案的元数据不是合法 JSON，创建未执行——请在「AI 对话」让 AI 把元数据修正为合法 JSON 后重新生成提案；也可在「SKILL 管理」页编辑元数据",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }

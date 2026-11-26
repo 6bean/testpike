@@ -229,6 +229,8 @@ services:
     profiles: ["app"]
     image: testpike/core:${TP_IMAGE_TAG:-local}
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-core
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.backend
@@ -260,6 +262,8 @@ services:
     profiles: ["app"]
     image: testpike/admin:${TP_IMAGE_TAG:-local}
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-admin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.backend
@@ -287,6 +291,8 @@ services:
     profiles: ["app"]
     image: testpike/api:${TP_IMAGE_TAG:-local}
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.backend
@@ -314,6 +320,8 @@ services:
     profiles: ["app"]
     image: testpike/ai-service:${TP_IMAGE_TAG:-local}
     container_name: ${TP_CONTAINER_PREFIX:-testpike}-ai-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.backend

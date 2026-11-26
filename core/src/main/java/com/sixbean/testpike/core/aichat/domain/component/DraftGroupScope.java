@@ -93,7 +93,7 @@ public record DraftGroupScope(boolean dialogScoped, long messageId,
 
     private static ServiceException refusal() {
         return new ServiceException("草案分组标识无法识别（合法形态：message:123 或 "
-                + "system:7:SCRIPT_REPAIR），本次确认未生效，确认票未消耗",
+                + "system:7:SCRIPT_REPAIR），本次确认未生效，确认票未消耗——请在「草案确认卡」重新勾选要落地的分组后再确认",
                 BizErrorCode.VALIDATION_ERROR);
     }
 }

@@ -140,11 +140,11 @@ public class DraftConfirmTokenStore {
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (bound == null) {
-            throw new ServiceException("AI 草案确认票无效或已过期——草案需在对话卡上确认后才会写入，"
-                    + "请重新发起确认", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("AI 草案确认票无效或已过期——草案需在「AI 对话」的草案卡上确认后才会写入，"
+                    + "请在「AI 对话」重新打开该草案的「草案确认卡」点「接受」获取新确认票", BizErrorCode.VALIDATION_ERROR);
         }
         if (!boundId.equals(bound)) {
-            throw new ServiceException("AI 草案确认票与本案草案不匹配（已拒绝写入）",
+            throw new ServiceException("AI 草案确认票与本案草案不匹配，已拒绝写入——请回到「AI 对话」打开该草案的「草案确认卡」重新确认，旧确认票不会写入",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

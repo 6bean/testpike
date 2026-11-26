@@ -44,7 +44,7 @@ public class PerfCsvParser {
         List<List<String>> lines = readLines(new String(
                 stripBomBytes(content), StandardCharsets.UTF_8));
         if (lines.isEmpty()) {
-            throw new ServiceException("CSV 文件缺少表头行：第一行必须是列名", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("CSV 文件缺少表头行：第一行必须是列名；请修正后在「压测工作台」场景向导「数据池（CSV 数据集）」处点「上传数据集 CSV」重新上传", BizErrorCode.VALIDATION_ERROR);
         }
         List<String> columns = validateHeader(lines.get(0));
         List<List<String>> rows = new ArrayList<>();
@@ -53,12 +53,12 @@ public class PerfCsvParser {
             if (row.size() != columns.size()) {
                 throw new ServiceException("CSV 数据第 " + i + " 行有 " + row.size()
                         + " 列，与表头 " + columns.size() + " 列不符（文件第 " + (i + 1)
-                        + " 行），请核对引号与逗号", BizErrorCode.VALIDATION_ERROR);
+                        + " 行），请核对引号与逗号；每行列数须与表头一致，单元格内的逗号/换行用双引号包裹（入口：「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」）", BizErrorCode.VALIDATION_ERROR);
             }
             rows.add(row);
         }
         if (rows.isEmpty()) {
-            throw new ServiceException("CSV 只有表头没有数据行：至少需要一行测试数据",
+            throw new ServiceException("CSV 只有表头没有数据行：至少需要一行测试数据；请修正后在「压测工作台」场景向导「数据池（CSV 数据集）」处点「上传数据集 CSV」重新上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         int budget = Math.max(maxRows, 1);
@@ -77,15 +77,15 @@ public class PerfCsvParser {
         for (String cell : rawHeader) {
             String name = cell.trim();
             if (name.isEmpty()) {
-                throw new ServiceException("CSV 表头存在空列名，请为每一列填写名称（列名将用作步骤变量名）",
+                throw new ServiceException("CSV 表头存在空列名，请为每一列填写名称（列名将用作步骤变量名；入口：「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (!COLUMN_NAME.matcher(name).matches()) {
                 throw new ServiceException("CSV 列名「" + name + "」不合法：只允许字母/数字/下划线，"
-                        + "且不能以数字开头（列名将用作步骤变量名）", BizErrorCode.VALIDATION_ERROR);
+                        + "且不能以数字开头（列名将用作步骤变量名）；请改成合法写法后重新上传（示例：user_id、orderNo；入口：「压测工作台」场景向导「数据池（CSV 数据集）」）", BizErrorCode.VALIDATION_ERROR);
             }
             if (!seen.add(name.toLowerCase())) {
-                throw new ServiceException("CSV 表头列名「" + name + "」重复，数据集内列名必须唯一",
+                throw new ServiceException("CSV 表头列名「" + name + "」重复，数据集内列名必须唯一；请把重复列改成不同名称（示例：amount 与 amount_cny）后在「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」重新上传",
                         BizErrorCode.VALIDATION_ERROR);
             }
             columns.add(name);
@@ -160,7 +160,7 @@ public class PerfCsvParser {
             i++;
         }
         if (inQuotes) {
-            throw new ServiceException("CSV 第 " + lineNo + " 行附近有未闭合的双引号，请检查引号配对",
+            throw new ServiceException("CSV 第 " + lineNo + " 行附近有未闭合的双引号，请检查引号配对（入口：「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」；单元格内的引号写成两个双引号）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (rowHasContent || cell.length() > 0 || !row.isEmpty()) {
@@ -173,7 +173,7 @@ public class PerfCsvParser {
     /** BOM removal before UTF-8 decode (Excel re-saves CSVs with a leading BOM). */
     private byte[] stripBomBytes(byte[] content) {
         if (content == null) {
-            throw new ServiceException("CSV 文件内容不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("CSV 文件内容不能为空；请在「压测工作台」场景向导「数据池（CSV 数据集）」→「上传数据集 CSV」重新选择非空 CSV 文件", BizErrorCode.VALIDATION_ERROR);
         }
         if (content.length >= 3 && (content[0] & 0xFF) == 0xEF && (content[1] & 0xFF) == 0xBB
                 && (content[2] & 0xFF) == 0xBF) {

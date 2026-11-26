@@ -104,14 +104,14 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
         Object prevId = current.get("prev_spec_id");
         if (prevId == null) {
             throw new ServiceException("契约版本没有可对照的历史版本（首版上传不产变更分析行，"
-                    + "请从第二个版本起做变更分析）", BizErrorCode.VALIDATION_ERROR);
+                    + "请从第二个版本起做变更分析）；入口：「API 测试」上传新版本契约后在「变更分析」页发起", BizErrorCode.VALIDATION_ERROR);
         }
         long oldSpecId = ((Number) prevId).longValue();
         SpecDiff diff = ApiSpecServiceImpl.diffOf(parseEndpoints(readSpecRow(oldSpecId)),
                 parseEndpoints(current));
         if (diff.isEmpty()) {
             throw new ServiceException("契约新旧版本的接口键无差异（端点集合完全一致），"
-                    + "无需变更分析", BizErrorCode.VALIDATION_ERROR);
+                    + "无需变更分析；请在「API 测试」核对新版契约的端点集合确有增删改后再发起", BizErrorCode.VALIDATION_ERROR);
         }
 
         long projectId = ((Number) current.get("project_id")).longValue();
@@ -145,7 +145,7 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
         List<ApiSpecChangeAnalysisInfo> rows = query(SELECT_COLUMNS + " WHERE new_spec_id = :id",
                 new MapSqlParameterSource("id", newSpecId));
         if (rows.isEmpty()) {
-            throw new ServiceException("该契约版本没有变更分析记录（newSpecId=" + newSpecId + "）",
+            throw new ServiceException("该契约版本没有变更分析记录（newSpecId=" + newSpecId + "），请在「变更分析」页按该契约版本查询或先发起分析",
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
@@ -176,7 +176,7 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
         ApiSpecChangeAnalysisInfo current = getById(id);
         requirePending(current);
         if (note == null || note.isBlank()) {
-            throw new ServiceException("处置备注必填——请写明复核结论与后续动作，留痕才可追溯",
+            throw new ServiceException("处置备注必填——请写明复核结论与后续动作，留痕才可追溯；入口：「变更分析」页处置框的 note 栏",
                     BizErrorCode.VALIDATION_ERROR);
         }
         applyDisposition(operatorId, id, note);
@@ -191,10 +191,10 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
     @Transactional
     public List<ApiSpecChangeAnalysisInfo> handleBatch(long operatorId, List<Long> ids, String note) {
         if (ids == null || ids.isEmpty()) {
-            throw new ServiceException("请先勾选要处置的变更分析行", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请先勾选要处置的变更分析行（入口：「变更分析」页列表左侧复选框）", BizErrorCode.VALIDATION_ERROR);
         }
         if (note == null || note.isBlank()) {
-            throw new ServiceException("处置备注必填——请写明复核结论与后续动作，留痕才可追溯",
+            throw new ServiceException("处置备注必填——请写明复核结论与后续动作，留痕才可追溯；入口：「变更分析」页处置框的 note 栏",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Validate every row before writing any — a partial batch would leave the
@@ -232,7 +232,7 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
     private void requirePending(ApiSpecChangeAnalysisInfo row) {
         if (row.status() != SpecChangeAnalysisStatus.PENDING) {
             throw new ServiceException("该变更分析已处置完毕，无需重复处置（处置人="
-                    + row.handledBy() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + row.handledBy() + "）；如需复核历史记录，请在「变更分析」页按已处置筛选查看", BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -348,7 +348,7 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
             return row;
         });
         if (rows.isEmpty()) {
-            throw new ServiceException("契约版本不存在（id=" + specId + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("契约版本不存在（id=" + specId + "），请在「API 测试」契约版本列表确认该版本未被清理", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -372,7 +372,7 @@ public class ApiSpecChangeAnalysisServiceImpl implements ApiSpecChangeAnalysisSe
         List<ApiSpecChangeAnalysisInfo> rows = query(SELECT_COLUMNS + " WHERE id = :id",
                 new MapSqlParameterSource("id", id));
         if (rows.isEmpty()) {
-            throw new ServiceException("变更分析记录不存在（id=" + id + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("变更分析记录不存在（id=" + id + "），请在「变更分析」页刷新列表后重新选择要处置的行", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

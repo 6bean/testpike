@@ -295,18 +295,18 @@ public class AiBatchServiceImpl implements AiBatchService {
     private void validate(List<String> requirements) {
         int maxBatch = currentMaxCount();
         if (requirements == null || requirements.isEmpty()) {
-            throw new ServiceException("请至少输入 1 条生成需求", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请至少输入 1 条生成需求：在「AI 生成」页补填需求内容后重新提交", BizErrorCode.VALIDATION_ERROR);
         }
         if (requirements.size() > maxBatch) {
-            throw new ServiceException("单次上限 " + maxBatch + " 条，请分批提交", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("单次上限 " + maxBatch + " 条，请在「AI 生成」页分批提交，每批不超过上限", BizErrorCode.VALIDATION_ERROR);
         }
         for (int i = 0; i < requirements.size(); i++) {
             String requirement = requirements.get(i);
             if (requirement == null || requirement.isBlank()) {
-                throw new ServiceException("第 " + (i + 1) + " 条需求不能为空", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("第 " + (i + 1) + " 条需求不能为空，请在「AI 生成」页补填该条需求后重新提交", BizErrorCode.VALIDATION_ERROR);
             }
             if (requirement.length() > MAX_REQ_LEN) {
-                throw new ServiceException("第 " + (i + 1) + " 条需求过长（≤" + MAX_REQ_LEN + " 字）",
+                throw new ServiceException("第 " + (i + 1) + " 条需求过长（≤" + MAX_REQ_LEN + " 字），请在「AI 生成」页拆分为多条或精简内容后重新提交",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -344,7 +344,7 @@ public class AiBatchServiceImpl implements AiBatchService {
             Long ownerProject = ownerByRequirement.get(requirementId);
             if (ownerProject == null || ownerProject.longValue() != projectId) {
                 throw new ServiceException("第 " + (i + 1) + " 条关联的需求点不存在或不属于当前项目（需求点 ID="
-                        + requirementId + "），本次批量提交整体未受理", BizErrorCode.VALIDATION_ERROR);
+                        + requirementId + "），本次批量提交整体未受理；请在「需求点管理」确认该需求点是否在顶栏当前项目下，修正后重新提交", BizErrorCode.VALIDATION_ERROR);
             }
         }
     }

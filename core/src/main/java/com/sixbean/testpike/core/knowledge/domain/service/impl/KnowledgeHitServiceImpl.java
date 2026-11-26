@@ -79,10 +79,10 @@ public class KnowledgeHitServiceImpl implements KnowledgeHitService {
     
     private void validateShape(KnowledgeHitInput h) {
         if (h == null || h.docId() == null || h.docId() <= 0) {
-            throw new ServiceException("知识留痕缺少 docId", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("知识留痕缺少 docId（文档 ID），请在「知识库台账」页发起检索以自动生成完整留痕", BizErrorCode.VALIDATION_ERROR);
         }
         if (h.scene() == null || h.scene().isBlank()) {
-            throw new ServiceException("知识留痕缺少检索场景（scene）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("知识留痕缺少检索场景（scene），请在「知识库台账」对应检索入口发起检索后由系统写入", BizErrorCode.VALIDATION_ERROR);
         }
     }
 }
