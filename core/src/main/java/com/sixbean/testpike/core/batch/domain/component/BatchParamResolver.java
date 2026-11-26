@@ -133,20 +133,26 @@ public class BatchParamResolver {
     /** Plaintext sections -> ENC envelope (serialize the entire JSON package, then AES-GCM; if the key is not configured, reject with a human-readable error and forbid plaintext fallback). */
     public String toEnvelope(Map<String, Object> sections) {
         if (!configCipher.isEnabled()) {
-            throw new ServiceException("系统未配置 CONFIG_AES_KEY，无法加密保存批次参数快照",
+            throw new ServiceException("系统未配置 CONFIG_AES_KEY，无法加密保存批次参数快照"
+                            + "——请装机时在部署配置（.env）写入该密钥后重启服务"
+                            + "（格式：CONFIG_AES_KEY=<32 字节 Base64 值>）",
                     BizErrorCode.INTERNAL_ERROR);
         }
         try {
             return ENC_PREFIX + configCipher.encrypt(objectMapper.writeValueAsString(sections));
         } catch (Exception e) {
-            throw new ServiceException("批次参数快照加密失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("批次参数快照加密失败——请重新发起本次批次由系统重建参数快照"
+                    + "（示例：提交时重新选择一遍批次参数即可）；持续失败请核对部署配置（.env）的 CONFIG_AES_KEY",
+                BizErrorCode.INTERNAL_ERROR);
         }
     }
 
     /** ENC envelope -> plaintext section map (decryption failure is treated as dirty data and throws a human-readable error; the caller falls back to real-time reverse lookup). */
     public Map<String, Object> fromEnvelope(String stored) {
         if (stored == null || !stored.startsWith(ENC_PREFIX)) {
-            throw new ServiceException("批次参数快照密文形态异常", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("批次参数快照密文形态异常——本行快照不是标准密文，系统将回退为实时反查；"
+                    + "如需修复该行，请重新提交一次批次生成新快照（示例：新批次记录以标准密文落库）",
+                    BizErrorCode.INTERNAL_ERROR);
         }
         try {
             String plain = configCipher.decrypt(stored.substring(ENC_PREFIX.length()));
@@ -156,7 +162,9 @@ public class BatchParamResolver {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("批次参数快照解密失败", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("批次参数快照解密失败——多为密钥已轮换而旧快照未重写，请重新提交一次批次重建参数快照；"
+                    + "确需读旧值请核对部署配置（.env）中 CONFIG_AES_KEY 与落库时刻是否同源"
+                    + "（示例：保留旧密钥解密归档后再换新钥）", BizErrorCode.INTERNAL_ERROR);
         }
     }
 }

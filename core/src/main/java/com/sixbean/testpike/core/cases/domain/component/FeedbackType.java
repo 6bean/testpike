@@ -51,7 +51,8 @@ public enum FeedbackType {
     public static FeedbackType from(String code) {
         FeedbackType type = BY_CODE.get(code);
         if (type == null) {
-            throw new ServiceException("问题类型仅支持：" + LABEL_LIST + "（当前：" + code + "）",
+            throw new ServiceException("问题类型仅支持：" + LABEL_LIST + "（当前提交：" + code + "）"
+                    + "——请在「评审工作台」的「问题类型」勾选区改选上述选项之一（可多选）后重新提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return type;

@@ -81,14 +81,30 @@ public final class CaseStatusMachine {
         }
         if (FINAL_STATES.contains(currentStatus)) {
             CaseStatus status = CaseStatus.of(currentStatus);
+            String label = status == null ? String.valueOf(currentStatus) : status.label();
+            if (status == CaseStatus.APPROVED) {
+                throw new ServiceException(
+                        "用例已是终态（" + label + "），动作 " + event.code() + " 被拦截——如需变更内容，"
+                                + "请在「用例管理」打开该用例编辑并保存，改动标题/前置条件/步骤/预期结果后"
+                                + "会自动回到「待评审」重新进入评审队列",
+                        BizErrorCode.STATE_MACHINE_REJECT);
+            }
             throw new ServiceException(
-                    "用例已是终态（" + (status == null ? currentStatus : status.label()) + "），操作被拦截",
+                    "用例已是终态（" + label + "），动作 " + event.code() + " 被拦截——评审结论已定且平台未提供"
+                            + "重开评审的入口，请在「用例管理」按修订后的内容新建用例；如需退回修改，"
+                            + "请在评审当时改用「需修改」",
                     BizErrorCode.STATE_MACHINE_REJECT);
         }
         CaseStatus status = CaseStatus.of(currentStatus);
+        String label = status == null ? String.valueOf(currentStatus) : status.label();
+        String canDo = legalEventsFrom(currentStatus).stream()
+                .map(e -> "「" + e.label() + "」（在" + CaseFlowScreens.screenOf(e) + "操作）")
+                .collect(java.util.stream.Collectors.joining("、"));
         throw new ServiceException(
-                "用例当前状态（" + (status == null ? currentStatus : status.label())
-                        + "）不允许该操作，请先处理后再评审",
+                "用例当前状态（" + label + "）不允许动作 " + event.code() + "；该状态下可执行："
+                        + (canDo.isEmpty() ? "无" : canDo)
+                        + "——请改到「评审工作台」处理「待评审」或「评审中」的用例，"
+                        + "或先在「用例管理」编辑并保存使「需修改」的用例回到「待评审」",
                 BizErrorCode.STATE_MACHINE_REJECT);
     }
 }

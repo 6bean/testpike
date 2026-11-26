@@ -63,28 +63,36 @@ public class ProjectAccessGuard {
     
     public void assertCanCreate(CurrentUser user) {
         if (!isSystemManager(user)) {
-            throw new ServiceException("仅系统管理员或测试负责人可创建项目", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("仅系统管理员或测试负责人可创建项目，"
+                    + "请联系管理员在「角色管理」为账号分配测试负责人或系统管理员角色后重试",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
     
     public void assertCanArchive(CurrentUser user) {
         if (!hasRole(user, ROLE_ADMIN)) {
-            throw new ServiceException("仅系统管理员可归档项目", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("仅系统管理员可归档项目，"
+                    + "请切换到系统管理员账号操作，或在「角色管理」为当前账号授予该角色",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
     
     public void assertSystemAdminOnly(CurrentUser user, String action) {
         if (!hasRole(user, ROLE_ADMIN)) {
-            throw new ServiceException("仅系统管理员可" + action, BizErrorCode.FORBIDDEN);
+            throw new ServiceException("仅系统管理员可" + action
+                    + "，请切换到系统管理员账号操作，或在「角色管理」为当前账号授予该角色",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
  
     public void assertCanManageUsers(CurrentUser user) {
         if (!hasRole(user, ROLE_ADMIN)) {
-            throw new ServiceException("仅系统管理员可管理用户与角色", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("仅系统管理员可管理用户与角色，"
+                    + "请切换到系统管理员账号；当前角色的权限可在「角色管理」查看",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
@@ -125,7 +133,9 @@ public class ProjectAccessGuard {
         if (role >= 1 && Objects.equals(assigneeId, user.userId())) {
             return;
         }
-        throw new ServiceException("仅被分配人或项目负责人可评审该用例", BizErrorCode.FORBIDDEN);
+        throw new ServiceException("仅被分配人或项目负责人可评审该用例，"
+                + "请项目负责人在「测试用例」列表用「批量分配」把用例分配给当前账号，或由负责人/管理员直接评审",
+                BizErrorCode.FORBIDDEN);
     }
 
     
@@ -152,7 +162,8 @@ public class ProjectAccessGuard {
         if (verifyAction && defect.reporterId() == user.userId()) {
             return;
         }
-        throw new ServiceException("仅修复人或报告人（验证人）可执行此流转，越权操作已拒绝",
+        throw new ServiceException("仅修复人或报告人（验证人）可执行此流转，越权操作已拒绝，"
+                + "请在「缺陷库」打开该缺陷点「编辑」把修复人设为当前账号，或由修复人/报告人本人流转",
                 BizErrorCode.FORBIDDEN);
     }
 

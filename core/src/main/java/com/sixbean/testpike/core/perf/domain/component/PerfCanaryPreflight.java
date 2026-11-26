@@ -83,7 +83,7 @@ public class PerfCanaryPreflight {
                 ? null : String.valueOf(env.get("base_url"));
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new ServiceException("金丝雀预检无法执行：该环境未配置基础地址，"
-                    + "请在项目环境档案中补全后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请到「项目管理」→该项目→「环境配置」编辑环境填写「访问地址」（如 http://10.0.0.8:8080）保存后重试", BizErrorCode.VALIDATION_ERROR);
         }
         String host = hostOf(baseUrl);
         int requests = perfConfigReader.canaryRequests();
@@ -129,7 +129,7 @@ public class PerfCanaryPreflight {
         if (answeredLatenciesMs.isEmpty()) {
             throw new ServiceException("金丝雀预检未通过：目标 " + host + " 在 " + requests
                     + " 次低载探测中全部无响应（地址不可达或端口未开放），本次压测已取消，"
-                    + "未产生运行记录；请确认目标环境服务已启动后重试",
+                    + "未产生运行记录；请确认服务已启动，并在「项目管理」→「环境配置」核对「访问地址」后重新发起压测",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long baselineP95Ms = nearestRankP95(answeredLatenciesMs);
@@ -149,7 +149,8 @@ public class PerfCanaryPreflight {
                 prewarmed = prewarmGatlingCompile(projectId, effectiveEnvId, baseUrl);
             } catch (ServiceException compileFailure) {
                 throw new ServiceException("金丝雀预检未通过：Gatling 编译预热失败（"
-                        + compileFailure.getMessage() + "），本次压测已取消，未产生运行记录",
+                        + compileFailure.getMessage() + "），本次压测已取消，未产生运行记录——"
+                        + "请到「压测工作台」该场景行「编辑」按括号内原因修正后重新「保存场景」再「起压」",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }

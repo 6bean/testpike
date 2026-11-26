@@ -44,13 +44,17 @@ export const DOC_MAX_SIZE_MB = 50
 export const DOC_ACCEPT = '.md,.markdown,.pdf'
 
 /** Document category options (doc_category value set; mirrors core DocumentServiceImpl.CATEGORIES — keep both sides in one batch when extending).
+ *  Display order follows the user mindset on the document surfaces (the
+ *  requirement-extraction page is where uploads happen): the document type the
+ *  user starts from comes FIRST and is the upload dialog's default; test specs
+ *  share the same extraction door but are the secondary pick, so they sit last.
  *  The 150px table cell hard-truncates long names, so the effect sentence lives
  *  in `description` (dropdown second line + tooltip) and `label` stays a name. */
 export const DOC_CATEGORIES: { value: string; label: string; description: string }[] = [
-  { value: 'TEST_SPEC', get label() { return td('dict.doc.category.testSpec') }, get description() { return td('dict.doc.category.testSpecDesc') } },
   { value: 'REQUIREMENT_DOC', get label() { return td('dict.doc.category.requirementDoc') }, get description() { return td('dict.doc.category.requirementDocDesc') } },
   { value: 'DDL_DICT', get label() { return td('dict.doc.category.ddlDict') }, get description() { return td('dict.doc.category.ddlDictDesc') } },
   { value: 'REFERENCE', get label() { return td('dict.doc.category.reference') }, get description() { return td('dict.doc.category.referenceDesc') } },
+  { value: 'TEST_SPEC', get label() { return td('dict.doc.category.testSpec') }, get description() { return td('dict.doc.category.testSpecDesc') } },
 ]
 
 

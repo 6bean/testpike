@@ -92,7 +92,7 @@ public class MemberServiceImpl implements MemberService {
                     "SELECT count(*) FROM tp_user_project WHERE project_id = ? AND role = 2",
                     Integer.class, projectId);
             if (ownerCount != null && ownerCount <= 1) {
-                throw new ServiceException("项目至少保留一名项目负责人，请先移交负责人角色再移出",
+                throw new ServiceException("项目至少保留一名项目负责人——请先在「成员管理」页选中接任成员点「设为负责人」完成移交，再移出原负责人",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -106,13 +106,15 @@ public class MemberServiceImpl implements MemberService {
 
     private void requireProject(long projectId) {
         if (!projectService.exists(projectId)) {
-            throw new ServiceException("项目不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在或已被删除——请到「项目管理」页确认所选项目；已归档的可由系统管理员点「归档项目」按钮后「还原」",
+                    BizErrorCode.NOT_FOUND);
         }
     }
 
     private void requireRole(int role) {
         if (role != 1 && role != 2) {
-            throw new ServiceException("项目角色仅支持：1=成员 2=项目负责人", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("项目角色仅支持 1=成员、2=项目负责人——请改成「1」或「2」后重新提交；页面入口在「成员管理」的角色下拉",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

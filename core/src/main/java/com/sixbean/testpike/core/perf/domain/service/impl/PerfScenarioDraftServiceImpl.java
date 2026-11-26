@@ -57,11 +57,13 @@ public class PerfScenarioDraftServiceImpl implements PerfScenarioDraftService {
     public Map<String, Object> draft(PerfScenarioDraftRequest request) {
         switchGate.requireOpen(PerfAiSwitchGate.POINT_SCENARIO_DRAFT);
         if (request.projectId() == null) {
-            throw new ServiceException("压测场景草拟请求缺少项目号，无法路由模型与成本归属",
+            throw new ServiceException("压测场景草拟请求缺少项目号，无法路由模型与成本归属"
+                    + "——请先在顶栏项目切换器选择项目，再重新发起「AI 草拟步骤」",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (request.description() == null || request.description().isBlank()) {
-            throw new ServiceException("压测场景草拟缺少压测意图描述，无素材不烧模型",
+            throw new ServiceException("压测场景草拟缺少压测意图描述，无素材不烧模型——请在「AI 草拟（可选）」"
+                    + "输入框用一句话写清意图（如：验证订单查询接口 200 并发下 10 分钟稳定），再点「AI 草拟步骤」",
                     BizErrorCode.VALIDATION_ERROR);
         }
 

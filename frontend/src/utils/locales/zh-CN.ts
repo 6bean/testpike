@@ -3766,7 +3766,8 @@ projects: '多项目协作',
  // M2-α 需求文档管理页（F1：上传解析/列表/删除）
  // 迁移件 统一上传件（FileUploadDialog）文案单源——四入口逐字一致
   uploadDialog: {
-    dropHint: '将文件拖到此处，或点击选择文件',
+    dropHint: '将文件拖到对话框内，或点击选择文件',
+    removeFile: '移除文件',
     typeRejected: '不支持 {ext} 格式，请重新选择允许类型的文件',
     sizeRejected: '文件超过大小上限 {mb}MB，请拆分后重试',
     uploading: '上传中',

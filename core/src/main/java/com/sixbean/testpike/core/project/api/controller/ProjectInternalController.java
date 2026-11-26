@@ -136,7 +136,9 @@ public class ProjectInternalController {
         } else if ("MEMBER".equals(request.requiredRole())) {
             accessService.requireProjectMember(request.projectId(), request.userId());
         } else {
-            throw new ServiceException("requiredRole 仅支持 MEMBER|OWNER", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("requiredRole「" + request.requiredRole()
+                    + "」不是支持的取值——请改成「MEMBER」或「OWNER」后重新发起访问校验",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess();
     }

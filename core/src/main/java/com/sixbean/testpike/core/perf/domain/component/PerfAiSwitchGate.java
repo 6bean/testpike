@@ -55,7 +55,7 @@ public class PerfAiSwitchGate {
             throw new ServiceException(
                     "未知的压测 AI 应用点「" + point + "」，本期可选值："
                             + String.join(" / ", SWITCH_KEYS.keySet())
-                            + "（每个应用点各有一个默认关的开关键）",
+                            + "——请在 AI 对话或压测工作台使用上述应用点名；开关在「系统配置」按 ai.perf.scenario-draft / ai.perf.insight 键启用（默认关）",
                     BizErrorCode.FORBIDDEN);
         }
         if (!"true".equalsIgnoreCase(configService.getValue(key, "false").trim())) {

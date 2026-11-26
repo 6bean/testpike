@@ -108,7 +108,8 @@ public class EnvTlsSupport {
         if (!normalized.equals(TlsMode.RAW_STRICT) && !normalized.equals(TlsMode.RAW_CUSTOM_CA)
                 && !normalized.equals(TlsMode.RAW_INSECURE)) {
             throw new ServiceException("TLS 校验档位仅支持 strict（标准校验）/ custom_ca（信任内部 CA）/ "
-                    + "insecure（跳过校验，非生产限定），当前值「" + rawMode + "」无效",
+                    + "insecure（跳过校验，非生产限定），当前值「" + rawMode + "」无效，"
+                    + "请在「环境配置」把校验档位改为上述三种之一（正确写法：strict）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -140,13 +141,16 @@ public class EnvTlsSupport {
     private void mergePemField(ObjectNode tls, String field, String submitted, JsonNode existingSection) {
         if (submitted != null && submitted.startsWith(ENC_PREFIX)) {
             throw new ServiceException("TLS 证书字段 " + field + " 的值不能以 " + ENC_PREFIX
-                    + " 开头（密文形态由系统生成，禁止伪装提交）", BizErrorCode.VALIDATION_ERROR);
+                    + " 开头（密文形态由系统生成，禁止伪装提交），"
+                    + "请在「环境配置」重新粘贴证书原文后保存（示例：-----BEGIN CERTIFICATE----- 开头）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         String storedValue = existingSection.isObject() ? existingSection.path(field).asText("") : "";
         if (ConfigCipher.MASK.equals(submitted)) {
             if (!storedValue.startsWith(ENC_PREFIX)) {
                 throw new ServiceException("TLS 证书字段 " + field + " 提交了打码占位值但原无可保留的密文，"
-                        + "请上传真实证书内容后保存", BizErrorCode.VALIDATION_ERROR);
+                        + "请在「环境配置」上传真实证书内容后保存（示例：粘贴 PEM 证书正文）",
+                        BizErrorCode.VALIDATION_ERROR);
             }
             tls.put(field, storedValue);
             return;
@@ -157,7 +161,8 @@ public class EnvTlsSupport {
         }
         if (!configCipher.isEnabled()) {
             throw new ServiceException("系统未配置 CONFIG_AES_KEY，无法加密保存 TLS 证书材料，"
-                    + "请先在部署环境配置该密钥后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请先在部署环境配置该密钥后重试（格式：CONFIG_AES_KEY=<32字节密钥>）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         tls.put(field, ENC_PREFIX + configCipher.encrypt(submitted));
     }
@@ -213,11 +218,13 @@ public class EnvTlsSupport {
         try {
             root = objectMapper.readTree(configJson);
         } catch (Exception e) {
-            throw new ServiceException("环境配置不是合法的 JSON，无法解析 TLS 段",
+            throw new ServiceException("环境配置不是合法的 JSON，无法解析 TLS 段，"
+                    + "请在「环境配置」检查 TLS 段写法后重新保存（示例：{\"tls\":{...}}）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!root.isObject()) {
-            throw new ServiceException("环境配置须为 JSON 对象，无法解析 TLS 段",
+            throw new ServiceException("环境配置须为 JSON 对象，无法解析 TLS 段，"
+                    + "请在「环境配置」改为对象形态后重新保存（示例：{\"tls\":{...}}）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return (ObjectNode) root;

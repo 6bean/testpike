@@ -19,7 +19,7 @@ public class VisualAssertValidator {
         try {
             root = objectMapper.readTree(actionJson);
         } catch (Exception e) {
-            throw new ServiceException("动作 JSON 格式非法，无法保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ScriptValidationGuidance.INVALID_ACTION_JSON, BizErrorCode.VALIDATION_ERROR);
         }
         if (root == null || !root.isObject()) {
             return;

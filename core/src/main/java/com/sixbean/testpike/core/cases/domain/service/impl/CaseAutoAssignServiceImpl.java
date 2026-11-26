@@ -55,7 +55,7 @@ public class CaseAutoAssignServiceImpl implements CaseAutoAssignService {
         requireProject(projectId);
         List<AutoAssignCandidate> candidates = autoAssignSupport.candidates(projectId);
         if (candidates.isEmpty()) {
-            throw new ServiceException("项目内暂无可承接的测试成员", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("项目内暂无可承接的测试成员——请先在「项目管理」→「成员管理」添加成员后重试", BizErrorCode.VALIDATION_ERROR);
         }
         List<Map<String, Object>> scope = resolveScope(projectId, request.caseIds());
         if (scope.isEmpty()) {
@@ -91,15 +91,15 @@ public class CaseAutoAssignServiceImpl implements CaseAutoAssignService {
                 "SELECT id, project_id, status, assignee_id, priority, created_at FROM tp_test_case"
                         + " WHERE id IN (" + placeholders + ")", ids.toArray());
         if (rows.size() != ids.size()) {
-            throw new ServiceException("存在不存在的用例", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("存在不存在的用例——请在「用例管理」列表刷新后重新勾选在列用例", BizErrorCode.VALIDATION_ERROR);
         }
         for (Map<String, Object> row : rows) {
             if (((Number) row.get("project_id")).longValue() != projectId) {
-                throw new ServiceException("用例不属于该项目（跨项目禁止）", BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("用例不属于该项目（跨项目禁止）——请在顶栏切换到用例所属项目后重试（项目入口见「项目管理」）", BizErrorCode.VALIDATION_ERROR);
             }
             int status = ((Number) row.get("status")).intValue();
             if (status != 1 && status != 2) {
-                throw new ServiceException("用例 %s 状态不允许分配：仅待评审/评审中用例可分配"
+                throw new ServiceException("用例 %s 状态不允许分配：仅待评审/评审中用例可分配——请在「用例管理」将用例退回评审状态后重试"
                         .formatted(row.get("id")), BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -172,7 +172,7 @@ public class CaseAutoAssignServiceImpl implements CaseAutoAssignService {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_project WHERE id = ?", Integer.class, projectId);
         if (count == null || count == 0) {
-            throw new ServiceException("项目不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在或已被删除——可在「项目管理」页确认项目在列后重试", BizErrorCode.NOT_FOUND);
         }
     }
 }

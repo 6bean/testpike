@@ -48,12 +48,12 @@ public class LinkagePendingImpactController {
             return Response.builderSuccess(ledger);
         }
         if (projectId == null) {
-            throw new ServiceException("请先在顶栏选择所属项目，再查看该对象的下游影响账",
+            throw new ServiceException("请先在顶栏的项目选择器选择所属项目（参数 projectId），再打开「下游影响」成组卡查看该对象的影响账",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!projectId.equals(ledger.projectId())) {
             throw new ServiceException("该下游影响账属于项目 " + ledger.projectId()
-                    + "，与当前选择的项目不一致，请切换项目后查看", BizErrorCode.FORBIDDEN);
+                    + "，与当前选择的项目不一致，请在顶栏「项目」选择器切换项目后打开「下游影响」成组卡查看", BizErrorCode.FORBIDDEN);
         }
         CurrentUser user = UserContext.current();
         guard.assertCanView(user, ledger.projectId());
@@ -79,13 +79,13 @@ public class LinkagePendingImpactController {
             return Response.builderSuccess(anchors);
         }
         if (projectId == null) {
-            throw new ServiceException("请先在顶栏选择所属项目，再查看这些草稿的下游影响账",
+            throw new ServiceException("请先在顶栏的项目选择器选择所属项目（参数 projectId），再打开「下游影响」成组卡查看这些草稿的影响账",
                     BizErrorCode.VALIDATION_ERROR);
         }
         boolean foreign = anchors.stream()
                 .anyMatch(a -> a.projectId() == null || !projectId.equals(a.projectId()));
         if (foreign) {
-            throw new ServiceException("这批草稿不属于当前选择的项目，请切换项目后查看",
+            throw new ServiceException("这批草稿不属于当前选择的项目，请在顶栏「项目」选择器切换到其所属项目后打开「下游影响」成组卡查看",
                     BizErrorCode.FORBIDDEN);
         }
         CurrentUser user = UserContext.current();

@@ -90,17 +90,17 @@ public class ScriptServiceImpl implements ScriptService {
     
     private ScriptInfo saveInternal(ScriptSaveInput input, String snapshotReason) {
         if (input.caseId() <= 0) {
-            throw new ServiceException("用例不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("用例不能为空，请在「用例详情」页进入脚本编辑后再保存", BizErrorCode.VALIDATION_ERROR);
         }
         var caseInfo = caseService.get(input.caseId());
         if (input.schemaVersion() == null || input.schemaVersion().isBlank()) {
-            throw new ServiceException("schema 版本不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("schema 版本不能为空，请勿清空该字段（格式：schemaVersion=v2）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.actionJson() == null || input.actionJson().isBlank()) {
-            throw new ServiceException("动作 JSON 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("动作 JSON 不能为空，请填写后保存（格式：{\"actions\": [...]}）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.generatedBy() < 1 || input.generatedBy() > 4) {
-            throw new ServiceException("脚本来源仅支持 1=AI阶段2 2=codegen 3=录制 4=手工编辑",
+            throw new ServiceException("脚本来源仅支持 1=AI阶段2 2=codegen 3=录制 4=手工编辑，请按上述取值改成正确写法后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
         boolean manual = input.generatedBy() == ManualEditValidator.GENERATED_BY_MANUAL;
@@ -112,7 +112,7 @@ public class ScriptServiceImpl implements ScriptService {
         SaveRowState old = readVersionAndDigest(input.caseId());
         if (input.expectedVersion() != null) {
             if (old == null || old.version() != input.expectedVersion()) {
-                throw new ServiceException("脚本已被他人修改，请刷新后重试（当前版本 "
+                throw new ServiceException("脚本已被他人修改，请到「脚本编辑」页刷新最新版本后重试（当前版本 "
                         + (old == null ? "无（脚本尚未生成）" : String.valueOf(old.version())) + "）",
                         BizErrorCode.VERSION_CONFLICT);
             }
@@ -244,7 +244,7 @@ public class ScriptServiceImpl implements ScriptService {
                 "SELECT actions_json::text FROM tp_script_version WHERE case_id = ? AND version = ?",
                 (rs, n) -> rs.getString(1), caseId, version);
         if (rows.isEmpty()) {
-            throw new ServiceException("%s脚本快照 v%d 不存在".formatted(roleLabel, version),
+            throw new ServiceException("%s脚本快照 v%d 不存在，请从版本历史中选择现存版本（示例：v1）".formatted(roleLabel, version),
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
@@ -267,7 +267,7 @@ public class ScriptServiceImpl implements ScriptService {
     public Flowchart previewFlowchart(long caseId, String actionJson) {
         var caseInfo = caseService.get(caseId);
         if (actionJson == null || actionJson.isBlank()) {
-            throw new ServiceException("动作 JSON 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("动作 JSON 不能为空，请填写后保存（格式：{\"actions\": [...]}）", BizErrorCode.VALIDATION_ERROR);
         }
         String effectiveActionJson = scriptEnvelopeSupport.ensureEnvelope(actionJson, caseInfo);
         scriptStaticValidator.check(caseInfo.projectId(), ManualEditValidator.GENERATED_BY_MANUAL,

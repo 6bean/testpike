@@ -64,7 +64,7 @@ public class StorageProbeServiceImpl implements StorageProbeService {
             case LocalStorageProvider.NAME -> localProvider(request);
             case S3StorageProvider.NAME -> s3Provider;
             case AliyunOssStorageProvider.NAME -> ossProvider(request);
-            default -> throw new ServiceException("暂不支持的连通测试提供方: " + provider,
+            default -> throw new ServiceException("暂不支持的连通测试提供方: " + provider + "；请在「系统配置」的存储连通测试中选择支持的提供方",
                     BizErrorCode.VALIDATION_ERROR);
         };
         String key = StorageKeys.build(storageRouter.keyPrefix(), 0L,
@@ -97,14 +97,14 @@ public class StorageProbeServiceImpl implements StorageProbeService {
     private static String requireProvider(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new ServiceException("必须指定存储提供方 provider（可选 "
-                    + String.join("/", StorageRouter.PROVIDER_ENUM.stream().sorted().toList()) + "）",
+                    + String.join("/", StorageRouter.PROVIDER_ENUM.stream().sorted().toList()) + "）；请在「系统配置」的存储连通测试表单选择其一后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String p = raw.trim().toLowerCase(Locale.ROOT);
         if (!StorageRouter.PROVIDER_ENUM.contains(p)) {
             throw new ServiceException("存储提供方仅支持 "
                     + String.join("/", StorageRouter.PROVIDER_ENUM.stream().sorted().toList())
-                    + "（当前值 \"" + raw + "\"）", BizErrorCode.VALIDATION_ERROR);
+                    + "（当前值 \"" + raw + "\"）；请改成上述清单内的取值后重试（提供方在「系统配置」的存储连通测试表单选择）", BizErrorCode.VALIDATION_ERROR);
         }
         return p;
     }
@@ -114,7 +114,7 @@ public class StorageProbeServiceImpl implements StorageProbeService {
         String root = effective(request.localRoot(), "storage.local-root");
         if (root.isBlank()) {
             throw new ServiceException("本地存储未配置：请填写 localRoot 或在系统配置设置 "
-                    + "storage.local-root 根目录", BizErrorCode.VALIDATION_ERROR);
+                    + "storage.local-root 根目录（入口：「系统配置」页检索参数 storage.local-root）", BizErrorCode.VALIDATION_ERROR);
         }
         return new LocalStorageProvider(root, localPublicBaseUrl, localSignSecret);
     }

@@ -63,15 +63,15 @@ public class AppautoPortabilityServiceImpl implements AppautoPortabilityService 
                 caseId);
         if (caseRow == null) {
             throw new ServiceException("用例不存在或已删除（id=" + caseId + "）——"
-                    + "迁移预检需要有现行版本的用例，请先确认用例在列", BizErrorCode.VALIDATION_ERROR);
+                    + "迁移预检需要有现行版本的用例，请先确认用例在列（入口：「用例管理」列表）", BizErrorCode.VALIDATION_ERROR);
         }
         if (!Long.valueOf(projectId).equals(caseRow.get("projectId"))) {
             throw new ServiceException("该用例不属于当前项目，无法在本项目发起迁移预检——"
-                    + "请切换到用例所属项目后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请切换到用例所属项目后重试（项目切片在顶栏切换，成员配置见「项目管理」→「成员管理」）", BizErrorCode.VALIDATION_ERROR);
         }
         if (engineCode == null || engineCode.isBlank()) {
             throw new ServiceException("迁移预检必须指定目标引擎（换哪个引擎跑）——"
-                    + "请在引擎选择卡片中选择目标引擎后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请在引擎选择卡片中选择目标引擎后重试（引擎可用目录见「引擎中心」）", BizErrorCode.VALIDATION_ERROR);
         }
         AppautoEngineInfo target = engineService.getByCode(
                 engineCode.trim().toUpperCase(Locale.ROOT));
@@ -85,7 +85,7 @@ public class AppautoPortabilityServiceImpl implements AppautoPortabilityService 
                 script == null ? null : script.actionJson());
         if (steps.isEmpty()) {
             throw new ServiceException("该用例未编排 app.* IR 步骤（或含 web 步骤混排）——"
-                    + "迁移预检仅适用于纯 App 步骤用例，请先在用例的 App 步骤区编排动作（"
+                    + "迁移预检仅适用于纯 App 步骤用例，请先在用例的 App 步骤区编排动作（正确写法：每步动作以 app. 开头，如 "
                     + String.join("/", UiActionContract.IR_VERBS.stream()
                             .map(v -> "app." + v).toList()) + "）",
                     BizErrorCode.VALIDATION_ERROR);

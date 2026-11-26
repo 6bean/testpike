@@ -39,12 +39,12 @@ public class PluginDescriptorSupport {
     
     public Map<String, Object> parse(String content) {
         if (content == null || content.isBlank()) {
-            throw new ServiceException("plugin.yaml 内容为空（需为声明式描述符：name/industry/version 必填）",
+            throw new ServiceException("plugin.yaml 内容为空（需为声明式描述符：name/industry/version 必填），请补全内容后重新上传（示例：name: 冒烟巡检）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (content.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
             throw new ServiceException("plugin.yaml 超过 64KB 上限（描述符仅承载声明式元数据，"
-                    + "正文资产请走内容包/SKILL 通道）", BizErrorCode.VALIDATION_ERROR);
+                    + "正文资产请走内容包/SKILL 通道），请删减正文类长文本后重新上传「plugin.yaml」", BizErrorCode.VALIDATION_ERROR);
         }
         Object loaded;
         try {
@@ -53,11 +53,11 @@ public class PluginDescriptorSupport {
             loaded = new Yaml(new SafeConstructor(options)).load(content);
         } catch (Exception ex) {
             throw new ServiceException("plugin.yaml 不是合法 YAML 映射（解析失败："
-                    + firstLine(ex.getMessage()) + "）", BizErrorCode.VALIDATION_ERROR);
+                    + firstLine(ex.getMessage()) + "），请对照「键: 值」逐行修正缩进与冒号后重新上传", BizErrorCode.VALIDATION_ERROR);
         }
         if (!(loaded instanceof Map<?, ?> raw)) {
             throw new ServiceException("plugin.yaml 不是合法 YAML 映射（顶层需为键值映射，"
-                    + "实际为" + (loaded == null ? "空文档" : "标量/序列") + "）", BizErrorCode.VALIDATION_ERROR);
+                    + "实际为" + (loaded == null ? "空文档" : "标量/序列") + "），请将顶层改成键值映射（示例：name: 冒烟巡检）后重新上传", BizErrorCode.VALIDATION_ERROR);
         }
         rejectExecutable(raw, "");
         Map<String, Object> manifest = normalize(raw);
@@ -69,14 +69,14 @@ public class PluginDescriptorSupport {
             }
             if (!(v instanceof String s) || s.isBlank()) {
                 throw new ServiceException("plugin.yaml 缺少必填键：" + key
-                        + "（必填：" + String.join("/", REQUIRED_KEYS) + "；合法键全集：" + LIST_JOIN + "）",
+                        + "（必填：" + String.join("/", REQUIRED_KEYS) + "；合法键全集：" + LIST_JOIN + "），请补填缺失键（示例：name: 冒烟巡检）后重新上传",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
         for (String key : manifest.keySet()) {
             if (!ALLOWED_KEYS.contains(key)) {
                 throw new ServiceException("plugin.yaml 含未知键：" + key
-                        + "（合法键：" + LIST_JOIN + "；插件为声明式描述符，禁夹带其他字段）",
+                        + "（合法键：" + LIST_JOIN + "；插件为声明式描述符，禁夹带其他字段），请按合法键改成正确写法后重新上传",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -94,7 +94,7 @@ public class PluginDescriptorSupport {
             String childPath = path.isEmpty() ? key : path + "." + key;
             if (EXECUTABLE_FORBIDDEN_KEYS.contains(key.toLowerCase())) {
                 throw new ServiceException("插件描述符禁可执行字段：" + childPath
-                        + "（H8 安全底线=声明式描述符；可执行能力唯一路径=U 域工具契约+审批）",
+                        + "（H8 安全底线=声明式描述符；可执行能力唯一路径=U 域工具契约+审批），可执行能力请通过「工具管理 → 工具市场 → 导入工具」提交契约并走审批",
                         BizErrorCode.VALIDATION_ERROR);
             }
             walkForExecutable(entry.getValue(), childPath);
@@ -142,7 +142,7 @@ public class PluginDescriptorSupport {
         Object v = manifest.get(key);
         if (v != null && !expected.isInstance(v)) {
             throw new ServiceException("plugin.yaml 键 " + key + " 类型不合法（需为"
-                    + typeName(expected) + "）", BizErrorCode.VALIDATION_ERROR);
+                    + typeName(expected) + "），请改成正确写法（示例：列表键写成 - 开头的行）后重新上传", BizErrorCode.VALIDATION_ERROR);
         }
     }
 

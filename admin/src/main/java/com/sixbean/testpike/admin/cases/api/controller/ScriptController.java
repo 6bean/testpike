@@ -100,13 +100,15 @@ public class ScriptController {
         guard.assertCanManage(UserContext.current(), view.projectId());
         guard.assertCanWriteCase(UserContext.current(), view.projectId());
         if (request == null || request.schemaVersion() == null || request.schemaVersion().isBlank()) {
-            throw new ServiceException("schema 版本不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("schema 版本不能为空，请在「用例详情」页的「脚本」页签重新保存并携带 schemaVersion（形如 v2）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (request.actionJson() == null || request.actionJson().isBlank()) {
-            throw new ServiceException("动作 JSON 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("动作 JSON 不能为空，请在「用例详情」页的「脚本」页签填写动作内容（字段 actionJson）后保存",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (expectedVersion == null) {
-            throw new ServiceException("缺少乐观锁版本号（expectedVersion）",
+            throw new ServiceException("缺少乐观锁版本号（expectedVersion），请刷新「用例详情」页的「脚本」页签取回当前版本后重新保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(coreScriptClient.saveScript(id, request.schemaVersion(),
@@ -164,7 +166,8 @@ public class ScriptController {
         }
         Long envId = request == null ? null : request.envId();
         if (envId == null) {
-            throw new ServiceException("请选择执行环境（开发/测试/预发/生产）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择执行环境（开发/测试/预发/生产），在「试运行」弹窗的「选择执行环境」下拉中选一项（字段 envId）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         long taskId = coreExecClient.createTask(view.projectId(), id, script.schemaVersion(),
                 script.actionJson(), envId, UserContext.current().userId());

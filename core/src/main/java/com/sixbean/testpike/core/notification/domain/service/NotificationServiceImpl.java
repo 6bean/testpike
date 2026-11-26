@@ -47,16 +47,16 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public long create(NotificationCreateInput input) {
         if (input.userId() <= 0) {
-            throw new ServiceException("通知接收人不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("通知接收人不能为空——userId 需为有效用户（账号可在「用户管理」核对）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.eventType() == null || input.eventType().isBlank()) {
-            throw new ServiceException("事件类型不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("事件类型不能为空——请为 eventType 从已登记的事件类型中选择（清单见「通知中心」的接收偏好设置）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.title() == null || input.title().isBlank() || input.title().length() > 200) {
-            throw new ServiceException("通知标题不能为空且不超过 200 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("通知标题不能为空且不超过 200 字——请补充或精简标题，格式：一句话说清发生了什么（示例「用例批量生成完成，12 条待评审」）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.content() == null || input.content().isBlank()) {
-            throw new ServiceException("通知内容不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("通知内容不能为空——请补充正文后再发送，格式：发生了什么+影响对象+下一步（示例「商品中心接口 Mock 空间命中失败率 12%，请查看仿真空间端点状态」）", BizErrorCode.VALIDATION_ERROR);
         }
         if (!notificationPrefService.shouldGenerate(input.userId(), input.eventType())) {
             return 0L;

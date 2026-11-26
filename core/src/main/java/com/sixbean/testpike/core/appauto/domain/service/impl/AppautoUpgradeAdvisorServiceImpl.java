@@ -54,7 +54,7 @@ public class AppautoUpgradeAdvisorServiceImpl implements AppautoUpgradeAdvisorSe
         }
         if (request == null || request.projectId() == null) {
             throw new ServiceException("升级顾问缺少项目号（用例特征画像与成本归属依据）"
-                    + "——请从具体项目的升级入口发起征询", BizErrorCode.VALIDATION_ERROR);
+                    + "——请在「升级中心」选择具体项目后发起征询（参数 projectId）", BizErrorCode.VALIDATION_ERROR);
         }
         if (request.manifestVersion() == null || request.manifestVersion().isBlank()) {
             throw new ServiceException("升级顾问缺少目标发版本号（要升到哪一版）"
@@ -93,7 +93,8 @@ public class AppautoUpgradeAdvisorServiceImpl implements AppautoUpgradeAdvisorSe
             return List.copyOf(out);
         } catch (Exception e) {
             throw new ServiceException("发布清单「" + version + "」的破坏性变更字段不是合法"
-                    + " JSON 数组——请到升级中心重新登记该版本清单", BizErrorCode.VALIDATION_ERROR);
+                    + " JSON 数组——请到「升级中心」重新登记该版本清单"
+                    + "（字段 breakingChanges，格式：JSON 字符串数组）", BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -165,13 +166,14 @@ public class AppautoUpgradeAdvisorServiceImpl implements AppautoUpgradeAdvisorSe
         Object node = answer == null ? null : answer.get("risks");
         if (!(node instanceof List<?> list)) {
             throw new ServiceException("模型没有产出升级风险清单（应答缺少 risks 数组）"
-                    + "——本次征询不采用，请稍后重试", BizErrorCode.AI_FORMAT_ERROR);
+                    + "——本次征询不采用，请稍后在「升级中心」重新发起征询", BizErrorCode.AI_FORMAT_ERROR);
         }
         List<String> risks = new ArrayList<>();
         for (Object item : list) {
             if (!(item instanceof String text) || text.isBlank()) {
                 throw new ServiceException("模型产出的风险条目不是可读文本"
-                        + "——本次征询不采用，请稍后重试", BizErrorCode.AI_FORMAT_ERROR);
+                        + "——本次征询不采用，请在「升级中心」重新征询（示例：要求逐条纯文本输出）",
+                        BizErrorCode.AI_FORMAT_ERROR);
             }
             risks.add(text);
         }

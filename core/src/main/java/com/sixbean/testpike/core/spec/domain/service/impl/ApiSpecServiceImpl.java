@@ -102,14 +102,14 @@ public class ApiSpecServiceImpl implements ApiSpecService {
                                        byte[] content, Long documentId, String source) {
         String trimmedName = name == null ? "" : name.trim();
         if (trimmedName.isEmpty()) {
-            throw new ServiceException("契约名称不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("契约名称不能为空——请在「接口清单」页右上角「上传契约」弹窗填写契约名称后重试", BizErrorCode.VALIDATION_ERROR);
         }
         if (content == null || content.length == 0) {
-            throw new ServiceException("契约文件内容为空，请检查上传文件",
+            throw new ServiceException("契约文件内容为空，请检查上传文件——请重新选择 OpenAPI 文件（格式：JSON 以 { 或 [ 开头，或 YAML 含 openapi 段）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (content.length > MAX_BYTES) {
-            throw new ServiceException("契约文件超过大小上限 5MB", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("契约文件超过大小上限 5MB——请拆分契约（只保留本项目相关 paths 段）后重新上传，正确写法：单文件不超过 5MB", BizErrorCode.VALIDATION_ERROR);
         }
         String format = detectFormat(content);
         ParsedApiSpec parsed = parser.parse(content, format);
@@ -135,7 +135,7 @@ public class ApiSpecServiceImpl implements ApiSpecService {
         ApiSpecInfo latest = findLatest(projectId, trimmedName);
         if (latest != null && sha256.equals(latest.contentSha256())) {
             throw new ServiceException("契约与现有版本内容一致（" + trimmedName
-                    + " v" + latest.specVersion() + "），无需重复上传", BizErrorCode.RESOURCE_CONFLICT);
+                    + " v" + latest.specVersion() + "），无需重复上传——如需更新契约内容，请在「接口清单」页修改文件后再上传新版本", BizErrorCode.RESOURCE_CONFLICT);
         }
 
         SpecDiff diff = latest == null ? null : diffOf(parseEndpoints(latest), parsed);
@@ -222,7 +222,7 @@ public class ApiSpecServiceImpl implements ApiSpecService {
                 .addValue("name", providerSpecName.trim()), String.class);
         if (texts.isEmpty()) {
             throw new ServiceException("提供方项目内没有契约「" + providerSpecName
-                    + "」，订阅源已失效", BizErrorCode.NOT_FOUND);
+                    + "」，订阅源已失效——请在提供方项目的「接口清单」页核对契约名与在列版本，修正订阅名后重试", BizErrorCode.NOT_FOUND);
         }
         return uploadInternal(operatorId, projectId, name,
                 texts.get(0).getBytes(StandardCharsets.UTF_8), null, "program");
@@ -233,7 +233,7 @@ public class ApiSpecServiceImpl implements ApiSpecService {
         List<ApiSpecInfo> rows = query(SELECT_COLUMNS + " WHERE id = :id",
                 new MapSqlParameterSource("id", id));
         if (rows.isEmpty()) {
-            throw new ServiceException("契约版本不存在: " + id, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("契约版本不存在: " + id + "——请在「接口清单」页选择现有版本后重试", BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }
@@ -389,7 +389,7 @@ public class ApiSpecServiceImpl implements ApiSpecService {
             return c == '{' || c == '[' ? OpenApiSpecParser.FORMAT_JSON
                     : OpenApiSpecParser.FORMAT_YAML;
         }
-        throw new ServiceException("契约文件内容为空，请检查上传文件", BizErrorCode.VALIDATION_ERROR);
+        throw new ServiceException("契约文件内容为空，请检查上传文件——请重新选择 OpenAPI 文件（格式：JSON 以 { 或 [ 开头，或 YAML 含 openapi 段）", BizErrorCode.VALIDATION_ERROR);
     }
 
     private ApiSpecInfo findLatest(long projectId, String name) {

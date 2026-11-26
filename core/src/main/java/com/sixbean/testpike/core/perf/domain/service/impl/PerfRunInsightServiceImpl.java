@@ -61,7 +61,8 @@ public class PerfRunInsightServiceImpl implements PerfRunInsightService {
     public Map<String, Object> insight(long projectId, long runId) {
         switchGate.requireOpen(PerfAiSwitchGate.POINT_INSIGHT);
         if (runId <= 0) {
-            throw new ServiceException("压测归因解读缺少有效的运行号，无法取数",
+            throw new ServiceException("压测归因解读缺少有效的运行号，无法取数——请在「压测运行台账」点开一条运行行，"
+                    + "从该行进入解读后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
 

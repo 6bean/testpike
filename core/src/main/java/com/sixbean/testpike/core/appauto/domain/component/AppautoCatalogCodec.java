@@ -65,7 +65,8 @@ public class AppautoCatalogCodec {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
             throw new ServiceException(
-                    "档案内容格式无法保存（请检查键值是否为合法文本/数字/布尔）",
+                    "档案内容格式无法保存——请检查「被测应用档案」编辑区中的键值是否为合法文本/数字/布尔"
+                            + "（示例：{\"owner\":\"qa\",\"retry\":3,\"enabled\":true}）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

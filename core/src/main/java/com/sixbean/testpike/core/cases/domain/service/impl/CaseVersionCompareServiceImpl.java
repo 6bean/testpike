@@ -29,7 +29,9 @@ public class CaseVersionCompareServiceImpl implements CaseVersionCompareService 
     public CaseVersionCompareInfo compare(Long caseId, Integer fromVersion, Integer toVersion) {
         if (caseId == null || caseId < 1 || toVersion == null || toVersion < 1
                 || (fromVersion != null && fromVersion < 1)) {
-            throw new ServiceException("对比用例版本需要有效的用例 id 与目标版本号（均须 ≥1，基准版本可缺省=当前最新版本）",
+            throw new ServiceException("对比用例版本需要有效的用例 id 与目标版本号（均须 ≥1，基准版本可缺省=当前最新版本；当前入参 caseId="
+                    + caseId + "，fromVersion=" + fromVersion + "，toVersion=" + toVersion + "）"
+                    + "——请在「用例管理」打开该用例的「版本历史」，从列表中选取基准版本与目标版本号后再发起对比（示例：用例 1024 从版本 2 对比到版本 3）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return CaseVersionCompareSummarizer.summarize(

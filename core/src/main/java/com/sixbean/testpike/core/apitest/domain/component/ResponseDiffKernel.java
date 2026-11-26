@@ -58,13 +58,15 @@ public final class ResponseDiffKernel {
 
     private static JsonNode parse(String raw, String side) {
         if (raw == null || raw.isBlank()) {
-            throw new ServiceException("响应体 " + side + " 侧为空，无法进行 JSON 结构对比",
+            throw new ServiceException("响应体 " + side + " 侧为空，无法进行 JSON 结构对比——"
+                    + "请先确保该侧运行返回了响应正文（示例：两次运行都有 JSON 返回时才可对比）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         try {
             return MAPPER.readTree(raw);
         } catch (Exception e) {
-            throw new ServiceException("响应体 " + side + " 侧不是合法 JSON，无法进行结构对比",
+            throw new ServiceException("响应体 " + side + " 侧不是合法 JSON，无法进行结构对比——"
+                    + "请检查该接口是否返回结构化报文（示例：{\"code\":0,\"data\":{}} 这类才可对比；返回网页或纯文本时请改用文本对比）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

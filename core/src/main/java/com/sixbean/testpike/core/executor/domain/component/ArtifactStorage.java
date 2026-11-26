@@ -44,7 +44,8 @@ public class ArtifactStorage {
     
     public ArtifactGrantView grantUpload(long taskId, String kind, String fileName) {
         if (taskId <= 0) {
-            throw new ServiceException("任务不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("任务不能为空，请确认上传请求携带任务标识"
+                    + "（示例：taskId=1024）后重新发起", BizErrorCode.VALIDATION_ERROR);
         }
         String safeKind = kind == null || kind.isBlank() ? "screenshot" : kind;
         String safeName = fileName == null || fileName.isBlank() ? "step.png" : fileName;
@@ -58,7 +59,8 @@ public class ArtifactStorage {
     
     public StorageGrant grantExploreUpload(long projectId, String kind, String fileName) {
         if (projectId <= 0) {
-            throw new ServiceException("项目不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("项目不能为空，请先在顶栏选择项目，"
+                    + "或确认请求携带项目标识（示例：projectId=7）", BizErrorCode.VALIDATION_ERROR);
         }
         String safeKind = kind == null || kind.isBlank() ? "screenshot" : kind;
         String safeName = fileName == null || fileName.isBlank() ? "step.png" : fileName;
@@ -80,7 +82,8 @@ public class ArtifactStorage {
  */
     public StorageGrant grantMockDraftUpload(long projectId, String fileName) {
         if (projectId <= 0) {
-            throw new ServiceException("项目不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("项目不能为空，请先在顶栏选择项目，"
+                    + "或确认请求携带项目标识（示例：projectId=7）", BizErrorCode.VALIDATION_ERROR);
         }
         String safeName = fileName == null || fileName.isBlank() ? "draft.json" : fileName;
         StorageRoute route = routeForProject(projectId);
@@ -135,7 +138,8 @@ public class ArtifactStorage {
     
     public String grantViewUrl(String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
-            throw new ServiceException("截图产物不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("截图产物不能为空，请确认查看请求携带产物对象 key"
+                    + "（示例：exec/1024/screenshot_step.png）", BizErrorCode.VALIDATION_ERROR);
         }
         return providerForExistingKey(objectKey).presignGet(objectKey, router.urlTtl()).url();
     }
@@ -158,7 +162,8 @@ public class ArtifactStorage {
     
     public void putBytes(String objectKey, byte[] content, String contentType) {
         if (objectKey == null || objectKey.isBlank()) {
-            throw new ServiceException("对象 key 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("对象 key 不能为空，请确认写入请求携带对象 key"
+                    + "（示例：artifacts/run-7/report.html）", BizErrorCode.VALIDATION_ERROR);
         }
         router.systemProvider().put(objectKey, content, contentType);
     }
@@ -166,7 +171,8 @@ public class ArtifactStorage {
     
     public void putBytesForProject(long projectId, String objectKey, byte[] content, String contentType) {
         if (objectKey == null || objectKey.isBlank()) {
-            throw new ServiceException("对象 key 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("对象 key 不能为空，请确认写入请求携带对象 key"
+                    + "（示例：artifacts/run-7/report.html）", BizErrorCode.VALIDATION_ERROR);
         }
         routeForProject(projectId).provider().put(objectKey, content, contentType);
     }

@@ -42,17 +42,21 @@ public class PerfRunDispatchSupport {
         JsonNode env = parseEnvelope(actionJson);
         if (!"perf-run".equals(env.path("kind").asText())) {
             throw new ServiceException("压测任务信封 kind 必须为 perf-run（当前="
-                    + env.path("kind").asText("") + "）", BizErrorCode.VALIDATION_ERROR);
+                    + env.path("kind").asText("") + "），请在「AI 对话」重新生成压测任务卡"
+                    + "或在「压测工作台」手工发起（示例：kind=perf-run）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         long runId = env.path("runId").asLong(0);
         if (runId <= 0) {
-            throw new ServiceException("压测任务信封缺少有效 runId（须指向已发起的压测运行）",
+            throw new ServiceException("压测任务信封缺少有效 runId（须指向已发起的压测运行），"
+                    + "请先在「压测运行台账」确认运行已发起（示例：runId=1024）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String engine = env.path("engine").asText("");
         if (!ENGINE_VALUES.contains(engine)) {
             throw new ServiceException("压测任务引擎标识非法（" + (engine.isEmpty() ? "空" : engine)
-                    + "），可选=" + String.join("/", ENGINE_VALUES), BizErrorCode.VALIDATION_ERROR);
+                    + "），可选=" + String.join("/", ENGINE_VALUES)
+                    + "，请改为上述引擎之一后重新发起（正确写法：见可选值清单）", BizErrorCode.VALIDATION_ERROR);
         }
         Integer exists = jdbc.queryForObject("SELECT count(*) FROM tp_perf_run "
                         + "WHERE id = :r AND project_id = :p",
@@ -195,19 +199,23 @@ public class PerfRunDispatchSupport {
 
     private JsonNode parseEnvelope(String actionJson) {
         if (actionJson == null || actionJson.isBlank()) {
-            throw new ServiceException("压测任务信封不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("压测任务信封不能为空，"
+                    + "请在「AI 对话」重新生成压测任务动作后提交（示例：kind=perf-run 的 JSON 信封）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         try {
             JsonNode node = objectMapper.readTree(actionJson);
             if (!node.isObject()) {
-                throw new ServiceException("压测任务信封必须是 JSON 对象",
+                throw new ServiceException("压测任务信封必须是 JSON 对象，"
+                                + "请让 AI 重新生成任务卡后再执行（示例：{\"kind\":\"perf-run\"} 形态的对象）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             return node;
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("压测任务信封不是合法 JSON：" + e.getMessage(),
+            throw new ServiceException("压测任务信封不是合法 JSON：" + e.getMessage()
+                    + "，请让 AI 重新生成压测任务动作后再执行（示例：kind=perf-run 的 JSON 对象）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

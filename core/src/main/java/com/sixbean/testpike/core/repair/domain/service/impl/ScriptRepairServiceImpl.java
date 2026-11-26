@@ -45,12 +45,15 @@ public class ScriptRepairServiceImpl implements ScriptRepairService {
     public ScriptRepairItem record(ScriptRepairRecordInput input) {
         if (!RepairOutcome.isValid(input.outcome())) {
             throw new ServiceException("修复结局仅支持 1=通过 2=未过 3=闸外跳过（当前 "
-                    + input.outcome() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + input.outcome() + "），请把 outcome 改为这三个取值之一后重新提交，"
+                    + "示例：outcome=1",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         Long caseExists = named.queryForObject("SELECT count(*) FROM tp_test_case WHERE id = :caseId",
                 new MapSqlParameterSource("caseId", input.caseId()), Long.class);
         if (caseExists == null || caseExists == 0L) {
-            throw new ServiceException("修复记录挂接的用例不存在（case_id=" + input.caseId() + "）",
+            throw new ServiceException("修复记录挂接的用例不存在（case_id=" + input.caseId()
+                    + "），请在「测试用例」列表核对用例编号后重新发起",
                     BizErrorCode.NOT_FOUND);
         }
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -85,7 +88,8 @@ public class ScriptRepairServiceImpl implements ScriptRepairService {
                 new ColumnMapRowMapper());
         if (source.isEmpty()) {
             throw new ServiceException("来源任务不存在（task_id=" + input.sourceTaskId()
-                    + "），无法发起修复验证", BizErrorCode.NOT_FOUND);
+                    + "），无法发起修复验证；可在「执行中心」检索该任务，任务已清理时请从用例详情脚本区重新生成后再修复",
+                    BizErrorCode.NOT_FOUND);
         }
         Map<String, Object> row = source.get(0);
         long projectId = ((Number) row.get("project_id")).longValue();
@@ -99,7 +103,8 @@ public class ScriptRepairServiceImpl implements ScriptRepairService {
                         .addValue("url", row.get("env_base_url")), Long.class);
         if (envIds.isEmpty()) {
             throw new ServiceException("原执行环境已删除或基址变更，无法发起修复验证（task_id="
-                    + input.sourceTaskId() + "）", BizErrorCode.NOT_FOUND);
+                    + input.sourceTaskId() + "）；请在项目的「执行环境」重新登记原基址后重试",
+                    BizErrorCode.NOT_FOUND);
         }
         String browser = (String) row.get("browser");
         return execTaskService.create(new ExecTaskCreateInput(projectId, caseId, schemaVersion,
@@ -151,7 +156,9 @@ public class ScriptRepairServiceImpl implements ScriptRepairService {
                 new MapSqlParameterSource("id", id), new BeanPropertyRowMapper<>(ScriptRepairRow.class))
                 .stream().map(ScriptRepairRow::toInfo).toList();
         if (rows.isEmpty()) {
-            throw new ServiceException("修复记录写入后读取失败（id=" + id + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("修复记录写入后读取失败（id=" + id
+                    + "），请稍后在「测试用例」详情的「AI 修复记录」面板刷新查看；持续失败请重新发起修复",
+                    BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

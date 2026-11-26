@@ -69,7 +69,8 @@ public class StorageRouter {
             case MODE_LOCAL -> new StorageRoute(localProvider(), prefix);
             case MODE_CLOUD -> new StorageRoute(cloudProvider(), prefix);
             default -> throw new ServiceException(
-                    "未知存储模式 storage_mode=" + mode + "（可选 1=系统默认 2=本地 3=云）",
+                    "未知存储模式 storage_mode=" + mode + "（可选 1=系统默认 2=本地 3=云），"
+                            + "请在项目存储设置中改为上述模式之一后保存（示例：storage_mode=2）",
                     BizErrorCode.VALIDATION_ERROR);
         };
     }
@@ -83,7 +84,8 @@ public class StorageRouter {
             case LocalStorageProvider.NAME -> localProvider();
             default -> throw new ServiceException(
                     "storage.provider 配置值非法: " + configured
-                            + "（可选 " + String.join("/", PROVIDER_ENUM.stream().sorted().toList()) + "）",
+                            + "（可选 " + String.join("/", PROVIDER_ENUM.stream().sorted().toList()) + "），"
+                            + "请前往「系统配置」把 storage.provider 改成上述可选值之一",
                     BizErrorCode.VALIDATION_ERROR);
         };
     }
@@ -118,7 +120,8 @@ public class StorageRouter {
             }
             default -> throw new ServiceException(
                     "storage.provider 配置值非法: " + configured
-                            + "（可选 " + String.join("/", PROVIDER_ENUM.stream().sorted().toList()) + "）",
+                            + "（可选 " + String.join("/", PROVIDER_ENUM.stream().sorted().toList()) + "），"
+                            + "请前往「系统配置」把 storage.provider 改成上述可选值之一",
                     BizErrorCode.VALIDATION_ERROR);
         };
     }
@@ -127,7 +130,8 @@ public class StorageRouter {
     public LocalStorageProvider localProvider() {
         String root = configService.getValue("storage.local-root", "").trim();
         if (root.isEmpty()) {
-            throw new ServiceException("本地存储未配置：请先在系统配置页设置 storage.local-root 根目录",
+            throw new ServiceException("本地存储未配置：请先在系统配置页设置 storage.local-root 根目录"
+                    + "（示例：/data/testpike-files）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String fingerprint = root + "|" + localSignSecret + "|" + localPublicBaseUrl;
@@ -156,7 +160,8 @@ public class StorageRouter {
         for (String segment : trimmed.split("/")) {
             if (segment.equals("..") || segment.isBlank()) {
                 throw new ServiceException("项目存储路径非法（含越界段）: " + projectPath
-                        + "（应为桶内前缀或相对子目录，如 rec-2）", BizErrorCode.VALIDATION_ERROR);
+                        + "（应为桶内前缀或相对子目录，如 rec-2），请改成桶内前缀写法后保存"
+                        + "（示例：rec-2）", BizErrorCode.VALIDATION_ERROR);
             }
         }
         return trimmed;

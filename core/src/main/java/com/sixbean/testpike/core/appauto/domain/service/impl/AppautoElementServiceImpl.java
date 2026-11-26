@@ -191,19 +191,22 @@ public class AppautoElementServiceImpl implements AppautoElementService {
                 + "FROM tp_appauto_element WHERE id = :id",
                 new MapSqlParameterSource("id", elementId));
         if (rows.isEmpty()) {
-            throw new ServiceException("元素 #" + elementId + " 不存在（可能已被删除）",
+            throw new ServiceException("元素 #" + elementId + " 不存在（可能已被删除）——请前往"
+                    + "「APP 自动化」→「图像元素库（APP）」刷新列表，改选仍在库中的元素",
                     BizErrorCode.NOT_FOUND);
         }
         return toView(rows.get(0));
     }
 
     private ServiceException conflict(String name) {
-        return new ServiceException("本项目已存在同名元素「" + name + "」，请更换名称或编辑现有元素",
+        return new ServiceException("本项目已存在同名元素「" + name + "」，请更换名称或编辑现有元素——"
+                + "可在「APP 自动化」→「图像元素库（APP）」搜索「" + name + "」后点击该行「编辑」",
                 BizErrorCode.RESOURCE_CONFLICT);
     }
 
     private static ServiceException invalid(String reason) {
-        return new ServiceException(reason + "（元素库 → 新建/编辑元素）", BizErrorCode.VALIDATION_ERROR);
+        return new ServiceException(reason + "——请改成合规取值后重新提交，编辑入口："
+                + "「APP 自动化」→「图像元素库（APP）」→「新建」或行内「编辑」", BizErrorCode.VALIDATION_ERROR);
     }
 
     private static AppautoElementView toView(Map<String, Object> row) {

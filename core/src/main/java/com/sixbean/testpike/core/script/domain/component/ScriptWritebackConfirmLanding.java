@@ -39,7 +39,9 @@ public class ScriptWritebackConfirmLanding implements McpConfirmLandingHandler {
         try {
             input = objectMapper.readValue(envelope.payloadJson(), ScriptWritebackInput.class);
         } catch (Exception e) {
-            throw new ServiceException("脚本写回草案载荷无法解析，本次确认未执行落地",
+            throw new ServiceException("脚本写回草案载荷无法解析，本次确认未执行落地——"
+                    + "请在「AI 对话」重新发起脚本写回生成新草案后再确认，"
+                    + "或在「用例管理」脚本编辑页直接保存脚本",
                     BizErrorCode.VALIDATION_ERROR);
         }
         scriptWritebackService.writeback(input);

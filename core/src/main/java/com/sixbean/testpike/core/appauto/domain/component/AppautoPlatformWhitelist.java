@@ -32,7 +32,8 @@ public class AppautoPlatformWhitelist {
                 .stream().collect(Collectors.toSet());
         if (!enabled.contains(upper)) {
             throw new ServiceException("平台编码「" + raw.trim() + "」不在平台目录启用面（可选："
-                    + String.join("、", enabled.stream().sorted().toList()) + "）",
+                    + String.join("、", enabled.stream().sorted().toList())
+                    + "）——请改成其中任一启用编码，或在「平台目录」页先启用该平台",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return upper;

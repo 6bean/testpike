@@ -39,7 +39,9 @@ public class ToolSchemaValidator {
         Set<ValidationMessage> errors = metaSchema.validate(node);
         if (!errors.isEmpty()) {
             String first = errors.iterator().next().getMessage();
-            throw new ServiceException(fieldLabel + " 不符合 JSON Schema 规范：" + first,
+            throw new ServiceException(fieldLabel + " 不符合 JSON Schema 规范：" + first
+                    + "——请前往「工具管理」编辑该工具的「输入 Schema」/「输出 Schema」字段后重新保存"
+                    + "（格式: JSON Schema 2020-12，如 {\"type\":\"object\",\"properties\":{}}）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -49,7 +51,9 @@ public class ToolSchemaValidator {
         try {
             return objectMapper.readTree(jsonText);
         } catch (JsonProcessingException e) {
-            throw new ServiceException(fieldLabel + " 不是合法 JSON：" + e.getOriginalMessage(),
+            throw new ServiceException(fieldLabel + " 不是合法 JSON：" + e.getOriginalMessage()
+                    + "——请检查括号、引号与逗号配对后重新保存"
+                    + "（格式: 合法 JSON，如 {\"key\":\"value\"}；入口「工具管理」→ 编辑工具）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

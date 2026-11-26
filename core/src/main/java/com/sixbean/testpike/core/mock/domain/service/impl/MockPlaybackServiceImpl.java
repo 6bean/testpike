@@ -86,7 +86,7 @@ public class MockPlaybackServiceImpl implements MockPlaybackService {
         // rather than filing rules into the wrong space.
         if (box.getSpaceId() == null || box.getSpaceId() != spaceId) {
             throw new ServiceException("录制盒与所选空间不一致（录制盒 " + recordingId
-                    + " 属于空间 " + box.getSpaceId() + "），请刷新页面后重试",
+                    + " 属于空间 " + box.getSpaceId() + "），请刷新页面后重试，或在「仿真空间」打开录制盒所属的空间后再发起回放",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<MockStubDraft> drafts = draftsFor(box, requireMode(mode));
@@ -114,7 +114,7 @@ public class MockPlaybackServiceImpl implements MockPlaybackService {
         String normalized = mode == null ? "" : mode.trim().toLowerCase(Locale.ROOT);
         if (!MODE_STRICT.equals(normalized) && !MODE_FUZZY.equals(normalized)) {
             throw new ServiceException("回放模式只支持 strict（严格按录制的每个 URL 一条规则）或 "
-                    + "fuzzy（同端点归并为模板规则），收到：" + mode, BizErrorCode.VALIDATION_ERROR);
+                    + "fuzzy（同端点归并为模板规则），收到：" + mode + "，请改成 strict 或 fuzzy 之一（回放入口：「仿真空间」空间工作台）", BizErrorCode.VALIDATION_ERROR);
         }
         return normalized;
     }
@@ -139,7 +139,7 @@ public class MockPlaybackServiceImpl implements MockPlaybackService {
             // Reference stamped but object gone: honest refusal beats an
             // empty replay that would silently claim "nothing was recorded".
             throw new ServiceException("录制带（cassette）文件已丢失（" + box.getCassetteRef()
-                    + "），无法回放；请重新录制", BizErrorCode.VALIDATION_ERROR);
+                    + "），无法回放；请重新录制（录制入口：「仿真空间」进入该空间工作台的录制面板）", BizErrorCode.VALIDATION_ERROR);
         }
         return parseJsonl(new String(raw, java.nio.charset.StandardCharsets.UTF_8));
     }
@@ -166,7 +166,7 @@ public class MockPlaybackServiceImpl implements MockPlaybackService {
                   FROM tp_mock_recording WHERE id = :id
                 """, new MapSqlParameterSource("id", id), BOX_MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("录制盒不存在或已被删除", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("录制盒不存在或已被删除，请前往「仿真空间」进入对应空间的工作台重新选择录制盒", BizErrorCode.VALIDATION_ERROR);
         }
         return rows.get(0);
     }

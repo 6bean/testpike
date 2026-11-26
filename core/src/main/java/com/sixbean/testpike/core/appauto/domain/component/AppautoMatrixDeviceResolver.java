@@ -148,7 +148,7 @@ public class AppautoMatrixDeviceResolver {
         if (rows.isEmpty()) {
             throw new ServiceException(
                     "绑定的设备预约不存在或已被删除（预约号 " + reservationId
-                            + "）——请先在设备预约中确认预约有效，或取消绑定后重新扇出",
+                            + "）——请先在「设备预约日历」页确认预约有效，或取消绑定后重新扇出",
                     BizErrorCode.NOT_FOUND);
         }
         Map<String, Object> r = rows.get(0);

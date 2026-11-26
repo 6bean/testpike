@@ -88,7 +88,9 @@ public class ToolFcAssemblyServiceImpl implements ToolFcAssemblyService {
         Integer n = named.queryForObject("SELECT count(*) FROM tp_project WHERE id = :id",
                 new MapSqlParameterSource("id", projectId), Integer.class);
         if (n == null || n == 0) {
-            throw new ServiceException("项目不存在（id=" + projectId + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在（id=" + projectId + "）——请到「项目管理」页确认所选项目；"
+                    + "已归档的可由系统管理员点「归档项目」按钮后「还原」，再重新发起操作",
+                    BizErrorCode.NOT_FOUND);
         }
         List<ToolFcAssemblyRow> rows = named.query("""
                 SELECT t.id AS tool_id, t.name, t.type, t.exec_kind,

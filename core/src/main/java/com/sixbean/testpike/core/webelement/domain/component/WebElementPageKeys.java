@@ -29,14 +29,16 @@ public class WebElementPageKeys {
      */
     public String pageKey(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
-            throw new ServiceException("页面地址不能为空，请填写页面的完整 http(s) 地址",
+            throw new ServiceException("页面地址不能为空，请填写页面的完整 http(s) 地址，"
+                    + "格式：http://主机[:端口]/路径",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String trimmed = rawUrl.trim();
         int sep = trimmed.indexOf("://");
         String scheme = sep < 0 ? "" : trimmed.substring(0, sep).toLowerCase();
         if ((!("http".equals(scheme) || "https".equals(scheme)))) {
-            throw new ServiceException("页面地址必须以 http:// 或 https:// 开头并包含主机名（当前 %s）",
+            throw new ServiceException("页面地址必须以 http:// 或 https:// 开头并包含主机名（当前 %s），"
+                    + "请改成完整地址，示例：https://example.com/order/list",
                     BizErrorCode.VALIDATION_ERROR, rawUrl);
         }
         String rest = trimmed.substring(sep + 3);
@@ -56,7 +58,8 @@ public class WebElementPageKeys {
             authority = authority.substring(at + 1);
         }
         if (authority.isBlank()) {
-            throw new ServiceException("页面地址缺少主机名（当前 %s），请填写完整 URL",
+            throw new ServiceException("页面地址缺少主机名（当前 %s），请填写完整 URL，"
+                    + "格式：http://主机[:端口]/路径",
                     BizErrorCode.VALIDATION_ERROR, rawUrl);
         }
         String host = authority;
@@ -67,12 +70,14 @@ public class WebElementPageKeys {
             try {
                 port = Integer.parseInt(authority.substring(colon + 1));
             } catch (NumberFormatException e) {
-                throw new ServiceException("页面地址端口无法识别（当前 %s），端口必须是数字",
+                throw new ServiceException("页面地址端口无法识别（当前 %s），端口必须是数字，"
+                        + "请改成格式：http://主机:8080/路径",
                         BizErrorCode.VALIDATION_ERROR, rawUrl);
             }
         }
         if (host.isBlank()) {
-            throw new ServiceException("页面地址缺少主机名（当前 %s），请填写完整 URL",
+            throw new ServiceException("页面地址缺少主机名（当前 %s），请填写完整 URL，"
+                    + "格式：http://主机[:端口]/路径",
                     BizErrorCode.VALIDATION_ERROR, rawUrl);
         }
         StringBuilder origin = new StringBuilder(scheme).append("://").append(host.toLowerCase());

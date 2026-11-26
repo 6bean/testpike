@@ -125,7 +125,8 @@ public class PerfReportServiceImpl implements PerfReportService {
         boolean sameDsl = dslHashA != null && dslHashA.equals(dslHashB);
         if (!sameScenario && !sameDsl) {
             throw new ServiceException("两次运行非同一场景且压测脚本定义不同，曲线不可对比——"
-                    + "请选择同一场景下的两个运行，或确认两场景的步骤/压力/阈值完全一致",
+                    + "请在「压测运行台账」勾选同一场景下的两个运行后发起对比，"
+                    + "或在「压测工作台」把两个场景的步骤/压力/阈值改一致再各压一次",
                     BizErrorCode.VALIDATION_ERROR);
         }
 
@@ -631,7 +632,7 @@ public class PerfReportServiceImpl implements PerfReportService {
     public byte[] export(long projectId, long runId, String format) {
         String normalized = format == null ? "" : format.trim().toLowerCase();
         if (!EXPORT_FORMATS.contains(normalized)) {
-            throw new ServiceException("导出格式不支持（仅支持 pdf/html）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("导出格式不支持（仅支持 pdf/html）——请在运行详情页「导出报告」改选 PDF 或 HTML", BizErrorCode.VALIDATION_ERROR);
         }
         // Single source: the exported document serializes exactly what build()
         // assembles for the online page — never a second computation head.
@@ -642,7 +643,7 @@ public class PerfReportServiceImpl implements PerfReportService {
         try {
             return PdfHtmlRenderer.render(html);
         } catch (Exception e) {
-            throw new ServiceException("PDF 导出失败", BizErrorCode.INTERNAL_ERROR, e);
+            throw new ServiceException("PDF 导出失败——请在运行详情页「导出报告」改选 HTML 获取报告，稍后重试 PDF", BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 

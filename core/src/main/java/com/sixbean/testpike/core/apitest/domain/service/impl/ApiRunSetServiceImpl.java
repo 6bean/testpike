@@ -71,22 +71,19 @@ public class ApiRunSetServiceImpl implements ApiRunSetService {
     @Audit(objectType = "apitestRunSet", action = "create", after = "#result")
     public ApiRunSetInfo create(Long operatorId, RunSetCreateInput input) {
         if (input == null || input.collectionId() == null || input.collectionId() <= 0) {
-            throw new ServiceException("集合运行必须指定目标集合", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合运行必须指定目标集合——请在「接口测试」页先选择集合再发起运行", BizErrorCode.VALIDATION_ERROR);
         }
         String mode = input.interruptionMode() == null || input.interruptionMode().isBlank()
                 ? ApiRunSetPlanSupport.MODE_STOP
                 : input.interruptionMode().trim();
-        // Mode domain = the plan component's single set (no second enum list here).
-        if (!ApiRunSetPlanSupport.MODES.contains(mode)) {
-            throw new ServiceException("中断模式仅支持 STOP_ON_ASSERT_FAIL / CONTINUE_AND_SUMMARY / "
-                    + "CHAIN_DEP_ONLY，当前值「" + mode + "」", BizErrorCode.VALIDATION_ERROR);
-        }
+        // Mode domain guard is the plan component's single source (no second check here).
+        ApiRunSetPlanSupport.requireValidMode(mode);
         ApiCollectionInfo collection = apiCollectionService.get(input.collectionId());
         envGuard.requireSameProject(input.envId(), collection.projectId());
 
         List<ApiRequestInfo> requests = apiRequestService.list(collection.id());
         if (requests.isEmpty()) {
-            throw new ServiceException("集合内没有请求，无法发起集合运行", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合内没有请求，无法发起集合运行——请先在「接口测试」页该集合下新建请求后重试", BizErrorCode.VALIDATION_ERROR);
         }
         String pinnedJson = pinDefinitions(requests);
         // Fail fast on a broken snapshot before touching the ledger (the plan must
@@ -141,7 +138,7 @@ public class ApiRunSetServiceImpl implements ApiRunSetService {
         List<ApiRunSetRow> rows = queryRows(" WHERE s.id = :id", new MapSqlParameterSource("id", runSetId));
         return rows.stream().findFirst()
                 .map(ApiRunSetServiceImpl::toInfo)
-                .orElseThrow(() -> new ServiceException("集合运行记录不存在或已清理", BizErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new ServiceException("集合运行记录不存在或已清理——可在「接口测试」页的「接口集运行记录」中查看其余记录", BizErrorCode.NOT_FOUND));
     }
 
     @Override

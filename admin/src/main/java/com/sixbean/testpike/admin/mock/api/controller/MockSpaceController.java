@@ -52,7 +52,7 @@ public class MockSpaceController {
     public Response<Long> create(@RequestBody MockSpaceCreateRequest request) {
         if (request.projectId() == null) {
             throw new ServiceException(
-                    "创建 Mock 空间必须指定所属项目（projectId）", 400);
+                    "创建 Mock 空间必须指定所属项目（projectId）——请先在顶栏选择项目，再在「接口仿真」页「新建 Mock 空间」提交", 400);
         }
         return Response.builderSuccess(
                 coreMockRuleClient.createSpace(request.projectId(), request.toInput()));
@@ -71,11 +71,11 @@ public class MockSpaceController {
     public Response<MockSpaceView> transition(@PathVariable long spaceId,
                                               @RequestBody MockSpaceTransitionRequest request) {
         if (request.targetStatus() == null) {
-            throw new ServiceException("空间状态转换必须指定目标状态（targetStatus：1=发布 / 2=退役）", 400);
+            throw new ServiceException("空间状态转换必须指定目标状态（targetStatus：1=发布 / 2=退役）——可在「接口仿真」空间行的「发布」或「退役」动作发起", 400);
         }
         if (request.expectedVersion() == null) {
             throw new ServiceException("空间状态转换必须携带当前版本号（expectedVersion，来自列表行），"
-                    + "请刷新后重试", 400);
+                    + "请刷新后重试（版本号见「接口仿真」空间列表行，刷新页面即可取到最新值）", 400);
         }
         return Response.builderSuccess(coreMockRuleClient.transitionSpace(
                 spaceId, request.targetStatus(), request.expectedVersion()));
@@ -96,11 +96,11 @@ public class MockSpaceController {
                                                 @RequestBody MockSpacePolicyRequest request) {
         if (request.missPolicy() == null || request.missPolicy().isBlank()) {
             throw new ServiceException("保存未命中策略必须指定档位（missPolicy："
-                    + "passthrough=透传 / reject=拒绝 / llm-fallback=AI 兜底）", 400);
+                    + "passthrough=透传 / reject=拒绝 / llm-fallback=AI 兜底）——请在「接口仿真」空间详情的「未命中策略」区选择档位后保存", 400);
         }
         if (request.expectedVersion() == null) {
             throw new ServiceException("保存未命中策略必须携带当前版本号（expectedVersion，来自列表行），"
-                    + "请刷新后重试", 400);
+                    + "请刷新后重试（版本号见「接口仿真」空间列表行，刷新页面即可取到最新值）", 400);
         }
         return Response.builderSuccess(coreMockRuleClient.updateMissPolicy(
                 spaceId, request.missPolicy(), request.expectedVersion()));

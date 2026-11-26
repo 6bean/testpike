@@ -24,10 +24,10 @@ public class ScriptLimitGuard {
         try {
             root = objectMapper.readTree(actionJson);
         } catch (Exception e) {
-            throw new ServiceException("动作 JSON 格式非法，无法保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ScriptValidationGuidance.INVALID_ACTION_JSON, BizErrorCode.VALIDATION_ERROR);
         }
         if (root == null || !root.isObject()) {
-            throw new ServiceException("动作 JSON 格式非法，无法保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ScriptValidationGuidance.INVALID_ACTION_JSON, BizErrorCode.VALIDATION_ERROR);
         }
         JsonNode steps = root.path("steps");
         if (!steps.isArray()) {
@@ -55,7 +55,8 @@ public class ScriptLimitGuard {
  
     private void walk(JsonNode stepArray, int depth, ScriptWalkCounts counts) {
         if (depth > 1000) {
-            throw new ServiceException("脚本嵌套超限：结构异常加深", BizErrorCode.SCRIPT_LIMIT_EXCEEDED);
+            throw new ServiceException("脚本嵌套超限：步骤层级加深已超过 1000 层——请在「用例管理」打开该用例的脚本编辑页，"
+                    + "把「动作 JSON」内层子步骤平铺到外层 steps 数组后重新保存", BizErrorCode.SCRIPT_LIMIT_EXCEEDED);
         }
         for (JsonNode step : stepArray) {
             if (!step.isObject()) {

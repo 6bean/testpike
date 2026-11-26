@@ -62,21 +62,21 @@ public class NotificationPrefServiceImpl implements NotificationPrefService {
     @Transactional
     public void updatePrefs(long userId, List<NotificationPrefToggle> toggles) {
         if (toggles == null || toggles.isEmpty()) {
-            throw new ServiceException("偏好批量保存不能为空列表", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("偏好批量保存不能为空列表——请至少保留一项开关再保存（入口：「通知中心」的接收偏好设置）", BizErrorCode.VALIDATION_ERROR);
         }
         Set<String> seen = new HashSet<>();
         Map<String, Object> changes = new LinkedHashMap<>();
         for (NotificationPrefToggle toggle : toggles) {
             String eventType = toggle == null ? null : toggle.eventType();
             if (eventType == null || eventType.isBlank() || !NotificationEventDict.isKnown(eventType)) {
-                throw new ServiceException("未知通知事件类型: " + eventType, BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("未知通知事件类型: " + eventType + "；请从「通知中心」接收偏好列出的事件清单中选择", BizErrorCode.VALIDATION_ERROR);
             }
             if (!seen.add(eventType)) {
-                throw new ServiceException("同一批偏好不能重复包含事件: " + eventType,
+                throw new ServiceException("同一批偏好不能重复包含事件: " + eventType + "；请删除重复项后重新保存（事件开关位于「通知中心」接收偏好，每个事件只保存一次）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (!toggle.enabled() && NotificationEventDict.isForced(eventType)) {
-                throw new ServiceException("安全通知不可退订: " + eventType, BizErrorCode.VALIDATION_ERROR);
+                throw new ServiceException("安全通知不可退订: " + eventType + "；该类事件请保持开启，无需修改（事件清单见「通知中心」接收偏好）", BizErrorCode.VALIDATION_ERROR);
             }
             changes.put(eventType, toggle.enabled());
         }

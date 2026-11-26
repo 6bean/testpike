@@ -49,7 +49,8 @@ public class QuerySpecInternalController {
                                      @RequestBody QuerySpecRunRequest request) {
         requireKnownOperator(operatorId);
         if (request == null || request.spec() == null || request.spec().isNull()) {
-            throw new ServiceException("查询规格为空，已拒绝执行（需要 {target, ...} 对象）",
+            throw new ServiceException("查询规格为空，已拒绝执行——请在工具入参中补充查询规格对象"
+                    + "（格式: {\"target\":\"<可查询对象>\",\"filters\":[…]}，可查询对象清单见查询目标目录）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(
@@ -68,7 +69,8 @@ public class QuerySpecInternalController {
     private static void requireKnownOperator(Long operatorId) {
         if (operatorId == null || operatorId <= 0) {
             throw new ServiceException("只读聚合查询缺少操作人身份（X-Operator-Id），"
-                    + "已拒绝执行——对话内统计需由登录用户的对话发起", BizErrorCode.FORBIDDEN);
+                    + "已拒绝执行——请在「AI 对话」中由登录用户发起统计；"
+                    + "直连调用需补传请求头 X-Operator-Id（格式: 数字用户 id）", BizErrorCode.FORBIDDEN);
         }
     }
 }

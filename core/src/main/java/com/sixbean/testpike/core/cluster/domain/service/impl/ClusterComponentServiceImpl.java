@@ -48,24 +48,29 @@ public class ClusterComponentServiceImpl implements ClusterComponentService {
                                        String source, String requirement, String targetVersion) {
         String node = trimToNull(nodeId);
         if (node == null) {
-            throw new ServiceException("部件台账写入必须提供节点标识（node_id）",
+            throw new ServiceException("部件台账写入必须提供节点标识（node_id），"
+                            + "请在上报报文中补充该字段（示例：node_id=\"10.0.1.7\"）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (node.length() > 120) {
-            throw new ServiceException("节点标识超长（上限 120 字符）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("节点标识超长（上限 120 字符），请缩短后重新提交"
+                    + "（示例：主机名或 IP 地址）", BizErrorCode.VALIDATION_ERROR);
         }
         String family = trimToNull(componentFamily);
         if (family == null) {
-            throw new ServiceException("部件台账写入必须提供部件族（component_family）",
+            throw new ServiceException("部件台账写入必须提供部件族（component_family），"
+                            + "请在上报报文中补充部件族名（示例：component_family=\"chrome\"）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (family.length() > 80) {
-            throw new ServiceException("部件族标识超长（上限 80 字符）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("部件族标识超长（上限 80 字符），请缩短到 80 字符以内"
+                    + "（示例：chrome、chromedriver）", BizErrorCode.VALIDATION_ERROR);
         }
         String src = trimToNull(source) == null ? "heartbeat" : source.trim();
         if (!SOURCES.contains(src)) {
             throw new ServiceException("部件台账来源必须是 " + String.join(" / ", SOURCES)
-                    + " 之一（当前：" + source + "）", BizErrorCode.VALIDATION_ERROR);
+                    + " 之一（当前：" + source + "），请改为上述来源之一后重新提交"
+                    + "（正确写法：source=\"manual\"）", BizErrorCode.VALIDATION_ERROR);
         }
         jdbc.update("""
                 INSERT INTO tp_cluster_component
@@ -107,7 +112,8 @@ public class ClusterComponentServiceImpl implements ClusterComponentService {
     public int applyReleaseTarget(String targetVersion) {
         String target = trimToNull(targetVersion);
         if (target == null) {
-            throw new ServiceException("平台发布基准回写必须提供版本号", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("平台发布基准回写必须提供版本号，"
+                    + "请在发布请求中填写版本号（示例：1.4.2）后重试", BizErrorCode.VALIDATION_ERROR);
         }
         // Rows only — never fabricate ledger rows for families whose agents
         // have not enrolled yet (honest no-op when the platform set is empty).

@@ -68,7 +68,9 @@ public class AliyunOssStorageProvider implements StorageProvider {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("文件上传失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("文件上传失败: " + e.getMessage()
+                    + "，请确认对象存储端点可达后重新发起上传（storage.oss.endpoint，"
+                    + "示例 https://oss-cn-shanghai.aliyuncs.com）", BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -129,7 +131,9 @@ public class AliyunOssStorageProvider implements StorageProvider {
                 keys.add(s.getKey());
             }
         } catch (Exception e) {
-            throw new ServiceException("OSS 列举失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("OSS 列举失败: " + e.getMessage()
+                    + "，请确认桶名与读取权限后重试（示例：bucket=testpike-assets）",
+                    BizErrorCode.INTERNAL_ERROR);
         }
         return keys;
     }
@@ -148,7 +152,8 @@ public class AliyunOssStorageProvider implements StorageProvider {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("预签名授权失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("预签名授权失败: " + e.getMessage()
+                    + "，请前往「系统配置」核对阿里云 OSS 凭据后重试", BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -158,8 +163,8 @@ public class AliyunOssStorageProvider implements StorageProvider {
         String ak = config("storage.oss.access-key-id", "");
         String sk = config("storage.oss.access-key-secret", "");
         if (ak.isBlank() || sk.isBlank()) {
-            throw new ServiceException("OSS 凭据未配置（storage.oss.access-key-id/access-key-secret，"
-                    + "K8 加密键），云存储模式不可用", BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("OSS 凭据未配置（storage.oss.access-key-id/access-key-secret，K8 加密键），"
+                    + "云存储模式不可用，请在「系统配置」页填写这两项并保存", BizErrorCode.INTERNAL_ERROR);
         }
         String fp = endpoint + '\0' + ak.hashCode() + '\0' + sk.hashCode();
         OSS current = client;
@@ -187,7 +192,8 @@ public class AliyunOssStorageProvider implements StorageProvider {
     private String bucket() {
         String bucket = config("storage.oss.bucket", "");
         if (bucket.isBlank()) {
-            throw new ServiceException("storage.oss.bucket 未配置，云存储模式不可用",
+            throw new ServiceException("storage.oss.bucket 未配置，云存储模式不可用，"
+                            + "请在「系统配置」页补充存储桶名（示例：testpike-assets）并保存",
                     BizErrorCode.INTERNAL_ERROR);
         }
         return bucket;

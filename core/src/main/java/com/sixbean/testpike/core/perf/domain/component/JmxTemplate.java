@@ -79,7 +79,8 @@ public final class JmxTemplate {
         int duration = config.path("durationSeconds").asInt(0);
         if (duration <= 0) {
             throw new ServiceException("JMeter 压测时长未声明（pressure_config.durationSeconds"
-                    + " 缺失或为 0），无法生成可执行的 JMX 产物", BizErrorCode.VALIDATION_ERROR);
+                    + " 缺失或为 0），无法生成可执行的 JMX 产物——请在「压测工作台」的场景压力配置中"
+                    + "填写时长（示例：durationSeconds=300）", BizErrorCode.VALIDATION_ERROR);
         }
         String samplers = renderSamplers(steps, baseUrl);
         StringBuilder legs = new StringBuilder();
@@ -102,7 +103,8 @@ public final class JmxTemplate {
             case "SPIKE" -> appendSpikeLegs(legs, config, duration, samplers);
             default -> throw new ServiceException("JMeter 引擎本期未编译压力形态 "
                     + (model == null ? "（空）" : model)
-                    + "，当前支持=CONSTANT_RPS/RAMP/SPIKE——请改用已支持的压测形态或选择其它引擎",
+                    + "，当前支持=CONSTANT_RPS/RAMP/SPIKE——请改用已支持的压测形态或选择其它引擎"
+                    + "（正确写法：CONSTANT_RPS）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return document(legs.toString());
@@ -191,7 +193,8 @@ public final class JmxTemplate {
         StringBuilder samplers = new StringBuilder();
         if (steps == null || !steps.isArray() || steps.isEmpty()) {
             throw new ServiceException("JMeter 场景缺少请求步骤（steps 为空），"
-                    + "无法生成 JMX 产物——请在场景中至少配置一个请求步骤", BizErrorCode.VALIDATION_ERROR);
+                    + "无法生成 JMX 产物——请在场景中至少配置一个请求步骤"
+                    + "（示例：一个 GET 请求步骤）", BizErrorCode.VALIDATION_ERROR);
         }
         for (JsonNode step : steps) {
             String method = step.path("method").asText("GET");
@@ -258,7 +261,8 @@ public final class JmxTemplate {
             String base = baseUrl == null ? "" : baseUrl.trim();
             if (base.isBlank()) {
                 throw new ServiceException("JMeter 步骤地址是相对路径（" + trimmed
-                        + "）但压测环境未配置 baseUrl——请在环境中补充基础地址或把步骤写成完整 URL",
+                        + "）但压测环境未配置 baseUrl——请在「环境配置」中补充基础地址"
+                        + "或把步骤写成完整 URL（示例：https://api.example.com）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             String joined = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
@@ -269,11 +273,13 @@ public final class JmxTemplate {
             uri = new URI(candidate);
         } catch (URISyntaxException e) {
             throw new ServiceException("JMeter 步骤目标地址无法解析：" + candidate
-                    + "——请检查环境 baseUrl 与步骤 url 的拼接结果", BizErrorCode.VALIDATION_ERROR);
+                    + "——请检查环境 baseUrl 与步骤 url 的拼接结果"
+                    + "（示例：baseUrl=https://api.example.com，url=/v1/projects）", BizErrorCode.VALIDATION_ERROR);
         }
         if (uri.getScheme() == null || uri.getHost() == null) {
             throw new ServiceException("JMeter 步骤目标地址缺少协议或主机名：" + candidate
-                    + "——请检查环境 baseUrl 与步骤 url 的拼接结果", BizErrorCode.VALIDATION_ERROR);
+                    + "——请检查环境 baseUrl 与步骤 url 的拼接结果"
+                    + "（示例：baseUrl=https://api.example.com，url=/v1/projects）", BizErrorCode.VALIDATION_ERROR);
         }
         return uri;
     }

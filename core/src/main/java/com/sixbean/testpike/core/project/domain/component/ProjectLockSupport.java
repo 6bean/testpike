@@ -24,7 +24,9 @@ public class ProjectLockSupport {
                 "SELECT id FROM tp_project WHERE id = :id FOR UPDATE",
                 new MapSqlParameterSource("id", projectId), Long.class);
         if (locked.isEmpty()) {
-            throw new ServiceException("项目不存在（id=" + projectId + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在（id=" + projectId
+                    + "）——请到「项目管理」页确认该项目是否已被归档或删除；已归档的可由系统管理员点「归档项目」按钮后「还原」，再重新发起操作",
+                    BizErrorCode.NOT_FOUND);
         }
     }
 }

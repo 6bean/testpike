@@ -111,7 +111,7 @@ public class JmeterAdapter implements EngineAdapter {
         }
         if (!artifactBundler.handleReadable(artifact)) {
             throw new ServiceException("JMeter 压测无法启动：编译产物不存在或不可读「"
-                    + artifact + "」，请先重新编译场景", BizErrorCode.VALIDATION_ERROR);
+                    + artifact + "」——请到「压测工作台」相应场景行重新「保存场景」触发编译，成功后再「发起压测」", BizErrorCode.VALIDATION_ERROR);
         }
         // The subprocess `jmeter -n -t plan.jmx -l result.jtl` belongs to the
         // perf_worker collection chain; the control plane freezes the handle.
@@ -159,13 +159,13 @@ public class JmeterAdapter implements EngineAdapter {
     private void requireHttpSteps(JsonNode steps) {
         if (steps == null || !steps.isArray() || steps.isEmpty()) {
             throw new ServiceException("JMeter 场景缺少请求步骤，无法生成 JMX 产物"
-                    + "——请至少配置一个 HTTP 请求步骤", BizErrorCode.VALIDATION_ERROR);
+                    + "——请在「压测工作台」打开该场景的编辑向导，在「请求步骤」表里至少添加一行 HTTP 请求", BizErrorCode.VALIDATION_ERROR);
         }
         for (JsonNode step : steps) {
             String url = step.path("url").asText("");
             if (url.isBlank()) {
                 throw new ServiceException("JMeter 引擎仅能编译 HTTP 请求步骤"
-                        + "（存在缺少请求路径的步骤），请补全路径或改用 UI 场景引擎",
+                        + "（存在缺少请求路径的步骤），请在「请求步骤」表为每行填写请求路径（如 https://api.example.com/products），或改用 UI 场景引擎",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }

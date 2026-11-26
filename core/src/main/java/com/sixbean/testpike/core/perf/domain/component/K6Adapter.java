@@ -101,7 +101,7 @@ public class K6Adapter implements EngineAdapter {
             if (!PerfDatasetAllocPolicy.supports("K6", allocMode)) {
                 throw new ServiceException("行分配策略 SEQUENTIAL_EXCLUSIVE 需要跨虚拟用户的"
                         + "原子行租约，k6 引擎无此原语（静默共行会伪造独占流量口径）——"
-                        + "请改用原生支持队列馈器的 Gatling 引擎执行该场景",
+                        + "请改用原生支持队列馈器的 Gatling 引擎执行该场景——场景与引擎在「压测工作台」配置，默认策略键 perf.dataset.row-alloc-mode 可在「系统配置」调整",
                         BizErrorCode.VALIDATION_ERROR);
             }
             PerfDatasetRows.Dataset dataset = datasetRows.load(
@@ -112,7 +112,7 @@ public class K6Adapter implements EngineAdapter {
                 throw new ServiceException("数据池独占切片行不足：数据集「" + datasetId + "」共 "
                         + dataset.rowCount() + " 行，少于压力形态分配的 " + vuCount
                         + " 虚拟用户，部分用户将分不到独占行——请扩充数据集行数、改用 CYCLE"
-                        + " 轮询策略，或降低压力配置", BizErrorCode.VALIDATION_ERROR);
+                        + " 轮询策略，或降低压力配置——数据集行数与压力形态在「压测工作台」场景编辑调整，默认策略键 perf.dataset.row-alloc-mode 见「系统配置」", BizErrorCode.VALIDATION_ERROR);
             }
             String fileName = "ds_" + datasetId + ".json";
             dsArg = new TemplateDataset(fileName, allocMode, vuCount);
@@ -144,11 +144,11 @@ public class K6Adapter implements EngineAdapter {
         if (!k6BinaryPresent()) {
             throw new ServiceException("k6 引擎二进制缺失（AGPL 进程边界处置=用户自装，"
                     + "本系统不随包分发）：请在执行机 PATH 安装 k6 后重试，禁止静默切换"
-                    + " Gatling 顶替备选引擎", BizErrorCode.VALIDATION_ERROR);
+                    + " Gatling 顶替备选引擎——安装后在「压测运行台账」重新发起运行；暂不安装可在「压测工作台」改用 Gatling 引擎场景", BizErrorCode.VALIDATION_ERROR);
         }
         if (!artifactBundler.handleReadable(artifact)) {
             throw new ServiceException("k6 压测无法启动：编译产物不存在或不可读「"
-                    + artifact + "」，请先重新编译场景", BizErrorCode.VALIDATION_ERROR);
+                    + artifact + "」，请先重新编译场景——在「压测工作台」打开该场景重新编译后再次发起运行", BizErrorCode.VALIDATION_ERROR);
         }
         // A-10 dual form: artifact is an object key (or a legacy local path for
         // in-flight orders) — the session id keeps only the terminal name segment.

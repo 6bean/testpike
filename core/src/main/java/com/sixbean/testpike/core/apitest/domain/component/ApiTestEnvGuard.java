@@ -39,7 +39,8 @@ public class ApiTestEnvGuard {
                 "SELECT project_id FROM tp_project_env WHERE id = :envId",
                 new MapSqlParameterSource("envId", envId), (rs, rowNum) -> rs.getLong(1));
         if (envProjects.isEmpty() || !envProjects.get(0).equals(projectId)) {
-            throw new ServiceException("所选环境不属于该请求所在项目，无法确定目标域名白名单",
+            throw new ServiceException("所选环境不属于该请求所在项目，无法确定目标域名白名单——"
+                    + "请在「环境配置」列表改选本项目下的环境后再运行",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

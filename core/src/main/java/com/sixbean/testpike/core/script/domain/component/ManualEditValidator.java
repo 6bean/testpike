@@ -27,7 +27,8 @@ public class ManualEditValidator {
         ActionCheckResult result = actionJsonValidator.validate(
                 actionJson, stepAliasService.aliasNames(projectId));
         if (!result.passed()) {
-            throw new ServiceException("脚本内容校验未通过：" + String.join("；", result.errors()),
+            throw new ServiceException("脚本内容校验未通过：" + String.join("；", result.errors())
+                            + "——请在脚本编辑页按上述原因修正对应步骤的「动作 JSON」后重新保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

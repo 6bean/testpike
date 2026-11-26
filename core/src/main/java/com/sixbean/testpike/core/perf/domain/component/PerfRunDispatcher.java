@@ -63,7 +63,8 @@ public class PerfRunDispatcher {
         EngineAdapter adapter = routingTable.get(engine);
         if (adapter == null) {
             throw new ServiceException("压测引擎暂无可用适配器（" + (engine == null || engine.isEmpty()
-                    ? "空" : engine) + "），当前支持=" + String.join("/", routingTable.keySet()),
+                    ? "空" : engine) + "），当前支持=" + String.join("/", routingTable.keySet())
+                    + "——请在「压测工作台」打开该场景编辑，把「压测引擎」改成上述取值之一并保存后重新起压",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return adapter;
@@ -79,7 +80,8 @@ public class PerfRunDispatcher {
         try {
             artifact = adapter.compile(scenarioView);
         } catch (ServiceException compileReject) {
-            throw new ServiceException("压测运行启动失败：" + compileReject.getMessage(),
+            throw new ServiceException("压测运行启动失败：" + compileReject.getMessage()
+                    + "——请回到「压测工作台」的场景编辑按上述原因修正步骤，保存后重新起压",
                     compileReject.getCode() == null ? BizErrorCode.VALIDATION_ERROR
                             : compileReject.getCode());
         }

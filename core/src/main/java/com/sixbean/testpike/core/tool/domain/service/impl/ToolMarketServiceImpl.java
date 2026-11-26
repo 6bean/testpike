@@ -131,11 +131,11 @@ public class ToolMarketServiceImpl implements ToolMarketService {
         ToolInfo tool = toolService.get(toolId);
         if (!ApprovalStateMachine.isPublished(tool.status())) {
             throw new ServiceException("仅已发布的工具可下载（当前状态：" + tool.statusLabel()
-                    + "）；未发布内容请通过详情查看", BizErrorCode.VALIDATION_ERROR);
+                    + "）；未发布内容请通过详情查看（列表与下载入口：「工具管理」）", BizErrorCode.VALIDATION_ERROR);
         }
         String fmt = format == null ? "" : format.trim().toLowerCase();
         if (!FORMAT_MD.equals(fmt) && !FORMAT_ZIP.equals(fmt)) {
-            throw new ServiceException("下载格式「" + format + "」不支持（可选：md=文档正文 / zip=契约包）",
+            throw new ServiceException("下载格式「" + format + "」不支持（可选：md=文档正文 / zip=契约包）；请改成 md 或 zip 后重试（下载入口：「工具管理」）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> row = contractRow(toolId);
@@ -143,7 +143,7 @@ public class ToolMarketServiceImpl implements ToolMarketService {
         String body = row.get("body") == null ? null : row.get("body").toString();
         if (FORMAT_MD.equals(fmt) && !doc) {
             throw new ServiceException("可执行工具无 Markdown 正文，请改用 zip 契约包下载"
-                    + "（可选：md=文档正文 / zip=契约包）", BizErrorCode.VALIDATION_ERROR);
+                    + "（可选：md=文档正文 / zip=契约包）；在「工具管理」选择该工具后改用 zip 下载", BizErrorCode.VALIDATION_ERROR);
         }
         String baseName = tool.name() + "." + fmt;
         byte[] content;
@@ -172,7 +172,7 @@ public class ToolMarketServiceImpl implements ToolMarketService {
     @Transactional
     public ToolInfo importTool(Long operatorId, Long projectId, String filename, byte[] content) {
         if (content == null || content.length == 0) {
-            throw new ServiceException("导入文件内容为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("导入文件内容为空——请重新选择非空的工具契约文件后再导入（导入入口：「工具管理」）", BizErrorCode.VALIDATION_ERROR);
         }
         ToolCreateInput input = toolPackSupport.parseToCreateInput(projectId, filename, content);
         return toolService.create(operatorId, input);

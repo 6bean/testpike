@@ -39,7 +39,8 @@ public class ProjectAccessServiceImpl implements ProjectAccessService {
         requireProject(projectId);
         // threshold predicate stays single-sourced in ProjectRoleResolver.isMemberRole
         if (!ProjectRoleResolver.isMemberRole(roleExpansion.effectiveRole(projectId, userId))) {
-            throw new ServiceException("您不是该项目成员，无权访问该项目资源", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("您不是该项目成员，无权访问该项目资源——请项目管理员在「项目管理」打开该项目「成员管理」页点「添加成员」将您加入后重试",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
@@ -50,13 +51,15 @@ public class ProjectAccessServiceImpl implements ProjectAccessService {
         // (short-circuited inside the expansion component), so a program owner never
         // upgrades to project owner — write paths stay direct-grant governed.
         if (!ProjectRoleResolver.isOwnerRole(roleExpansion.effectiveRole(projectId, userId))) {
-            throw new ServiceException("该操作仅项目负责人可执行", BizErrorCode.FORBIDDEN);
+            throw new ServiceException("该操作仅项目负责人可执行——可在「项目管理」打开该项目「成员管理」页，由现负责人选中您点「设为负责人」完成移交后重试",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 
     private void requireProject(long projectId) {
         if (!projectService.exists(projectId)) {
-            throw new ServiceException("项目不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在或已被删除——请到「项目管理」页确认所选项目；已归档的可由系统管理员点「归档项目」按钮后「还原」",
+                    BizErrorCode.NOT_FOUND);
         }
     }
 }

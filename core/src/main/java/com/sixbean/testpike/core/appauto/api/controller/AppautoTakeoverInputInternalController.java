@@ -29,7 +29,7 @@ public class AppautoTakeoverInputInternalController {
     public Response<Map<String, Object>> enqueue(@RequestBody Map<String, Object> body) {
         Object commands = body.get("commands");
         if (!(commands instanceof List<?> list)) {
-            throw new ServiceException("接管输入下发必须携带 commands 指令列表",
+            throw new ServiceException("接管输入下发必须携带 commands 指令列表——请补填至少一条指令后重新下发，正确写法：commands 为非空指令数组",
                     BizErrorCode.VALIDATION_ERROR);
         }
         long requestId = requireLong(body.get("requestId"), "入队必须携带接管申请 id");
@@ -55,7 +55,8 @@ public class AppautoTakeoverInputInternalController {
     private static long requireLong(Object value, String why) {
         Long parsed = nullableLong(value);
         if (parsed == null) {
-            throw new ServiceException("接管输入协议请求缺参——" + why, BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("接管输入协议请求缺参——" + why
+                    + "；请核对请求体后重新发送，正确写法：该字段为数字 id", BizErrorCode.VALIDATION_ERROR);
         }
         return parsed;
     }
@@ -70,7 +71,8 @@ public class AppautoTakeoverInputInternalController {
         try {
             return Long.parseLong(String.valueOf(value).trim());
         } catch (NumberFormatException e) {
-            throw new ServiceException("接管输入协议请求数字字段非法（当前：" + value + "）",
+            throw new ServiceException("接管输入协议请求数字字段非法（当前：" + value
+                    + "）——请改为不带引号的数字，正确写法：limit=10、executorId=123",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

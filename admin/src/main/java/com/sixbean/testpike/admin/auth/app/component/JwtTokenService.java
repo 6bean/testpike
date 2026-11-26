@@ -84,37 +84,37 @@ public final class JwtTokenService {
     
     public CurrentUser parse(String token) {
         if (token == null || token.isBlank()) {
-            throw new ServiceException("登录状态已失效，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录状态已失效，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         String[] parts = token.split("\\.");
         if (parts.length != 3) {
-            throw new ServiceException("登录凭证格式错误，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录凭证格式错误，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         byte[] actual;
         try {
             actual = Base64.getUrlDecoder().decode(parts[2]);
         } catch (IllegalArgumentException e) {
-            throw new ServiceException("登录凭证已损坏，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录凭证已损坏，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         String signingInput = parts[0] + "." + parts[1];
         if (!MessageDigest.isEqual(hmac(signingInput), actual)) {
-            throw new ServiceException("登录凭证无效，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录凭证无效，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         String payloadJson;
         try {
             payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
-            throw new ServiceException("登录凭证已损坏，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录凭证已损坏，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         JSONObject obj;
         try {
             obj = JSON.parseObject(payloadJson);
         } catch (Exception e) {
-            throw new ServiceException("登录凭证已损坏，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录凭证已损坏，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         long exp = obj.getLongValue("exp");
         if (exp < System.currentTimeMillis() / 1000) {
-            throw new ServiceException("登录已过期，请重新登录", BizErrorCode.UNAUTHORIZED);
+            throw new ServiceException("登录已过期，请点击右上角头像菜单中的「退出登录」后重新登录", BizErrorCode.UNAUTHORIZED);
         }
         List<String> roles = obj.getList("roles", String.class);
         return new CurrentUser(obj.getLongValue("sub"), obj.getString("name"),

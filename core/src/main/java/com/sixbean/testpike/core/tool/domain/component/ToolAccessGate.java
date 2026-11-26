@@ -64,7 +64,8 @@ public class ToolAccessGate {
             return;
         }
         throw new ServiceException("无权访问该项目的工具装配：仅项目成员或系统管理员可查看（项目 id="
-                + projectId + "）", BizErrorCode.FORBIDDEN);
+                + projectId + "）——请前往「工具管理」切换到您所属的项目，"
+                + "或请项目负责人在「成员管理」中把您添加为成员", BizErrorCode.FORBIDDEN);
     }
 
     /** Execution-class master switch state (single key source, factory default on). */

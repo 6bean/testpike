@@ -63,7 +63,7 @@ public class ApiAccessWriteDraftStrategy implements DraftWriteStrategy {
         JsonNode body = parsePayload(String.valueOf(draftRow.get("payload_json")));
         String endpointKey = body.path("endpointKey").asText("");
         if (endpointKey.isBlank()) {
-            throw new ServiceException("接口直通草案缺少条目名，无法落地（请重新让 AI 生成提案）",
+            throw new ServiceException("接口直通草案缺少条目名，无法落地——请在「AI 对话」重新让 AI 生成「接口变更草案」，草案需带接口目录中的条目名",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> arguments = toMap(body.path("arguments"));
@@ -73,7 +73,9 @@ public class ApiAccessWriteDraftStrategy implements DraftWriteStrategy {
         if (!result.landed()) {
             log.warn("api pass-through landing refused draft={} key={} reason={}",
                     draftId, endpointKey, result.reason());
-            throw new ServiceException("接口直通变更未执行：" + result.reason(), BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("接口直通变更未执行：" + result.reason()
+                    + "——若变更开关未开启，请前往「系统设置」→「配置管理」开启 ai.api-access.write.enabled；其余原因请在「AI 对话」重新生成「接口变更草案」",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (result.producedId() != null) {
             jdbcTemplate.update("UPDATE tp_ai_chat_draft SET target_id = ?, updated_at = now() WHERE id = ?",
@@ -86,7 +88,8 @@ public class ApiAccessWriteDraftStrategy implements DraftWriteStrategy {
         try {
             return objectMapper.readTree(raw);
         } catch (Exception ex) {
-            throw new ServiceException("接口直通草案载荷不是合法 JSON，无法落地", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("接口直通草案载荷不是合法 JSON，无法落地——请在「AI 对话」重新让 AI 生成「接口变更草案」后再确认",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 

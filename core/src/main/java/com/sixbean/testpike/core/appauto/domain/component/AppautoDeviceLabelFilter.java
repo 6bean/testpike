@@ -51,7 +51,8 @@ public class AppautoDeviceLabelFilter {
         try {
             return objectMapper.writeValueAsString(List.of(label.trim()));
         } catch (JsonProcessingException e) {
-            throw new ServiceException("设备标签无法解析为匹配条件（标签 " + label + "）",
+            throw new ServiceException("设备标签无法解析为匹配条件（标签 " + label
+                    + "）——请改用不含引号与反斜杠的普通文字标签（示例：ios-真机）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

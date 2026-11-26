@@ -498,7 +498,9 @@ const total = ref(0)
 const page = ref(1)
 const size = ref(20)
 const loading = ref(false)
-const uploadCategory = ref<string>('TEST_SPEC')
+// Requirement docs first on this page (the upload surface of requirement
+// extraction): the dialog opens on REQUIREMENT_DOC instead of TEST_SPEC.
+const uploadCategory = ref<string>('REQUIREMENT_DOC')
 const filters = reactive<{ status: number | null; category: string | null; keyword: string }>({
   status: null, category: null, keyword: '',
 })

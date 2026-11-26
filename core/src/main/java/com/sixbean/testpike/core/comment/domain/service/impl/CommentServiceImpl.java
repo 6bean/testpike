@@ -49,14 +49,17 @@ public class CommentServiceImpl implements CommentService {
     public long create(long userId, CommentCreateInput input) {
         validateHost(input.hostType());
         if (input.hostId() == null || input.hostId() <= 0) {
-            throw new ServiceException("宿主 ID 无效", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("宿主 ID 无效——请从「评审工作台」或「用例管理」页面内提交评论"
+                    + "（参数 hostId，示例：从宿主页进入评论区的记录编号）", BizErrorCode.VALIDATION_ERROR);
         }
         String content = input.content() == null ? "" : input.content().strip();
         if (content.isEmpty()) {
-            throw new ServiceException("评论内容不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("评论内容不能为空——请先在评论输入框填写内容再提交"
+                    + "（参数 content，示例：一句话说明问题即可）", BizErrorCode.VALIDATION_ERROR);
         }
         if (content.length() > MAX_CONTENT) {
-            throw new ServiceException("评论内容不能超过 " + MAX_CONTENT + " 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("评论内容不能超过 " + MAX_CONTENT + " 字——请精简后重新提交，或拆成多条"
+                    + "（示例：单条控制在字数上限以内）", BizErrorCode.VALIDATION_ERROR);
         }
         Long id = jdbcTemplate.queryForObject("""
                 INSERT INTO tp_comment (host_type, host_id, source, author_id, content)
@@ -126,7 +129,9 @@ public class CommentServiceImpl implements CommentService {
 
     private void validateHost(String hostType) {
         if (!CommentHostDict.isKnown(hostType)) {
-            throw new ServiceException("评论宿主类型无效（支持：评审工作台/用例/批次报告/缺陷）",
+            throw new ServiceException("评论宿主类型无效（支持：评审工作台/用例/批次报告/缺陷）"
+                    + "——请从对应业务页面（如「评审工作台」「用例管理」）进入评论，勿直接拼接口参数"
+                    + "（参数 hostType，示例：review）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

@@ -106,7 +106,8 @@ public class CaseController {
             if (programId == 0L) {
                 // Cross-project view without a lens: managers only (data scope = all).
                 if (coreRoleClient.dataScopeOfUser(UserContext.currentUserId()) != 1) {
-                    throw new ServiceException("仅数据范围为「全部项目」的角色可跨项目查看用例",
+                    throw new ServiceException("仅数据范围为「全部项目」的角色可跨项目查看用例，"
+                            + "可先在顶栏选择具体项目，或由管理员在「角色管理」把角色数据范围改为「全部项目」",
                             BizErrorCode.FORBIDDEN);
                 }
             }
@@ -207,7 +208,8 @@ public class CaseController {
         CaseView view = coreCaseClient.getCase(id);
         guard.assertCanWriteCase(UserContext.current(), view.projectId());
         if (request == null || request.isolated() == null) {
-            throw new ServiceException("缺少隔离标记（isolated）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少隔离标记（isolated），请在请求体中补充该字段，"
+                    + "示例：{\"isolated\": true}", BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(coreCaseClient.setFlaky(id, request.isolated(), request.reason()));
     }
@@ -219,10 +221,12 @@ public class CaseController {
         CaseView view = coreCaseClient.getCase(id);
         guard.assertCanWriteCase(UserContext.current(), view.projectId());
         if (request == null || request.excellent() == null) {
-            throw new ServiceException("缺少优秀标记（excellent）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少优秀标记（excellent），请在请求体中补充该字段，"
+                    + "示例：{\"excellent\": true}", BizErrorCode.VALIDATION_ERROR);
         }
         if (request.version() == null) {
-            throw new ServiceException("缺少乐观锁版本号（version）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少乐观锁版本号（version），请携带用例当前版本号重试，"
+                    + "示例：{\"version\": 12}", BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(coreCaseClient.setExcellent(id, request.excellent(), request.version()));
     }
@@ -386,7 +390,8 @@ public class CaseController {
     public Response<BatchReviewResultView> batchReview(@RequestBody BatchReviewRequest request) {
         List<Long> ids = request.caseIds();
         if (ids == null || ids.isEmpty()) {
-            throw new ServiceException("请选择至少一条用例进行评审", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择至少一条用例进行评审，"
+                    + "可在「测试用例」列表勾选行后再点「批量评审」", BizErrorCode.VALIDATION_ERROR);
         }
         CaseView first = coreCaseClient.getCase(ids.get(0));
         guard.assertCanReview(UserContext.current(), first.projectId(), null);
@@ -417,7 +422,8 @@ public class CaseController {
     @RequirePermission("perm:security:case-batch-edit")
     public Response<BatchEditResultView> batchEdit(@RequestBody BatchEditRequest request) {
         if (request.caseIds() == null || request.caseIds().isEmpty()) {
-            throw new ServiceException("请选择至少一条用例进行编辑", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请选择至少一条用例进行编辑，"
+                    + "可在「测试用例」列表勾选行后再点「批量编辑」", BizErrorCode.VALIDATION_ERROR);
         }
         guard.assertCanWriteCase(UserContext.current(), request.projectId());
         return Response.builderSuccess(coreCaseClient.batchEditCases(

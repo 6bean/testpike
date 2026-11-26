@@ -40,17 +40,20 @@ public class OpenApiSpecParser {
  */
     public ParsedApiSpec parse(byte[] content, String specFormat) {
         if (content == null || content.length == 0) {
-            throw new ServiceException("契约文件内容为空，请检查上传文件", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("契约文件内容为空，请检查上传文件后重新选择；"
+                    + "格式：非空的 JSON/YAML，顶层含 openapi 版本声明", BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> root = readTree(content, specFormat);
         Object openapi = root.get("openapi");
         if (openapi == null || !String.valueOf(openapi).startsWith("3")) {
-            throw new ServiceException("仅支持 OpenAPI 3 文档（缺少 openapi: 3.x 版本声明）",
+            throw new ServiceException("仅支持 OpenAPI 3 文档（缺少 openapi: 3.x 版本声明），"
+                    + "请改成含版本声明的文档后重新上传，示例：\"openapi\": \"3.0.1\"",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> paths = asMap(root.get("paths"));
         if (paths == null || paths.isEmpty()) {
-            throw new ServiceException("OpenAPI 文档缺少有效 paths 接口定义",
+            throw new ServiceException("OpenAPI 文档缺少有效 paths 接口定义，"
+                    + "请确认文档含非空 paths 段，示例：\"paths\": { \"/users\": { \"get\": {…} } }",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<ApiEndpoint> endpoints = new ArrayList<>();
@@ -88,17 +91,20 @@ public class OpenApiSpecParser {
                 tree = JSON.parse(new String(content, StandardCharsets.UTF_8));
             } else {
                 throw new ServiceException("不支持的契约格式: " + specFormat
-                        + "（仅 openapi3-json / openapi3-yaml）", BizErrorCode.VALIDATION_ERROR);
+                        + "（仅 openapi3-json / openapi3-yaml），请把格式改为其中之一后重试",
+                        BizErrorCode.VALIDATION_ERROR);
             }
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
             throw new ServiceException("契约文件解析失败，请确认内容为合法 JSON/YAML（"
-                    + e.getClass().getSimpleName() + "）", BizErrorCode.VALIDATION_ERROR);
+                    + e.getClass().getSimpleName() + "）；示例：{\"openapi\":\"3.0.1\",\"paths\":{…}}",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> root = asMap(tree);
         if (root == null) {
-            throw new ServiceException("契约文件根节点必须是对象", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("契约文件根节点必须是对象，请改成以键值对起头的文档，"
+                    + "示例：{\"openapi\": \"3.0.1\", \"paths\": {…}}", BizErrorCode.VALIDATION_ERROR);
         }
         return root;
     }

@@ -69,20 +69,20 @@ public class FlowTemplateServiceImpl implements FlowTemplateService {
     @Audit(objectType = "apitestFlowTemplate", action = "save", after = "#result")
     public FlowTemplateInfo save(Long operatorId, FlowTemplateSaveInput input) {
         if (input == null || input.collectionId() == null || input.collectionId() <= 0) {
-            throw new ServiceException("流程模板必须指定来源集合", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("流程模板必须指定来源集合，请在「来源集合」中选择当前项目内的接口集合", BizErrorCode.VALIDATION_ERROR);
         }
         String name = input.name() == null ? "" : input.name().trim();
         if (name.isEmpty()) {
-            throw new ServiceException("流程模板名称不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("流程模板名称不能为空，请填写「名称」后保存（示例：登录链路回归）", BizErrorCode.VALIDATION_ERROR);
         }
         if (name.length() > 200) {
-            throw new ServiceException("流程模板名称最长 200 字符，当前 " + name.length() + " 字符",
+            throw new ServiceException("流程模板名称最长 200 字符，当前 " + name.length() + " 字符，请删减后保存（示例：登录链路回归-生产）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         ApiCollectionInfo collection = apiCollectionService.get(input.collectionId());
         List<ApiRequestInfo> requests = apiRequestService.list(collection.id());
         if (requests.isEmpty()) {
-            throw new ServiceException("集合内没有请求，存为模板将得到空流程，请先添加请求",
+            throw new ServiceException("集合内没有请求，存为模板将得到空流程，请先添加请求（在集合详情新建至少一个请求，格式：名称+方法+地址）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String snapshot = ApiRequestSnapshotSupport.pin(requests);
@@ -110,7 +110,7 @@ public class FlowTemplateServiceImpl implements FlowTemplateService {
                 SELECT_COLUMNS + " WHERE t.id = :id",
                 new MapSqlParameterSource("id", templateId), ROW_MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("流程模板不存在（id=" + templateId + "），可能已被删除",
+            throw new ServiceException("流程模板不存在（id=" + templateId + "），可能已被删除，请重新选择现存模板（示例：从模板列表取最新编号）",
                     BizErrorCode.NOT_FOUND);
         }
         return toInfo(rows.get(0));
@@ -136,7 +136,7 @@ public class FlowTemplateServiceImpl implements FlowTemplateService {
     @Audit(objectType = "apitestFlowTemplate", action = "instantiate", after = "#result")
     public List<ApiRequestInfo> instantiate(Long operatorId, long templateId, long targetCollectionId) {
         if (targetCollectionId <= 0) {
-            throw new ServiceException("实例化必须指定目标集合", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("实例化必须指定目标集合，请在「目标集合」中选择要写入的接口集合", BizErrorCode.VALIDATION_ERROR);
         }
         FlowTemplateInfo template = get(templateId);
         // Target existence verdict = the collection service's single point (404
@@ -145,7 +145,7 @@ public class FlowTemplateServiceImpl implements FlowTemplateService {
         apiCollectionService.get(targetCollectionId);
         JsonNode snapshot = ApiRequestSnapshotSupport.readJson(template.stepsSnapshotJson(), "[]");
         if (!snapshot.isArray() || snapshot.isEmpty()) {
-            throw new ServiceException("模板快照为空或形状损坏，无法实例化（模板 id=" + templateId + "）",
+            throw new ServiceException("模板快照为空或形状损坏，无法实例化（模板 id=" + templateId + "），请对来源集合重新执行「存为模板」后再实例化",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<ApiRequestInfo> created = new ArrayList<>();

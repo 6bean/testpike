@@ -34,14 +34,14 @@ public final class ApiStoredJsonContract {
         try {
             node = MAPPER.readTree(raw);
         } catch (Exception e) {
-            throw new ServiceException(field + "不是合法 JSON，当前值「" + raw + "」",
+            throw new ServiceException(field + "不是合法 JSON，当前值「" + raw + "」——请在编辑区改为合法 JSON（格式：以 { 或 [ 开头的完整结构）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (wantArray && !node.isArray()) {
-            throw new ServiceException(field + "必须是数组（形如 []）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(field + "必须是数组（形如 []）——请在编辑区改为数组后重新保存，示例：[]", BizErrorCode.VALIDATION_ERROR);
         }
         if (!wantArray && !node.isObject()) {
-            throw new ServiceException(field + "必须是对象（形如 {}）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(field + "必须是对象（形如 {}）——请在编辑区改为对象后重新保存，示例：{}", BizErrorCode.VALIDATION_ERROR);
         }
         return node.toString();
     }
@@ -51,7 +51,7 @@ public final class ApiStoredJsonContract {
         try {
             return MAPPER.readTree(json);
         } catch (Exception e) {
-            throw new ServiceException(field + "不是合法 JSON", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(field + "不是合法 JSON——请恢复为合法 JSON 后重新保存（格式：以 { 或 [ 开头的完整结构）", BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

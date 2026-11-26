@@ -47,7 +47,8 @@ public enum ReviewAction {
     public static ReviewAction from(String code) {
         ReviewAction action = BY_CODE.get(code);
         if (action == null) {
-            throw new ServiceException("评审动作仅支持 pass/need_change/reject（当前：" + code + "）",
+            throw new ServiceException("评审动作仅支持 pass/need_change/reject（当前提交：" + code + "）"
+                    + "——请直接在「评审工作台」点击「通过」「需修改」「拒绝」按钮发起评审，无需手工填写动作码",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return action;

@@ -92,7 +92,8 @@ public final class CaseFilters {
             // All projects: allowed when data scope=all, or when a program lens already
             // narrowed the set to the caller's visible projects.
             if (programProjectIds == null && dataScope != 1) {
-                throw new ServiceException("仅数据范围为「全部项目」的角色可跨项目查看用例",
+                throw new ServiceException("仅数据范围为「全部项目」的角色可跨项目查看用例——"
+                        + "请改用具体项目筛选，或由管理员在「系统管理」→「角色管理」中调整该角色的数据范围",
                         BizErrorCode.FORBIDDEN);
             }
         } else {
@@ -141,13 +142,14 @@ public final class CaseFilters {
         }
         if (evidenceGrade != null && (evidenceGrade < 0 || evidenceGrade > 3)) {
             throw new ServiceException("证据级筛选仅支持 0~3（0=无证据 1=站外自报 2=站外实证 3=平台复证），当前值："
-                    + evidenceGrade, BizErrorCode.VALIDATION_ERROR);
+                    + evidenceGrade + "——请在用例列表筛选区把「证据级」改成 0~3 内的单个数字", BizErrorCode.VALIDATION_ERROR);
         }
         if (sourceFacet != null && !sourceFacet.isBlank()) {
             String facet = sourceFacet.trim().toLowerCase(Locale.ROOT);
             if (!CaseSourceFacet.FACET_VALUES.contains(facet)) {
                 throw new ServiceException("来源筛选仅支持 chat(站内对话)/off_agent(站外代理)/import(导入)/"
-                        + "manual(人工) 四值，当前值：" + sourceFacet, BizErrorCode.VALIDATION_ERROR);
+                        + "manual(人工) 四值，当前值：" + sourceFacet
+                        + "——请在用例列表筛选区的「来源」下拉中选择上述四值之一", BizErrorCode.VALIDATION_ERROR);
             }
             // Same expression the row mapping and the facet column use: one source, no drift.
             where.append(" AND (").append(CaseSourceFacet.FACET_CASE_SQL).append(") = ?");

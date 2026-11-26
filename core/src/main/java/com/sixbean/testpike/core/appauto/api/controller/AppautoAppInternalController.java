@@ -71,7 +71,8 @@ public class AppautoAppInternalController {
             @RequestBody java.util.Map<String, Object> body) {
         Object taskId = body.get("taskId");
         if (taskId == null) {
-            throw new ServiceException("taskId 不能为空（下载授权按任务行反查归属）",
+            throw new ServiceException("taskId 不能为空：下载授权按任务行反查归属——"
+                    + "请在「被测应用档案」页从具体任务发起下载（示例请求体：{\"taskId\":123}）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(appService.grantPackageDownload(

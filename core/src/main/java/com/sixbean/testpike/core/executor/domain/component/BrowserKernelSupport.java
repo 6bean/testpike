@@ -27,7 +27,8 @@ public final class BrowserKernelSupport {
         }
         String value = requested.trim().toLowerCase();
         if (!KERNELS.contains(value)) {
-            throw new ServiceException("浏览器 " + requested + " 不受支持（可选：chromium/firefox/webkit）",
+            throw new ServiceException("浏览器 " + requested + " 不受支持，平台仅支持 "
+                    + "chromium / firefox / webkit——请在发起执行弹窗的「浏览器」下拉改选其一后重新提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (env == null) {
@@ -37,9 +38,10 @@ public final class BrowserKernelSupport {
                 .map(s -> s.trim().toLowerCase()).filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
         if (!matrix.contains(value)) {
-            throw new ServiceException("所选环境「" + env.name() + "」浏览器矩阵（"
+            throw new ServiceException("所选环境「" + env.name() + "」的浏览器矩阵（"
                     + (matrix.isEmpty() ? DEFAULT_KERNEL : env.browsers()) + "）不包含 " + value
-                    + "，请先在项目环境配置中勾选", BizErrorCode.VALIDATION_ERROR);
+                    + "——请在「项目」详情页的环境列表中编辑该环境，把「浏览器」字段补上 " + value
+                    + "（逗号分隔）并保存，再重新发起执行", BizErrorCode.VALIDATION_ERROR);
         }
         return value;
     }

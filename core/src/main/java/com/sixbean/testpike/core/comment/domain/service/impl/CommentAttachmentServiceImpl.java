@@ -33,7 +33,8 @@ public class CommentAttachmentServiceImpl implements CommentAttachmentService {
         Long hostComment = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM tp_comment WHERE id = ?", Long.class, commentId);
         if (hostComment == null || hostComment == 0) {
-            throw new ServiceException("评论不存在（附件须挂在已创建评论上）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("评论不存在（附件须挂在已创建评论上）——请先在详情页「评论」区发布一条评论，"
+                    + "再在该条评论下上传附件", BizErrorCode.VALIDATION_ERROR);
         }
         String mime = UploadFileTypes.validateAttachment(fileName, declaredContentType, content);
         String objectKey = StorageKeys.build(storageRouter.keyPrefix(), 0L, SCENE, fileName);
@@ -62,7 +63,8 @@ public class CommentAttachmentServiceImpl implements CommentAttachmentService {
                 SELECT object_key FROM tp_comment_attachment WHERE id = ?
                 """, rs -> rs.next() ? rs.getString(1) : null, attachmentId);
         if (objectKey == null) {
-            throw new ServiceException("附件不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("附件不存在——请刷新详情页「评论」区后重选要下载的附件行，"
+                    + "仍缺失则在该评论下重新上传", BizErrorCode.NOT_FOUND);
         }
         return storageRouter.systemProvider().presignGet(objectKey, storageRouter.urlTtl());
     }
@@ -74,7 +76,8 @@ public class CommentAttachmentServiceImpl implements CommentAttachmentService {
                 FROM tp_comment_attachment WHERE id = ?
                 """, rs -> {
             if (!rs.next()) {
-                throw new ServiceException("附件写入后不可见（内部一致性异常）", BizErrorCode.INTERNAL_ERROR);
+                throw new ServiceException("附件写入后不可见（内部一致性异常）——请在详情页「评论」区"
+                        + "重新上传该附件；若持续失败请联系管理员核对对象存储服务状态", BizErrorCode.INTERNAL_ERROR);
             }
             return new CommentAttachmentInfo(rs.getLong("id"), rs.getLong("comment_id"),
                     rs.getString("file_name"), rs.getString("object_key"), rs.getString("content_type"),

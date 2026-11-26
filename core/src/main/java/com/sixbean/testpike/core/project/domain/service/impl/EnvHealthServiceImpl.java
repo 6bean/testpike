@@ -173,7 +173,8 @@ public class EnvHealthServiceImpl implements EnvHealthService {
                         rs.getString("name"), rs.getString("base_url"), rs.getString("config_json"),
                         rs.getInt("health_status"), rs.getInt("health_fail_streak")), envId);
         if (rows.isEmpty()) {
-            throw new ServiceException("环境不存在或已被删除", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("环境不存在或已被删除——请到「项目管理」打开该项目「环境配置」页确认环境是否仍在列表；已删除的点「新增环境」重建后重试",
+                    BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);
     }

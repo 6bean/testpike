@@ -37,7 +37,8 @@ public class PerfLensScopeSupport {
      */
     public void requireAnchor(long projectId, long programId, String subject) {
         if (projectId <= 0 && programId <= 0) {
-            throw new ServiceException(subject + "列表需要指定项目或项目集", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(subject + "列表需要指定项目或项目集——请先在顶栏项目切换器选择项目，"
+                    + "或在顶栏项目集切换器改选项目集（含「全部项目集」）后重新查询", BizErrorCode.VALIDATION_ERROR);
         }
     }
 

@@ -136,3 +136,87 @@ def test_v13_04_upload_progress_and_success(logged_in, api_client, tmp_path, uni
     expect(dialog).to_be_hidden(timeout=30000)
     row = page.locator('.el-table__row', has_text="v13_upload_probe").first
     expect(row).to_be_visible(timeout=15000)
+
+
+def test_v13_05_selected_file_echo_and_remove(logged_in, api_client, tmp_path, uniq):
+    """Selection-echo contract: after picking a file the dialog must show the
+    file name at once, the remove control must reset the submit gate, and
+    picking again after remove must echo once more (no silent selected state)."""
+    page = logged_in
+    pid = _mk_project(api_client, uniq, tag="V13c")
+    md = tmp_path / "v13_echo_probe.md"
+    md.write_text("# v13 echo probe\n", encoding="utf-8")
+    md2 = tmp_path / "v13_echo_probe_again.md"
+    md2.write_text("# v13 echo probe again\n", encoding="utf-8")
+    dialog = _open_dialog(page, ENTRIES[0][0], ENTRIES[0][1], pid=pid)
+    sel = dialog.locator('[data-test="file-upload-selected"]')
+    assert sel.count() == 0, "echo row must not mount before any file is picked"
+    _pick(page, dialog, md)
+    expect(sel).to_be_visible(timeout=3000)
+    assert "v13_echo_probe.md" in sel.inner_text(), f"echo row does not name the file: {sel.inner_text()}"
+    expect(dialog.locator('[data-test="file-upload-submit"]')).to_be_enabled(timeout=3000)
+    dialog.locator('[data-test="file-upload-remove"]').click()
+    expect(sel).to_have_count(0, timeout=3000)
+    expect(dialog.locator('[data-test="file-upload-submit"]')).to_be_disabled(timeout=3000)
+    # Re-pick must echo again. The real chooser was measured to re-fire on the
+    # same file; the harness uses a second fixture file because set_input_files
+    # with an identical path does not dispatch change.
+    _pick(page, dialog, md2)
+    expect(sel).to_be_visible(timeout=3000)
+    assert "v13_echo_probe_again.md" in sel.inner_text()
+    page.keyboard.press("Escape")
+    _cleanup_project(api_client, pid)
+
+
+def test_v13_06_whole_dialog_is_drop_target(logged_in, api_client, tmp_path, uniq):
+    """Whole-dialog drop contract: the drop target is the dialog body, not only
+    the dashed dragger. Dropping anywhere in the body (including the extra-form
+    zone above the dragger) must pick the file and echo it; hovering a file drag
+    over the body must light the affordance; after the drop the highlight resets;
+    an out-of-type drop still shows the three-part refusal."""
+    page = logged_in
+    pid = _mk_project(api_client, uniq, tag="V13d")
+    dialog = _open_dialog(page, ENTRIES[0][0], ENTRIES[0][1], pid=pid)
+    host = page.locator('[data-test="file-upload-drop-host"]')
+    page.evaluate("""() => {
+      const h = document.querySelector('[data-test="file-upload-drop-host"]');
+      const dt = new DataTransfer();
+      dt.items.add(new File(['x'], 'hover_probe.md', {type: 'text/markdown'}));
+      h.dispatchEvent(new DragEvent('dragenter', {bubbles: true, cancelable: true, dataTransfer: dt}));
+    }""")
+    expect(page.locator('[data-test="file-upload-drop-host"].is-dragover')).to_be_visible(timeout=3000)
+
+    def _drop(fname: str, mime: str):
+        page.evaluate(
+            r"""([fname, mime]) => {
+              const h = document.querySelector('[data-test="file-upload-drop-host"]');
+              const r = h.getBoundingClientRect();
+              const dt = new DataTransfer();
+              dt.items.add(new File(['# v13 body drop probe\n'], fname, {type: mime}));
+              const opts = {bubbles: true, cancelable: true,
+                            clientX: r.x + r.width / 2, clientY: r.y + 12, dataTransfer: dt};
+              h.dispatchEvent(new DragEvent('dragover', opts));
+              h.dispatchEvent(new DragEvent('drop', opts));
+            }""",
+            [fname, mime],
+        )
+
+    _drop("v13_body_drop.md", "text/markdown")
+    sel = dialog.locator('[data-test="file-upload-selected"]')
+    expect(sel).to_be_visible(timeout=3000)
+    assert "v13_body_drop.md" in sel.inner_text(), f"body drop did not echo: {sel.inner_text()}"
+    expect(host).not_to_have_class("is-dragover")  # the hover affordance resets after the drop
+    # an out-of-type drop still names the rejected extension
+    _drop("v13_body_drop.txt", "text/plain")
+    err = dialog.locator('[data-test="file-upload-error"]')
+    expect(err).to_be_visible(timeout=3000)
+    assert "txt" in err.inner_text(), f"drop refusal does not name the extension: {err.inner_text()}"
+    # full journey: re-drop a valid file, submit, the row lands
+    _drop("v13_body_drop.md", "text/markdown")
+    expect(sel).to_be_visible(timeout=3000)
+    dialog.locator('[data-test="file-upload-submit"]').click()
+    expect(dialog).to_be_hidden(timeout=30000)
+    row = page.locator('.el-table__row', has_text="v13_body_drop").first
+    expect(row).to_be_visible(timeout=15000)
+    page.keyboard.press("Escape")
+    _cleanup_project(api_client, pid)

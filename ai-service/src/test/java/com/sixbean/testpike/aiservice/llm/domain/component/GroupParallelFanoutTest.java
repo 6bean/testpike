@@ -289,13 +289,22 @@ class GroupParallelFanoutTest {
         // exactly this type to land the honest time-budget terminal).
         RunBudgetAbort abort = new RunBudgetAbort();
         int[] innerRuns = new int[1];
+        // Deterministic ordering instead of a wall-clock sleep: a fixed
+        // delay did not guarantee the trip landed before the sibling's
+        // checkpoint on low-core CI runners (identical test bytes passed
+        // one run and failed the next). The latch makes the "trip before
+        // inner fan-out" precondition explicit: the inner plane must
+        // observe the already-tripped signal at its per-task checkpoints.
+        CountDownLatch outerTripped = new CountDownLatch(1);
         List<Callable<String>> outer = List.of(
                 () -> {
                     abort.trip("outer-A 检出预算闸断");
+                    outerTripped.countDown();
                     return "A";
                 },
                 () -> {
-                    Thread.sleep(150L);
+                    assertTrue(outerTripped.await(5L, TimeUnit.SECONDS),
+                            "outer task A never ran; the shared pool must start both tasks at parallelism 2");
                     List<Callable<String>> inner = List.of(
                             () -> {
                                 innerRuns[0]++;

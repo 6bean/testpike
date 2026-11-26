@@ -80,7 +80,8 @@ public class S3StorageProvider implements StorageProvider {
                              @Value("${s3.region:us-east-1}") String region,
                              @Value("${s3.path-style:true}") boolean pathStyle) {
         if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
-            throw new ServiceException("S3 对象存储凭据缺失（.env S3_ACCESS_KEY/S3_SECRET_KEY）",
+            throw new ServiceException("S3 对象存储凭据缺失（.env S3_ACCESS_KEY/S3_SECRET_KEY），"
+                    + "请在项目 .env 补齐这两项后重启服务（格式：S3_ACCESS_KEY=<访问密钥ID>）",
                     BizErrorCode.INTERNAL_ERROR);
         }
         URI endpointUri = URI.create(endpoint.endsWith("/")
@@ -133,7 +134,9 @@ public class S3StorageProvider implements StorageProvider {
                             .build(),
                     RequestBody.fromBytes(content));
         } catch (Exception e) {
-            throw new ServiceException("文件上传失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("文件上传失败: " + e.getMessage()
+                    + "，请确认 S3 网关可达后重新发起上传（示例端点 http://127.0.0.1:8333）",
+                    BizErrorCode.INTERNAL_ERROR);
         }
     }
 
@@ -173,7 +176,8 @@ public class S3StorageProvider implements StorageProvider {
                     .url().toString();
             return new StorageGrant(key, url);
         } catch (Exception e) {
-            throw new ServiceException("预签名上传授权失败: " + e.getMessage(),
+            throw new ServiceException("预签名上传授权失败: " + e.getMessage()
+                    + "，请前往「系统配置」核对存储后端与凭据后重试",
                     BizErrorCode.INTERNAL_ERROR);
         }
     }
@@ -190,7 +194,8 @@ public class S3StorageProvider implements StorageProvider {
                     .url().toString();
             return new StorageGrant(key, url);
         } catch (Exception e) {
-            throw new ServiceException("预签名下载授权失败: " + e.getMessage(),
+            throw new ServiceException("预签名下载授权失败: " + e.getMessage()
+                    + "，请前往「系统配置」核对存储后端与凭据后重试",
                     BizErrorCode.INTERNAL_ERROR);
         }
     }
@@ -229,7 +234,8 @@ public class S3StorageProvider implements StorageProvider {
         } catch (NoSuchBucketException e) {
             return List.of();
         } catch (Exception e) {
-            throw new ServiceException("对象列表读取失败: " + e.getMessage(),
+            throw new ServiceException("对象列表读取失败: " + e.getMessage()
+                    + "，请确认桶存在且有读取权限后在「系统配置」重新保存存储参数再试",
                     BizErrorCode.INTERNAL_ERROR);
         }
     }
@@ -246,7 +252,9 @@ public class S3StorageProvider implements StorageProvider {
                 // Concurrent bootstrap from another node is fine; re-check existence.
                 if (!bucketPresent()) {
                     throw new ServiceException("对象存储桶初始化失败: " + bucket
-                            + "（" + createError.getMessage() + "）", BizErrorCode.INTERNAL_ERROR);
+                            + "（" + createError.getMessage() + "），请检查 S3 网关服务是否可达"
+                            + "（.env 的 S3_ENDPOINT，示例 http://127.0.0.1:8333）后重试",
+                            BizErrorCode.INTERNAL_ERROR);
                 }
             }
         } catch (Exception e) {

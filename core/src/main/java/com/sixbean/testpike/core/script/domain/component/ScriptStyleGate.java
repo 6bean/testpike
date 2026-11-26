@@ -29,7 +29,10 @@ public class ScriptStyleGate {
         List<ScriptStyleViolation> violations = ScriptStyleContract.check(actionJson);
         if (!violations.isEmpty()) {
             throw new ServiceException("脚本未通过团队规范闸："
-                    + ScriptStyleContract.describe(violations), BizErrorCode.VALIDATION_ERROR);
+                    + ScriptStyleContract.describe(violations)
+                    + "——请在脚本编辑页按上述条目逐步修正后重新保存；"
+                    + "如需停用该规范闸，请在「系统设置」把配置键 script.style-gate.enabled 调为关闭",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

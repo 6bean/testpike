@@ -74,7 +74,9 @@ public class ToolConfirmTokenStore {
                     + "请重新发起确认", BizErrorCode.VALIDATION_ERROR);
         }
         if (!String.valueOf(toolId).equals(bound)) {
-            throw new ServiceException("写确认票与本工具不匹配（已拒绝执行）",
+            throw new ServiceException("写确认票与本工具不匹配（已拒绝执行）——"
+                    + "该确认票签发给其他工具或工具定义已变更，"
+                    + "请在「AI 对话」重新发起该操作，用新弹出的确认卡完成确认",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

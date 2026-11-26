@@ -43,7 +43,7 @@ public class AnalysisInternalController {
                                 @RequestBody(required = false) AnalysisRunRequest request) {
         requireKnownOperator(operatorId);
         if (request == null) {
-            throw new ServiceException("分析请求体为空，已拒绝执行（需要 {function, args?} 对象）",
+            throw new ServiceException("分析请求体为空，已拒绝执行——请按正确写法示例提交：{\"function\":\"coverage.summary\",\"args\":{}}",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(
@@ -54,7 +54,7 @@ public class AnalysisInternalController {
     private static void requireKnownOperator(Long operatorId) {
         if (operatorId == null || operatorId <= 0) {
             throw new ServiceException("只读分析查询缺少操作人身份（X-Operator-Id），已拒绝执行——"
-                    + "覆盖率与断言密度需由登录用户的对话发起", BizErrorCode.FORBIDDEN);
+                    + "请在「AI 对话」中由登录用户发起覆盖率与断言密度查询", BizErrorCode.FORBIDDEN);
         }
     }
 }

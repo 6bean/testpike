@@ -106,7 +106,7 @@ public class AppautoDeviceThumbnailServiceImpl implements AppautoDeviceThumbnail
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT id, project_id, serial FROM tp_appauto_device WHERE id = ?", deviceId);
         if (rows.isEmpty()) {
-            throw new ServiceException("设备 #" + deviceId + " 不存在，请在设备墙重新选择设备",
+            throw new ServiceException("设备 #" + deviceId + " 不存在，请在「设备墙」页重新选择设备",
                     BizErrorCode.NOT_FOUND);
         }
         return rows.get(0);

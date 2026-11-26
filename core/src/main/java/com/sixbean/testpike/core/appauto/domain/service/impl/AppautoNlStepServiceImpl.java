@@ -49,7 +49,8 @@ public class AppautoNlStepServiceImpl implements AppautoNlStepService {
         }
         if (request.engineCode() == null || request.engineCode().isBlank()) {
             throw new ServiceException("请先在 App 步骤区选择目标引擎再生成——不同引擎能用的动作不一样，"
-                    + "裁剪需要引擎依据", BizErrorCode.VALIDATION_ERROR);
+                    + "裁剪需要引擎依据；引擎下拉位在「APP 自动化」步骤编辑器的「执行引擎」选择框，"
+                    + "各引擎支持面可在「APP 自动化」→「引擎中心」查看", BizErrorCode.VALIDATION_ERROR);
         }
         String engineCode = request.engineCode().trim().toUpperCase(Locale.ROOT);
         AppautoEngineInfo engine = engineService.getByCode(engineCode);
@@ -61,7 +62,8 @@ public class AppautoNlStepServiceImpl implements AppautoNlStepService {
         List<String> allowedVerbs = stepGate.allowedVerbs(engine);
         if (allowedVerbs.isEmpty()) {
             throw new ServiceException("引擎「" + engine.name() + "」能力位图未登记任何 IR 基线动词，"
-                    + "无法裁剪生成范围——请核对引擎描述符 capabilities 后重试",
+                    + "无法裁剪生成范围——请在「APP 自动化」→「引擎中心」核对该引擎描述符 capabilities "
+                    + "是否包含 tap/swipe/input 等基线动作后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
         AppautoNlStepView answer = nlStepClient.generate(new AppautoNlStepLlmRequest(
@@ -69,7 +71,8 @@ public class AppautoNlStepServiceImpl implements AppautoNlStepService {
         List<Map<String, Object>> steps = answer == null ? List.of() : answer.steps();
         if (steps == null || steps.isEmpty()) {
             throw new ServiceException("模型没有产出任何步骤（应答为空）——请把描述写得更具体一些"
-                    + "（动作+对象），或稍后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "（动作+对象，例如「打开首页，点击搜索框，输入关键字」），或稍后在步骤区重新点「生成」",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         for (int i = 0; i < steps.size(); i++) {
             stepGate.checkStep(steps.get(i), allowedVerbs, i + 1);

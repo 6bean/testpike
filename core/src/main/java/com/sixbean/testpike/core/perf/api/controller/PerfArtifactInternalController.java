@@ -51,7 +51,7 @@ public class PerfArtifactInternalController {
     public Response<Map<String, Object>> grantDownload(@RequestBody Map<String, Object> body) {
         String objectKey = body == null ? null : str(body.get("objectKey"));
         if (objectKey == null || objectKey.isBlank()) {
-            throw new ServiceException("压测产物 objectKey 不能为空（下载授权按编译段回执键签发）",
+            throw new ServiceException("压测产物 objectKey 不能为空——请把编译回执返回的「objectKey」字段原值回传；平台侧取产物请走「压测运行台账」相应运行行「查看详情」内的下载入口",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // Guard: only keys the perf-artifact write route could have produced

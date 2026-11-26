@@ -29,7 +29,7 @@ public class CodeStepValidator {
         try {
             root = objectMapper.readTree(actionJson);
         } catch (Exception e) {
-            throw new ServiceException("动作 JSON 格式非法，无法保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ScriptValidationGuidance.INVALID_ACTION_JSON, BizErrorCode.VALIDATION_ERROR);
         }
         if (root == null || !root.isObject()) {
             return;
@@ -62,11 +62,14 @@ public class CodeStepValidator {
     private void requireProjectOwner(long projectId, Long operatorId) {
         if (operatorId == null) {
             throw new ServiceException("自定义代码步骤（code.step）仅项目负责人可保存："
-                    + "缺少操作人上下文，请从页面重新提交", BizErrorCode.FORBIDDEN);
+                    + "缺少操作人上下文——请在「用例管理」打开该用例进入脚本编辑页重新保存",
+                    BizErrorCode.FORBIDDEN);
         }
         if (!projectRoleResolver.isOwner(projectId, operatorId)) {
             throw new ServiceException("自定义代码步骤（code.step）仅项目负责人可保存"
-                    + "（perm:script:code-step，沙箱执行风险面、AI 禁自动产）", BizErrorCode.FORBIDDEN);
+                    + "（perm:script:code-step，沙箱执行风险面、AI 禁自动产）"
+                    + "——请改由项目负责人在「用例管理」的脚本编辑页保存，"
+                    + "或把该步骤换成内置动作（如 click/input）后重新保存", BizErrorCode.FORBIDDEN);
         }
     }
 }

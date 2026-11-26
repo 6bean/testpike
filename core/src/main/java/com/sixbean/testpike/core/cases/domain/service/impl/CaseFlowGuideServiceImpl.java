@@ -6,6 +6,7 @@ import com.sixbean.testpike.core.cases.api.dto.FlowGuideAction;
 import com.sixbean.testpike.core.cases.api.dto.FlowGuideInfo;
 import com.sixbean.testpike.core.cases.api.dto.FlowGuideStateNode;
 import com.sixbean.testpike.core.cases.domain.component.CaseEvent;
+import com.sixbean.testpike.core.cases.domain.component.CaseFlowScreens;
 import com.sixbean.testpike.core.cases.domain.component.CaseStatus;
 import com.sixbean.testpike.core.cases.domain.component.CaseStatusMachine;
 import com.sixbean.testpike.core.cases.domain.service.CaseFlowGuideService;
@@ -26,29 +27,6 @@ import java.util.Map;
 @Service
 public class CaseFlowGuideServiceImpl implements CaseFlowGuideService {
 
-    /** Review-workbench route (pass / need_change / reject / edit_begin happen there). */
-    private static final String PAGE_REVIEW = "/review";
-    /** Case list route (edit-save back, restore, archive family are list/detail actions). */
-    private static final String PAGE_CASES = "/cases";
-    /** Execution center route (exec-side events land there). */
-    private static final String PAGE_EXECUTION = "/execution";
-
-    /** Where each machine event is performed by a human (structured route, never guessed client-side). */
-    private static final Map<String, String> EVENT_PAGE = Map.ofEntries(
-            Map.entry("pass", PAGE_REVIEW),
-            Map.entry("need_change", PAGE_REVIEW),
-            Map.entry("reject", PAGE_REVIEW),
-            Map.entry("edit_begin", PAGE_REVIEW),
-            Map.entry("edit_save", PAGE_CASES),
-            Map.entry("restore", PAGE_CASES),
-            Map.entry("archive", PAGE_CASES),
-            Map.entry("unarchive", PAGE_CASES),
-            Map.entry("exec_start", PAGE_EXECUTION),
-            Map.entry("exec_success", PAGE_EXECUTION),
-            Map.entry("exec_fail", PAGE_EXECUTION),
-            Map.entry("retry_env_ok", PAGE_EXECUTION),
-            Map.entry("defect_fixed", PAGE_CASES));
-
     private final JdbcTemplate jdbcTemplate;
 
     public CaseFlowGuideServiceImpl(JdbcTemplate jdbcTemplate) {
@@ -63,7 +41,8 @@ public class CaseFlowGuideServiceImpl implements CaseFlowGuideService {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     "SELECT title, status FROM tp_test_case WHERE id = ? AND deleted = 0", caseId);
             if (rows.isEmpty()) {
-                throw new ServiceException("用例不存在或已被删除（id=" + caseId + "），无法给出流转指引",
+                throw new ServiceException("用例不存在或已被删除（id=" + caseId + "），无法给出流转指引"
+                        + "——请在「用例管理」确认该用例是否在当前顶栏项目下；若列表中已无该用例，可在「用例管理」的回收站恢复后重试",
                         BizErrorCode.VALIDATION_ERROR);
             }
             Map<String, Object> row = rows.get(0);
@@ -82,7 +61,7 @@ public class CaseFlowGuideServiceImpl implements CaseFlowGuideService {
             for (CaseEvent event : CaseStatusMachine.legalEventsFrom(status.code())) {
                 int target = CaseStatusMachine.targetOf(status.code(), event);
                 actions.add(new FlowGuideAction(event.code(), event.label(), target,
-                        labelOf(target), EVENT_PAGE.getOrDefault(event.code(), PAGE_CASES), "caseId"));
+                        labelOf(target), CaseFlowScreens.routeOf(event), "caseId"));
             }
             states.add(new FlowGuideStateNode(status.code(), status.label(),
                     CaseStatusMachine.isTerminal(status.code()), List.copyOf(actions)));

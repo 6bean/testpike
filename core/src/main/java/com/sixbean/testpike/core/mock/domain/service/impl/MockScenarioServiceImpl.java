@@ -50,7 +50,7 @@ public class MockScenarioServiceImpl implements MockScenarioService {
     @Transactional
     public long create(long spaceId, MockScenarioInput input) {
         if (input == null || input.name() == null || input.name().isBlank()) {
-            throw new ServiceException("场景名称必填", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("场景名称必填——请在「仿真空间」进入空间工作台的场景表单填写名称", BizErrorCode.VALIDATION_ERROR);
         }
         String name = input.name().trim();
         if (name.length() > 80) {
@@ -72,7 +72,7 @@ public class MockScenarioServiceImpl implements MockScenarioService {
                     RETURNING id
                     """, params, Long.class);
         } catch (DuplicateKeyException e) {
-            throw new ServiceException("该空间下场景「" + name + "」已存在——同一空间内场景名唯一",
+            throw new ServiceException("该空间下场景「" + name + "」已存在——同一空间内场景名唯一，请换一个名称再保存（现有场景清单见「仿真空间」空间工作台）",
                     BizErrorCode.RESOURCE_CONFLICT);
         }
     }
@@ -83,7 +83,7 @@ public class MockScenarioServiceImpl implements MockScenarioService {
                         + " FROM tp_mock_scenario WHERE id = :id",
                 new MapSqlParameterSource("id", id), MAPPER);
         if (rows.isEmpty()) {
-            throw new ServiceException("场景不存在或已被删除", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("场景不存在或已被删除，请前往「仿真空间」进入对应空间工作台重新选择场景", BizErrorCode.VALIDATION_ERROR);
         }
         return toInfo(rows.get(0));
     }
@@ -160,7 +160,7 @@ public class MockScenarioServiceImpl implements MockScenarioService {
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM tp_mock_space WHERE id = :id",
                 new MapSqlParameterSource("id", spaceId), Integer.class);
         if (count == null || count == 0) {
-            throw new ServiceException("所属 Mock 空间不存在，请先创建空间再配置场景",
+            throw new ServiceException("所属 Mock 空间不存在，请先创建空间再配置场景（创建入口：「仿真空间」）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

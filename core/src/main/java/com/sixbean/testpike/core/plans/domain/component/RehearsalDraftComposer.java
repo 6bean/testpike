@@ -50,11 +50,11 @@ public class RehearsalDraftComposer {
     public RehearsalDraftView compose(long projectId, Long suiteId, Long planId) {
         if (suiteId != null && planId != null) {
             throw new ServiceException("回归演练草案一次只接受一个来源：suiteId（回归集）或 planId"
-                    + "（既有计划）二选一，当前两个都指定了");
+                    + "（既有计划）二选一，当前两个都指定了，请只保留其一（格式：suiteId 或 planId 只传一个）");
         }
         if (suiteId == null && planId == null) {
             throw new ServiceException("装配回归演练草案需要指定来源：suiteId=回归集编号，"
-                    + "或 planId=既有计划编号（两者其一，可在 /suites 与 /plans 页确认编号）");
+                    + "或 planId=既有计划编号（两者其一，可在「/suites」与「/plans」页确认编号）");
         }
         return suiteId != null ? fromSuite(projectId, suiteId) : fromPlan(projectId, planId);
     }
@@ -66,14 +66,14 @@ public class RehearsalDraftComposer {
                 projectId, suiteId);
         if (rows.isEmpty()) {
             throw new ServiceException("回归集 " + suiteId + " 在当前项目内不存在"
-                    + "（回归集列表见 /suites 页，可先核对编号）");
+                    + "（回归集列表见「/suites」页，可先核对编号）");
         }
         Map<String, Object> row = rows.get(0);
         String suiteName = String.valueOf(row.get("name"));
         List<Long> caseIds = readIdList((String) row.get("cases"));
         if (caseIds.isEmpty()) {
             throw new ServiceException("回归集「" + suiteName + "」未包含用例，无法装配演练草案"
-                    + "——请先在 /suites 页为该回归集保存用例清单");
+                    + "——请先在「/suites」页为该回归集保存用例清单");
         }
         List<Long> envIds = readIdList((String) row.get("envs"));
         String envIdsNote = envIds.isEmpty()
@@ -101,7 +101,7 @@ public class RehearsalDraftComposer {
                 projectId, planId);
         if (rows.isEmpty()) {
             throw new ServiceException("计划 " + planId + " 在当前项目内不存在"
-                    + "（计划列表见 /plans 页，可先核对编号）");
+                    + "（计划列表见「/plans」页，可先核对编号）");
         }
         Map<String, Object> row = rows.get(0);
         String planSourceName = String.valueOf(row.get("name"));
@@ -161,7 +161,7 @@ public class RehearsalDraftComposer {
             }
             return ids;
         } catch (Exception e) {
-            throw new ServiceException("来源行的用例/环境清单不是合法的 ID 列表，已停止装配（请核对回归集/计划数据）");
+            throw new ServiceException("来源行的用例/环境清单不是合法的 ID 列表，已停止装配，请到「/suites」或「/plans」页重新保存该清单后再装配");
         }
     }
 
@@ -172,7 +172,7 @@ public class RehearsalDraftComposer {
         try {
             return objectMapper.readValue(json, LinkedHashMap.class);
         } catch (Exception e) {
-            throw new ServiceException("来源行的范围/准出键不是合法的 JSON 对象，已停止装配（请核对计划数据）");
+            throw new ServiceException("来源行的范围/准出键不是合法的 JSON 对象，已停止装配，请到「/plans」页重新保存范围/准出配置后再装配");
         }
     }
 }

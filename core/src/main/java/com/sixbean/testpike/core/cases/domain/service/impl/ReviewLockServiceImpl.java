@@ -68,7 +68,9 @@ public class ReviewLockServiceImpl implements ReviewLockService {
  // If there is no lock (TTL expired) or the caller is not the holder, return a 409 human-readable message with no side effects, and the frontend exits edit mode accordingly.
             String currentOwner = redisLock.ownerOf(key);
             if (currentOwner == null) {
-                throw new ServiceException("评审锁已过期，请重新进入编辑模式",
+                throw new ServiceException("评审锁已过期（" + (TTL_MILLIS / 60000)
+                        + " 分钟无心跳即自动释放），本次续期未生效"
+                        + "——请在「评审工作台」重新打开该用例进入编辑再次获取评审锁；窗口里尚未提交的意见请先复制留存，重新进入后粘贴再提交",
                         BizErrorCode.RESOURCE_CONFLICT);
             }
             throw occupied(caseInfo.id(), key);
@@ -99,7 +101,8 @@ public class ReviewLockServiceImpl implements ReviewLockService {
         UserInfo holder = userService.get(Long.parseLong(owner));
         String name = holder.displayName() == null || holder.displayName().isBlank()
                 ? holder.username() : holder.displayName();
-        throw new ServiceException("该用例正在被 " + name + " 评审，仅可只读查看",
+        throw new ServiceException("该用例正在被 " + name + " 评审，仅可只读查看——"
+                + "请等对方提交评审结论或退出编辑后，在「评审工作台」重新打开该用例进入编辑；也可以先在「评审工作台」列表处理其他「待评审」用例",
                 BizErrorCode.RESOURCE_CONFLICT);
     }
 

@@ -45,13 +45,13 @@ public class SpecUrlFetcher {
         try {
             uri = URI.create(url.trim());
         } catch (IllegalArgumentException e) {
-            throw new ServiceException("订阅地址格式不正确，仅支持 http/https 链接",
+            throw new ServiceException("订阅地址格式不正确，请改为完整链接（格式：https://host/path）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String scheme = uri.getScheme();
         if (scheme == null || uri.getHost() == null
                 || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
-            throw new ServiceException("订阅地址仅支持 http/https 链接，当前="
+            throw new ServiceException("订阅地址仅支持 http/https 链接，请在「订阅地址」输入框填写完整链接，当前="
                     + (scheme == null ? "（缺协议）" : scheme), BizErrorCode.VALIDATION_ERROR);
         }
         return uri;
@@ -85,23 +85,24 @@ public class SpecUrlFetcher {
             int status = conn.getResponseCode();
             if (status >= 300 && status < 400) {
                 throw new ServiceException("订阅地址发生跳转（HTTP " + status
-                        + "），出于安全不再跟随，请直接填写最终地址", BizErrorCode.VALIDATION_ERROR);
+                        + "），出于安全不再跟随，请把「订阅地址」改为跳转后的最终链接再保存", BizErrorCode.VALIDATION_ERROR);
             }
             if (status != HttpURLConnection.HTTP_OK) {
-                throw new ServiceException("拉取失败：上游返回 HTTP " + status,
+                throw new ServiceException("拉取失败：上游返回 HTTP " + status
+                        + "，可先在浏览器打开该链接确认可正常返回（示例：能看到文档内容）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             int declared = conn.getContentLength();
             if (declared > maxBytes) {
                 throw new ServiceException("订阅内容超过大小上限 " + (maxBytes / 1024 / 1024)
-                        + "MB（实际约 " + declared / 1024 + "KB）", BizErrorCode.VALIDATION_ERROR);
+                        + "MB（实际约 " + declared / 1024 + "KB），请改用拆分后的规格文件地址（示例：按模块拆分的 OpenAPI）", BizErrorCode.VALIDATION_ERROR);
             }
             return readCapped(conn.getInputStream(), maxBytes);
         } catch (ServiceException e) {
             throw e;
         } catch (IOException e) {
             throw new ServiceException("订阅地址连接失败：" + e.getMessage()
-                    + "，请检查 URL 可访问性与网络", BizErrorCode.VALIDATION_ERROR);
+                    + "，可先在浏览器打开「订阅地址」确认可访问后重试", BizErrorCode.VALIDATION_ERROR);
         } finally {
             if (conn != null) {
                 conn.disconnect();
@@ -119,7 +120,7 @@ public class SpecUrlFetcher {
             total += n;
             if (total > maxBytes) {
                 throw new ServiceException("订阅内容超过大小上限 " + (maxBytes / 1024 / 1024)
-                        + "MB", BizErrorCode.VALIDATION_ERROR);
+                        + "MB，请改用拆分后的规格文件地址（示例：按模块拆分的 OpenAPI）", BizErrorCode.VALIDATION_ERROR);
             }
             buf.write(chunk, 0, n);
         }

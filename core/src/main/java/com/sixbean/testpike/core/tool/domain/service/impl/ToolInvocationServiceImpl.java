@@ -61,7 +61,8 @@ public class ToolInvocationServiceImpl implements ToolInvocationService {
                 "SELECT count(*) FROM tp_tool WHERE id = :toolId",
                 new MapSqlParameterSource("toolId", query.toolId()), Integer.class);
         if (exists == null || exists == 0) {
-            throw new ServiceException("工具不存在（id=" + query.toolId() + "）",
+            throw new ServiceException("工具不存在（id=" + query.toolId() + "）——请到「工具管理」页确认该工具"
+                    + "是否已删除；已删除的可重新登记工具后再查询调用历史",
                     BizErrorCode.NOT_FOUND);
         }
 
@@ -99,7 +100,7 @@ public class ToolInvocationServiceImpl implements ToolInvocationService {
             return LocalDateTime.parse(text.trim());
         } catch (DateTimeParseException e) {
             throw new ServiceException(label + "格式不正确（" + text + "），"
-                    + "请使用 ISO 时间格式，如 2026-09-11T00:00", BizErrorCode.VALIDATION_ERROR);
+                    + "请使用 ISO 时间格式（格式: yyyy-MM-ddTHH:mm），如 2026-09-11T00:00", BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

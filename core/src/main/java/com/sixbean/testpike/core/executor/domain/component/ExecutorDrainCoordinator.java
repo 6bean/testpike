@@ -70,7 +70,8 @@ public class ExecutorDrainCoordinator {
                 "SELECT count(*) FROM tp_executor WHERE id = :id",
                 new MapSqlParameterSource("id", executorId), Integer.class);
         if (known == null || known == 0) {
-            throw new ServiceException("执行器不存在（id=" + executorId + "），无法发起排空",
+            throw new ServiceException("执行器不存在（id=" + executorId + "），无法发起排空——"
+                    + "该节点可能已下线或被移除，请前往「执行器池」页面确认在线节点后重新发起缩容",
                     BizErrorCode.NOT_FOUND);
         }
         String ref = String.valueOf(executorId);
@@ -95,7 +96,8 @@ public class ExecutorDrainCoordinator {
                 (org.springframework.jdbc.core.ResultSetExtractor<Boolean>) rs ->
                         rs.next() ? rs.getBoolean(1) : null);
         if (flag == null) {
-            throw new ServiceException("执行器不存在（id=" + executorId + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("执行器不存在（id=" + executorId + "）——"
+                    + "该节点可能已下线，请前往「执行器池」页面查看当前在线节点", BizErrorCode.NOT_FOUND);
         }
         Integer running = jdbc.queryForObject(
                 "SELECT count(*) FROM tp_exec_task WHERE executor_id = :id AND status = "

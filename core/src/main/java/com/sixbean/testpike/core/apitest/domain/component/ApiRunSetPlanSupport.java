@@ -41,6 +41,18 @@ public class ApiRunSetPlanSupport {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Pattern PATTERN = Pattern.compile(VAR_REF_PATTERN);
 
+    /**
+     * Shared interruption-mode domain guard (single source for create-time and
+     * advance-time checks; the refusal names the accepted values and the repair entry).
+     */
+    public static void requireValidMode(String mode) {
+        if (!MODES.contains(mode)) {
+            throw new ServiceException("中断模式仅支持 STOP_ON_ASSERT_FAIL / CONTINUE_AND_SUMMARY / "
+                    + "CHAIN_DEP_ONLY，当前值「" + mode + "」——请在发起弹窗改选中断模式后重新发起，正确写法：STOP_ON_ASSERT_FAIL",
+                    BizErrorCode.VALIDATION_ERROR);
+        }
+    }
+
     /** One pinned step: request id, tree position, references and extracted keys. */
     public record PinnedStep(long requestId, int seqNo, Set<String> references, Set<String> extracts) {
     }
@@ -96,10 +108,7 @@ public class ApiRunSetPlanSupport {
          * a chain a→b→c prunes cleanly when a fails.
          */
         public List<Long> nextDispatchable(String mode, List<StepOutcome> outcomes) {
-            if (!MODES.contains(mode)) {
-                throw new ServiceException("中断模式仅支持 STOP_ON_ASSERT_FAIL / CONTINUE_AND_SUMMARY / "
-                        + "CHAIN_DEP_ONLY，当前值「" + mode + "」", BizErrorCode.VALIDATION_ERROR);
-            }
+            ApiRunSetPlanSupport.requireValidMode(mode);
             Map<Long, StepOutcome> byRequest = new LinkedHashMap<>();
             outcomes.forEach(o -> byRequest.put(o.requestId(), o));
             List<Long> remaining = steps.stream()
@@ -159,10 +168,11 @@ public class ApiRunSetPlanSupport {
         try {
             root = MAPPER.readTree(pinnedJson == null || pinnedJson.isBlank() ? "[]" : pinnedJson);
         } catch (Exception e) {
-            throw new ServiceException("集合运行快照定义不是合法 JSON 数组", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("集合运行快照定义不是合法 JSON 数组——请在「接口测试」页重新发起集合运行（快照在发起时自动重建）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         if (!root.isArray()) {
-            throw new ServiceException("集合运行快照定义必须是数组（每元素一个请求快照）",
+            throw new ServiceException("集合运行快照定义必须是数组（每元素一个请求快照）——请在「接口测试」页重新发起集合运行（快照在发起时自动重建）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<PinnedStep> steps = new ArrayList<>();

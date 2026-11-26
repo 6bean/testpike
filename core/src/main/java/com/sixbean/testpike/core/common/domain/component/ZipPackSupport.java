@@ -52,7 +52,8 @@ public final class ZipPackSupport {
                 count++;
                 if (count > ZIP_MAX_ENTRIES) {
                     throw new ServiceException("zip 包条目数超过上限 " + ZIP_MAX_ENTRIES
-                            + "（疑似 zip 炸弹，已拒绝解压）", BizErrorCode.VALIDATION_ERROR);
+                            + "（疑似 zip 炸弹，已拒绝解压）——请删除包内无关目录与冗余文件后重新上传"
+                            + "（示例：只保留定义文件与随包资源）", BizErrorCode.VALIDATION_ERROR);
                 }
                 if (entry.isDirectory()) {
                     continue;
@@ -63,7 +64,8 @@ public final class ZipPackSupport {
                     total += n;
                     if (total > ZIP_MAX_UNCOMPRESSED) {
                         throw new ServiceException("zip 包解压后总大小超过上限 50MB"
-                                + "（疑似 zip 炸弹，已拒绝解压落盘）", BizErrorCode.VALIDATION_ERROR);
+                                + "（疑似 zip 炸弹，已拒绝解压落盘）——请压缩或移除包内大文件后重新上传"
+                                + "（示例：解压后总大小控制在 50MB 以内）", BizErrorCode.VALIDATION_ERROR);
                     }
                     bos.write(buf, 0, n);
                 }
@@ -72,10 +74,14 @@ public final class ZipPackSupport {
             }
             return entries;
         } catch (ZipException e) {
-            throw new ServiceException("不是有效的 zip 文件（文件损坏或扩展名与实际格式不符）",
+            throw new ServiceException("不是有效的 zip 文件（文件损坏或扩展名与实际格式不符）"
+                    + "——请用压缩工具重新导出后从「工具管理」上传"
+                    + "（示例：真 .zip 而非改名的 .rar/.7z）",
                     BizErrorCode.VALIDATION_ERROR);
         } catch (IOException e) {
-            throw new ServiceException("zip 读取失败：" + e.getMessage(), BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("zip 读取失败：" + e.getMessage()
+                    + "——请重新导出压缩包后再次上传（示例：换用系统自带压缩功能重新打包）",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 

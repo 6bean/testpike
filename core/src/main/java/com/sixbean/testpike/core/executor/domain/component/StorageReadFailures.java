@@ -21,18 +21,23 @@ final class StorageReadFailures {
     /** Common write-side guard: an empty object key never reaches any provider. */
     static void requireKey(String key) {
         if (key == null || key.isBlank()) {
-            throw new ServiceException("对象 key 不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("对象 key 不能为空——本次请求未携带产物文件路径，"
+                    + "请返回「执行中心」重新打开该任务的产物，仍失败则重新发起一次运行",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 
     
     static ServiceException notFound(String key) {
-        return new ServiceException("对象不存在: " + key, BizErrorCode.NOT_FOUND);
+        return new ServiceException("对象不存在: " + key + "——产物可能已按留存周期自动清理，"
+                + "请在「执行中心」对该任务重新发起运行生成新产物", BizErrorCode.NOT_FOUND);
     }
 
     
     static ServiceException readFailure(Exception e) {
-        return new ServiceException("对象读取失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+        return new ServiceException("对象读取失败: " + e.getMessage() + "——存储网关暂时不可达，"
+                + "可在「执行中心」稍后重新打开该产物，持续失败请查看「执行器池」节点自检报告",
+                BizErrorCode.INTERNAL_ERROR);
     }
 
     /**

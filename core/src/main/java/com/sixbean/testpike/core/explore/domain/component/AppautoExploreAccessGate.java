@@ -48,18 +48,18 @@ public class AppautoExploreAccessGate {
         assertSwitchOn();
         if (envId == null || envId <= 0) {
             throw new ServiceException("App 探索必须申报目标环境（仅开发/测试环境白名单可探索，"
-                    + "环境缺失无从核对），请在创建表单选择环境", BizErrorCode.VALIDATION_ERROR);
+                    + "环境缺失无从核对），请在创建表单选择环境——入口：「自主探索」新建会话表单的环境栏，可选项来自「项目管理」的环境配置", BizErrorCode.VALIDATION_ERROR);
         }
         if (startUrl.strip().substring(ExploreEnvelopeContract.APP_URL_PREFIX.length()).isBlank()) {
             throw new ServiceException("App 探索起点缺少被测应用包名（app:// 后须为包名，"
-                    + "如 app://com.example.app）", BizErrorCode.VALIDATION_ERROR);
+                    + "如 app://com.example.app）——请在「自主探索」新建会话表单的起点栏改成 app:// 加完整包名（例如 app://com.example.app）后重新发起", BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> env = jdbc.queryForList(
                         "SELECT id, project_id, env_type FROM tp_project_env WHERE id = :id",
                         new MapSqlParameterSource("id", envId))
                 .stream().findFirst().orElse(null);
         if (env == null || ((Number) env.get("project_id")).longValue() != projectId) {
-            throw new ServiceException("App 探索目标环境不存在或不属于该项目，请重新选择环境",
+            throw new ServiceException("App 探索目标环境不存在或不属于该项目，请重新选择环境（环境栏位于「自主探索」新建会话表单，项目环境在「项目管理」维护）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         int envType = ((Number) env.get("env_type")).intValue();
@@ -69,7 +69,7 @@ public class AppautoExploreAccessGate {
         }
         if (!EXPLORABLE_ENV_TYPES.contains(envType)) {
             throw new ServiceException("该环境类型（env_type=" + envType + "）不在可探索白名单"
-                    + "（仅开发/测试环境），请改用测试环境", BizErrorCode.FORBIDDEN);
+                    + "（仅开发/测试环境），请改用测试环境；可在「项目管理」的环境配置把该环境改为开发/测试类型或新建一个后重新选择", BizErrorCode.FORBIDDEN);
         }
     }
 

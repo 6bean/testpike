@@ -39,7 +39,7 @@ public final class PerfScenarioReadSupport {
         try {
             return mapper.readTree(raw == null || raw.isBlank() ? "{}" : raw);
         } catch (IOException corrupt) {
-            throw new ServiceException("场景" + what + "解析失败，请重新保存场景后重试",
+            throw new ServiceException("场景" + what + "解析失败，请在「压测工作台」打开该场景重新保存后重试",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -89,7 +89,8 @@ public final class PerfScenarioReadSupport {
             String engineRefusal) {
         String strategy = text(scenario, "login_strategy");
         if (declaresSharedSessionStrategy(strategy)) {
-            throw new ServiceException("登录策略 " + strategy + engineRefusal,
+            throw new ServiceException("登录策略 " + strategy + engineRefusal
+                    + "——请在场景编辑向导的「登录策略」下拉调整，或改选「压测引擎」后保存场景再重新起压",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

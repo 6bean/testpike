@@ -44,16 +44,19 @@ public class ExecStepSnapshotSupport {
             return;
         }
         if (!(protocolSnapshots instanceof List<?> list)) {
-            throw new ServiceException("protocolSnapshots 必须是数组（03 v2.40 result 尾追键）",
+            throw new ServiceException("protocolSnapshots 必须是数组（03 v2.40 result 尾追键）"
+                    + "——请执行器按协议以数组形态上报（格式：result 内 protocolSnapshots=[{...}]）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         for (Object item : list) {
             if (!(item instanceof Map<?, ?> element) || !element.containsKey("stepNo")) {
-                throw new ServiceException("protocolSnapshots 元素必须含 stepNo（03 v2.40）",
+                throw new ServiceException("protocolSnapshots 元素必须含 stepNo（03 v2.40）"
+                        + "——请补齐每个快照元素的步骤号后重传（格式：\"stepNo\": 1）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             if (!(element.get("stepNo") instanceof Number)) {
-                throw new ServiceException("protocolSnapshots 元素 stepNo 必须是数字（03 v2.40）",
+                throw new ServiceException("protocolSnapshots 元素 stepNo 必须是数字（03 v2.40）"
+                        + "——请去掉步骤号的引号改为数字（示例：\"stepNo\": 1 而非 \"stepNo\": \"1\"）",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -150,7 +153,8 @@ public class ExecStepSnapshotSupport {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
-            throw new ServiceException("协议快照 JSON 序列化失败: " + e.getMessage(),
+            throw new ServiceException("协议快照 JSON 序列化失败: " + e.getMessage()
+                    + "——请检查快照内是否存在无法序列化的对象（示例：循环引用节点），改为基础类型后重传",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

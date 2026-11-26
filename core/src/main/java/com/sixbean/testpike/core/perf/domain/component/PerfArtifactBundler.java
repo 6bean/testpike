@@ -60,7 +60,7 @@ public class PerfArtifactBundler {
         } catch (Exception storageFailure) {
             throw new ServiceException("压测编译产物写入对象存储失败（产物「" + bundleName
                     + "」未入库）：" + storageFailure.getMessage()
-                    + "——请确认该项目存储配置与对象存储服务可达后重新编译场景",
+                    + "——请到「压测工作台」该场景行重新「保存场景」触发编译；若持续失败，请让管理员核对系统设置的对象存储与项目存储配置是否可达",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return objectKey;
@@ -105,7 +105,7 @@ public class PerfArtifactBundler {
                 zout.closeEntry();
             }
         } catch (IOException zipFailure) {
-            throw new ServiceException("压测编译产物打包失败：" + zipFailure.getMessage(),
+            throw new ServiceException("压测编译产物打包失败：" + zipFailure.getMessage() + "——请到「压测工作台」该场景行重新「保存场景」触发编译；仍失败请精简场景引用的数据文件行数",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return buf.toByteArray();

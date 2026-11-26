@@ -65,7 +65,8 @@ public class StorageConfigServiceImpl implements StorageConfigService {
         if (LocalStorageProvider.NAME.equals(effectiveProvider)) {
             String root = input.localRoot() != null ? input.localRoot().trim() : plain(KEY_LOCAL_ROOT);
             if (root.isEmpty()) {
-                throw new ServiceException("存储提供方选 local 时必须配置 storage.local-root（本地落盘根目录）",
+                throw new ServiceException("存储提供方选 local 时必须配置 storage.local-root（本地落盘根目录），"
+                        + "请在「系统设置 → 配置管理」填写该参数后重新保存",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }
@@ -85,7 +86,9 @@ public class StorageConfigServiceImpl implements StorageConfigService {
             }
             if (!missing.isEmpty()) {
                 throw new ServiceException("存储提供方选 aliyun-oss 时必须配置 "
-                        + String.join(" / ", missing) + "（当前缺失）", BizErrorCode.VALIDATION_ERROR);
+                        + String.join(" / ", missing) + "（当前缺失），"
+                        + "请在「系统设置 → 配置管理」补齐上述参数后重新保存",
+                        BizErrorCode.VALIDATION_ERROR);
             }
         }
         writeKey(operatorId, byKey, KEY_PROVIDER, provider);
@@ -108,7 +111,8 @@ public class StorageConfigServiceImpl implements StorageConfigService {
         if (p.isEmpty() || !StorageRouter.PROVIDER_ENUM.contains(p)) {
             throw new ServiceException("存储提供方仅支持 "
                     + String.join("/", StorageRouter.PROVIDER_ENUM.stream().sorted().toList())
-                    + "（当前值 \"" + raw + "\"）", BizErrorCode.VALIDATION_ERROR);
+                    + "（当前值 \"" + raw + "\"），请在「系统设置 → 配置管理」改成上述取值之一",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         return p;
     }
@@ -121,12 +125,14 @@ public class StorageConfigServiceImpl implements StorageConfigService {
         try {
             minutes = Long.parseLong(raw.trim());
         } catch (RuntimeException e) {
-            throw new ServiceException("预签名时效必须是整数分钟（当前值 \"" + raw + "\"）",
+            throw new ServiceException("预签名时效必须是整数分钟（当前值 \"" + raw + "\"），"
+                    + "请在「系统设置 → 配置管理」改成纯数字后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (minutes < TTL_MIN_MINUTES || minutes > TTL_MAX_MINUTES) {
             throw new ServiceException("预签名时效必须在 1~10080 分钟区间（上限 7 天=对象存储签名约束，当前 "
-                    + minutes + "）", BizErrorCode.VALIDATION_ERROR);
+                    + minutes + "），请在「系统设置 → 配置管理」改成区间内的整数分钟",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 

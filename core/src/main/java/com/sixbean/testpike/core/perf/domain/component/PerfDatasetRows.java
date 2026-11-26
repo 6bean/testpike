@@ -56,12 +56,12 @@ public class PerfDatasetRows {
                 new MapSqlParameterSource("d", datasetId).addValue("p", projectId))
                 .stream().findFirst().map(r -> String.valueOf(r.get("object_key")))
                 .orElseThrow(() -> new ServiceException(
-                        "压测数据集不存在或不属于该项目（id=" + datasetId + "），无法编译数据池脚本",
+                        "压测数据集不存在或不属于该项目（id=" + datasetId + "）——请在「压测工作台」场景向导的「数据池（CSV 数据集）」改选现存数据集，已删除则先「上传数据集 CSV」重新入库",
                         BizErrorCode.NOT_FOUND));
         byte[] content = storage.readBytesQuietly(objectKey);
         if (content == null) {
             throw new ServiceException("压测数据集文件在对象存储中缺失（id=" + datasetId
-                    + "），请重新上传数据集后再发起运行", BizErrorCode.NOT_FOUND);
+                    + "），请在「压测工作台」场景向导「数据池（CSV 数据集）」点「上传数据集 CSV」重传后再发起运行", BizErrorCode.NOT_FOUND);
         }
         PerfCsvData parsed = csvParser.parse(content, Integer.MAX_VALUE);
         return new Dataset(datasetId, parsed.headers(), parsed.rows());
@@ -92,7 +92,7 @@ public class PerfDatasetRows {
             try {
                 return mapper.writeValueAsString(objects);
             } catch (Exception impossible) {
-                throw new ServiceException("压测数据集行序列化失败", BizErrorCode.INTERNAL_ERROR);
+                throw new ServiceException("压测数据集行序列化失败——请在「压测工作台」场景向导「数据池（CSV 数据集）」重传规范的 CSV 文件（各行列数一致、无残缺引号）后再发起运行", BizErrorCode.INTERNAL_ERROR);
             }
         }
 

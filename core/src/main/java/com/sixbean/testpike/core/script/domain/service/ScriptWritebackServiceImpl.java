@@ -75,7 +75,7 @@ public class ScriptWritebackServiceImpl implements ScriptWritebackService {
         if (current.status() == CaseStatus.APPROVED.code()) {
             throw new ServiceException(
                     "用例已评审通过（当前状态：已通过），站外写回不会覆盖已评审通过的资产；"
-                            + "如需变更，请先在评审中退回该用例，或改走站内草案通道后重新写回",
+                            + "如需变更，请先在「评审工作台」打开该用例执行退回，退回后再发起写回",
                     BizErrorCode.VALIDATION_ERROR);
         }
         int grade = input.evidence() == null ? GRADE_SELF_REPORT : GRADE_EVIDENCE_ON_FILE;

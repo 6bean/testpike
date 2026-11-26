@@ -206,7 +206,8 @@ public class CaseInternalController {
     public Response<CaseRollbackResult> rollback(@PathVariable long id, @PathVariable int v,
                                                  @RequestBody CaseRollbackRequest request) {
         if (request == null || request.version() == null) {
-            throw new ServiceException("缺少乐观锁版本号（version）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少乐观锁版本号（version）——请在「用例管理」的版本历史重新点击回滚"
+                        + "（示例：请求体 {\"version\":3}）", BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(caseService.rollback(
                 OperatorContext.currentOperatorId(), id, v, request.version()));
@@ -216,7 +217,8 @@ public class CaseInternalController {
     @PutMapping("/{id}/flaky")
     public Response<CaseInfo> setFlaky(@PathVariable long id, @RequestBody CaseFlakyRequest request) {
         if (request == null || request.isolated() == null) {
-            throw new ServiceException("缺少隔离标记（isolated）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少隔离标记（isolated）——请在「用例管理」的不稳定用例开关重新提交"
+                        + "（示例：请求体 {\"isolated\":true,\"reason\":\"环境抖动\"}）", BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(caseService.setFlaky(
                 OperatorContext.currentOperatorId(), id, request.isolated(), request.reason()));
@@ -238,10 +240,12 @@ public class CaseInternalController {
     public Response<CaseInfo> markExcellent(@PathVariable long id,
                                             @RequestBody CaseExcellentRequest request) {
         if (request == null || request.excellent() == null) {
-            throw new ServiceException("缺少优秀标记（excellent）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少优秀标记（excellent）——请在「用例管理」的用例行重新点击标星"
+                        + "（示例：请求体 {\"excellent\":true,\"version\":当前版本号}）", BizErrorCode.VALIDATION_ERROR);
         }
         if (request.version() == null) {
-            throw new ServiceException("缺少乐观锁版本号（version）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少乐观锁版本号（version）——请在「用例管理」刷新用例后重新提交标星"
+                    + "（示例：请求体 {\"excellent\":true,\"version\":3}）", BizErrorCode.VALIDATION_ERROR);
         }
         return Response.builderSuccess(caseService.markExcellent(
                 OperatorContext.currentOperatorId(), id, request.excellent(), request.version()));
@@ -288,7 +292,8 @@ public class CaseInternalController {
     private long requireOperatorId() {
         Long operatorId = OperatorContext.currentOperatorId();
         if (operatorId == null) {
-            throw new ServiceException("缺少操作人上下文（X-Operator-Id）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("缺少操作人上下文（X-Operator-Id）——请重新登录后再操作；接口直连调用"
+                    + "请在请求头携带 X-Operator-Id（示例：X-Operator-Id: 1001）", BizErrorCode.VALIDATION_ERROR);
         }
         return operatorId;
     }

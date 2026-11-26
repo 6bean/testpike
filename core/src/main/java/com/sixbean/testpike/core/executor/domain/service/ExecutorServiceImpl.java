@@ -70,10 +70,12 @@ public class ExecutorServiceImpl implements ExecutorService {
     @Transactional
     public long register(ExecutorRegisterInput input) {
         if (input.name() == null || input.name().isBlank()) {
-            throw new ServiceException("执行器名称不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("执行器名称不能为空——请在执行器启动配置中填写名称后重新注册"
+                    + "（参数 name，示例：runner-sh-01）", BizErrorCode.VALIDATION_ERROR);
         }
         if (input.name().length() > 50) {
-            throw new ServiceException("执行器名称不能超过 50 字", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("执行器名称不能超过 50 字——请缩短名称后重新注册（示例：runner-sh-01）",
+                BizErrorCode.VALIDATION_ERROR);
         }
         compatGate.assertRegisterAllowed(input.name(), input.version());
         int capacity = input.capacity() > 0 ? input.capacity() : 2;
@@ -122,7 +124,8 @@ public class ExecutorServiceImpl implements ExecutorService {
         Integer prevStatus = jdbcTemplate.query("SELECT status FROM tp_executor WHERE id = ?",
                 rs -> rs.next() ? rs.getInt(1) : null, executorId);
         if (prevStatus == null) {
-            throw new ServiceException("执行器未注册", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("执行器未注册——请先由执行器进程完成一次注册再发心跳"
+                    + "（可在「执行器池」核对是否在册）", BizErrorCode.NOT_FOUND);
         }
         jdbcTemplate.update("""
                 UPDATE tp_executor SET running_cnt = ?, status = ?,
@@ -259,7 +262,8 @@ public class ExecutorServiceImpl implements ExecutorService {
         ExecutorInfo info = get(executorId);
         if (info == null) {
             throw new ServiceException("执行器不存在（id=" + executorId
-                    + "），请确认已从执行器页面选择有效机器", BizErrorCode.NOT_FOUND);
+                    + "），请确认已从「执行器池」选择有效机器后重试"
+                    + "（示例：从机器列表行进入自检页）", BizErrorCode.NOT_FOUND);
         }
         Map<String, Object> caps = info.capabilities() == null ? Map.of() : info.capabilities();
         boolean reported = !caps.isEmpty();

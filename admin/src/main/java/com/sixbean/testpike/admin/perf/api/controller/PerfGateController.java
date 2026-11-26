@@ -165,7 +165,8 @@ public class PerfGateController {
         boolean belongs = corePerfClient.listApprovals(projectId).stream()
                 .anyMatch(row -> ((Number) row.get("id")).longValue() == approvalId);
         if (!belongs) {
-            throw new ServiceException("该压测申请单不存在或不属于当前项目，请刷新列表后重试",
+            throw new ServiceException("该压测申请单不存在或不属于当前项目，请刷新「超档审批」列表后从行内重新打开；"
+                    + "若申请单在其他项目，请先在顶栏项目切换器切到该项目",
                     BizErrorCode.NOT_FOUND);
         }
     }

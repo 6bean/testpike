@@ -97,17 +97,18 @@ def category_labels(page):
     labels = [t.split("\n")[0].strip() for t in texts]
     # Requirement docs and reference docs both carry an effect sentence; the
     # sentence must survive in the open dropdown or the spectrum fails.
-    assert len(labels[1]) < len(texts[1]), f"requirement-doc option lost its effect line: {texts[1]!r}"
-    assert len(labels[3]) < len(texts[3]), f"reference option lost its effect line: {texts[3]!r}"
+    assert len(labels[0]) < len(texts[0]), f"requirement-doc option lost its effect line: {texts[0]!r}"
+    assert len(labels[2]) < len(texts[2]), f"reference option lost its effect line: {texts[2]!r}"
     close_select(page)
-    # DOC_CATEGORIES order is fixed on both sides: TEST_SPEC, REQUIREMENT_DOC,
-    # DDL_DICT, REFERENCE (core DocumentServiceImpl.CATEGORIES is the value source)
+    # DOC_CATEGORIES display order (frontend single source, user-mindset first):
+    # REQUIREMENT_DOC, DDL_DICT, REFERENCE, TEST_SPEC; the value set mirrors
+    # core DocumentServiceImpl.CATEGORIES.
     assert len(labels) == 4, f"category option set drifted: {labels}"
     return {
-        "TEST_SPEC": labels[0],
-        "REQUIREMENT_DOC": labels[1],
-        "DDL_DICT": labels[2],
-        "REFERENCE": labels[3],
+        "REQUIREMENT_DOC": labels[0],
+        "DDL_DICT": labels[1],
+        "REFERENCE": labels[2],
+        "TEST_SPEC": labels[3],
     }
 
 

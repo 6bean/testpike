@@ -30,7 +30,8 @@ public class ExecutorProtocolCompatGate {
         alerter.alert(name, "执行器 " + name + "（版本 " + version + "）与本平台协议不兼容（需 "
                 + range + "），已拒绝入池；请先升级节点 agent 后重新注册。");
         throw new ServiceException("执行器 " + name + " 与本平台协议不兼容（需 "
-                + range + "），请先升级节点 agent", BizErrorCode.VALIDATION_ERROR);
+                + range + "）——请前往「升级中心」查看平台版本要求，升级节点 agent 后重新注册",
+                BizErrorCode.VALIDATION_ERROR);
     }
 
     

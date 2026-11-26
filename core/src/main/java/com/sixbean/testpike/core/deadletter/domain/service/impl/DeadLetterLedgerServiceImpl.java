@@ -97,22 +97,26 @@ public class DeadLetterLedgerServiceImpl implements DeadLetterLedgerService {
     private void validate(DeadLetterLedgerInput input) {
         if (input.messageFingerprint() == null || input.messageFingerprint().isBlank()) {
             throw new ServiceException(
-                    "死信落账缺少消息指纹（message_fingerprint），无法去重与补投定位，已拒绝落账",
+                    "死信落账缺少消息指纹（message_fingerprint），无法去重与补投定位，已拒绝落账"
+                        + "——请上游消费工装补齐该字段后重新落账（示例：以消息体哈希作指纹）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.queueName() == null || input.queueName().isBlank()) {
             throw new ServiceException(
-                    "死信落账缺少来源死信队列名（queue_name），无法判定消息归属队列，已拒绝落账",
+                    "死信落账缺少来源死信队列名（queue_name），无法判定消息归属队列，已拒绝落账"
+                        + "——请补齐来源队列全称后重新落账（示例：与「死信队列」页队列列一致的名称）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.payloadJson() == null) {
             throw new ServiceException(
-                    "死信落账缺少消息体原文（payload_json），补投需要原始载荷，已拒绝落账",
+                    "死信落账缺少消息体原文（payload_json），补投需要原始载荷，已拒绝落账"
+                        + "——请随消费端收到的原始 JSON 报文一并落账（示例：payload_json 存报文全文）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (input.failureClass() == null) {
             throw new ServiceException(
-                    "死信落账缺少失败分型（failure_class），请先完成失败判定后再落账",
+                    "死信落账缺少失败分型（failure_class），请先完成失败判定后再落账"
+                        + "（参数 failure_class，示例：暂无法归类时填 UNKNOWN）",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }

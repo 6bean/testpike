@@ -29,7 +29,7 @@ public class ExpectMatchValidator {
         try {
             root = objectMapper.readTree(actionJson);
         } catch (Exception e) {
-            throw new ServiceException("动作 JSON 格式非法，无法保存", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(ScriptValidationGuidance.INVALID_ACTION_JSON, BizErrorCode.VALIDATION_ERROR);
         }
         if (root == null || !root.isObject()) {
             return;
@@ -83,12 +83,15 @@ public class ExpectMatchValidator {
 
     private void requireProjectOwner(long projectId, Long operatorId) {
         if (operatorId == null) {
-            throw new ServiceException("正则断言仅项目负责人可保存：缺少操作人上下文，请从页面重新提交",
+            throw new ServiceException("正则断言仅项目负责人可保存：缺少操作人上下文——"
+                    + "请在「用例管理」打开该用例进入脚本编辑页重新保存",
                     BizErrorCode.FORBIDDEN);
         }
         if (!projectRoleResolver.isOwner(projectId, operatorId)) {
             throw new ServiceException("正则断言（matchType=regex）仅项目负责人可保存"
-                    + "（防重正则拖垮执行器），区间断言不受限", BizErrorCode.FORBIDDEN);
+                    + "（防重正则拖垮执行器），区间断言不受限——请改由项目负责人在「用例管理」保存，"
+                    + "或打开该用例脚本编辑页把该步骤「动作 JSON」的 matchType 改成 equals/contains/range 后重新保存",
+                    BizErrorCode.FORBIDDEN);
         }
     }
 }
