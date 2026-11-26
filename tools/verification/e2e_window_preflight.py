@@ -181,6 +181,11 @@ REPO_UNDER_TEST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 # runtime blocker into WARN and the reason is printed on the verdict line.
 ACCEPT_STALE = os.environ.get("TP_PREFLIGHT_ACCEPT_STALE", "")
 
+# Second-level noise of the /proc start resolver (jiffies quantized against an
+# integer btime). A process measured no more than this many seconds before the
+# recorded build is on the same-second boundary, not provably pre-build.
+MANIFEST_START_NOISE_S = int(os.environ.get("TP_PREFLIGHT_MANIFEST_NOISE_S", "1"))
+
 
 def _boot_time() -> float:
     with open("/proc/stat") as handle:
@@ -311,6 +316,17 @@ def check_runtime(repo_root, accept_stale=ACCEPT_STALE, services=None, start_res
         # looks covered - exactly the voided-round form measured before.
         built_at, mnote = cov_resolve(module)
         if built_at and built_at > changed and started < built_at:
+            if built_at - started <= MANIFEST_START_NOISE_S:
+                # The jiffies/btime start resolver undershoots by up to a
+                # second and the launcher records the manifest in the same
+                # second it boots the unit, so a sub-noise delta cannot tell
+                # a pre-build process from a just-swapped one. A genuinely
+                # stale service predates the build by the whole package time
+                # (tens of seconds), which stays a hard block below.
+                rows.append(("PASS", f"{module}@{port}",
+                             f"pid {pid} boots within the recorded build second; "
+                             f"within the start-noise margin ({mnote})"))
+                continue
             reason = _accept_reason(module, accept_stale)
             if reason:
                 rows.append(("WARN", f"{module}@{port}",
@@ -1192,6 +1208,22 @@ def selftest():
                                  coverage=lambda m: (rec["built_at"], "manifest head=selftest"))
             assert post[0][0] == "PASS" and "manifest head=" in post[0][2], \
                 f"a process covering the recorded build must pass with the pin: {post}"
+            # Same-second boundary: the jiffies/btime resolver undershoots by up
+            # to a second, and the launcher writes the manifest in the same
+            # second it boots the service. A process measured 1s "before" the
+            # recorded build is a freshly-swapped service, not pre-build bytes
+            # (a genuinely stale one predates it by the whole build, tens of
+            # seconds - the -120 row above stays FAIL and proves the pin bites).
+            edge = check_runtime(REPO_UNDER_TEST, services=[live],
+                                 start_resolver=lambda pid: rec["built_at"] - 1,
+                                 coverage=lambda m: (rec["built_at"], "manifest head=selftest"))
+            assert edge[0][0] == "PASS" and "within the start-noise margin" in edge[0][2], \
+                f"a same-second boot must pass with a noise note, never block: {edge}"
+            over = check_runtime(REPO_UNDER_TEST, services=[live],
+                                 start_resolver=lambda pid: rec["built_at"] - 3,
+                                 coverage=lambda m: (rec["built_at"], "manifest head=selftest"))
+            assert over[0][0] == "FAIL" and "manifest build" in over[0][2], \
+                f"past the noise margin the pin must still block: {over}"
             with open(fake, "a") as handle:
                 handle.write("x")
             gone, fallback = manifest_coverage(fake)
