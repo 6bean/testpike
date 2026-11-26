@@ -279,7 +279,7 @@ public class LoginStateServiceImpl implements LoginStateService {
         if (column == null) {
             throw new ServiceException(
                     "登录态账本不支持按「" + sortKey + "」排序——该列不是账本字段（状态灯由启用状态与有效期推导，"
-                            + "引用键在保险库侧）。可按名称、类型、角色范围、账号、有效期、核验时间或启用状态排序。",
+                            + "引用键在凭据保险箱侧）。请改用支持的排序参数，示例: sortKey=stateName、kind、roleScope、accountLabel、expiresAt、lastVerifiedAt、status。",
                     BizErrorCode.VALIDATION_ERROR);
         }
         String direction = Boolean.FALSE.equals(sortAsc) ? "DESC" : "ASC";
@@ -297,7 +297,7 @@ public class LoginStateServiceImpl implements LoginStateService {
                 new MapSqlParameterSource("st", enabled ? 1 : 0).addValue("id", id));
         if (updated == 0) {
             throw new ServiceException(
-                    "登录态 #" + id + " 不存在，无法调整启用状态。", BizErrorCode.NOT_FOUND);
+                    "登录态 #" + id + " 不存在，无法调整启用状态——请到「登录态账本」刷新列表后在目标行重试。", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -321,7 +321,7 @@ public class LoginStateServiceImpl implements LoginStateService {
                 params);
         if (updated == 0) {
             throw new ServiceException(
-                    "登录态 #" + id + " 不存在，无法记录核验结果。", BizErrorCode.NOT_FOUND);
+                    "登录态 #" + id + " 不存在，无法记录核验结果——请到「登录态账本」对该行重新发起「立即测试」。", BizErrorCode.NOT_FOUND);
         }
         if (row.getCredentialId() != null) {
             jdbc.update("UPDATE tp_credential SET last_verified_at = now() WHERE id = :cid",
@@ -335,7 +335,7 @@ public class LoginStateServiceImpl implements LoginStateService {
                 new MapSqlParameterSource("id", id));
         if (updated == 0) {
             throw new ServiceException(
-                    "登录态 #" + id + " 不存在，无需删除。", BizErrorCode.NOT_FOUND);
+                    "登录态 #" + id + " 不存在，无需删除——请刷新「登录态账本」确认该行是否已被删除。", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -457,7 +457,7 @@ public class LoginStateServiceImpl implements LoginStateService {
         if (existing == null) {
             if (input.secret() == null || input.secret().isBlank()) {
                 throw new ServiceException(
-                        "凭据「" + input.credKey() + "」在本项目还未建档，采集登记必须携带本次获取到的值。",
+                        "凭据「" + input.credKey() + "」在本项目还未建档，采集登记必须携带本次获取到的值——请先到「凭据保险箱」新建该凭据，或重新采集含该值的截图再登记。",
                         BizErrorCode.VALIDATION_ERROR);
             }
             credentialId = credentialService.create(projectId, new CredentialInput(

@@ -84,20 +84,20 @@ public class LoginStateDraftStrategy implements DraftWriteStrategy {
         if (token.isBlank() || stateName.isBlank()) {
             throw new ServiceException(
                     "AI 登录态登记草案缺少解析凭据或登录态名称，无法入册"
-                            + "（请重新粘贴截图让 AI 生成提案）",
+                            + "（请在「AI 对话」重新粘贴截图让 AI 生成提案）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Set<String> selected = selectedNames(body.path("entries"));
         if (selected.isEmpty()) {
             throw new ServiceException(
                     "AI 登录态登记草案没有勾选任何候选条目，入册已拒绝"
-                            + "（勾选即授权，请在草案卡上至少勾选一条后重新确认）",
+                            + "（勾选即授权，请在「草案卡」上至少勾选一条后重新确认）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Object> slot = captureSessionStore.load(token);
         if (slot == null || slot.get("entries") == null) {
             throw new ServiceException(
-                    "截图解析结果已过期，登录态未入册（请重新粘贴 DevTools 面板截图生成新提案）",
+                    "截图解析结果已过期，登录态未入册（请在「AI 对话」重新粘贴 DevTools 面板截图生成新提案）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         // H1: the slot is anchored to the session that staged it — a card
@@ -107,7 +107,7 @@ public class LoginStateDraftStrategy implements DraftWriteStrategy {
         if (slotSessionId != sessionId) {
             throw new ServiceException(
                     "AI 登录态登记草案指向的解析会话与当前会话不一致，入册已拒绝"
-                            + "（请在生成提案的对话中直接确认，或重新粘贴截图生成新提案）",
+                            + "（请在生成提案的「AI 对话」里直接确认，或重新粘贴截图生成新提案）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, CaptureCommittedEntry> staged = stagedEntries(slot.get("entries"));
@@ -119,7 +119,7 @@ public class LoginStateDraftStrategy implements DraftWriteStrategy {
                 // equal what the human saw and checked, row by row.
                 throw new ServiceException(
                         "AI 登录态登记草案勾选了「" + name + "」，但解析结果中不存在该条目，"
-                                + "整单入册已拒绝（请重新粘贴截图生成新提案）",
+                                + "整单入册已拒绝（请在「草案卡」取消勾选该条后重新确认，或回到「AI 对话」重新粘贴截图生成新提案）",
                         BizErrorCode.VALIDATION_ERROR);
             }
             checked.add(entry);

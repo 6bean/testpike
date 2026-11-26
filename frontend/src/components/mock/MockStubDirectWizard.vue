@@ -471,7 +471,7 @@ watch(
   <el-dialog
     :model-value="props.modelValue"
     :title="t('apitest.stubImport.title')"
-    :class="step >= 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
+    :class="step === 3 ? 'tp-dialog--sm' : step >= 1 ? 'tp-dialog--lg' : 'tp-dialog--md'"
     data-test="stub-direct-dialog"
     @update:model-value="(v: boolean) => { if (!v) closeWizard() }"
   >
