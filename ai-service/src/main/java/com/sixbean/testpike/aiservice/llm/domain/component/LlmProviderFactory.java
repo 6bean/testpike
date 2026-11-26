@@ -130,7 +130,8 @@ public class LlmProviderFactory {
         if (isMock()) {
             throw new ServiceException(
                     "embedding 服务不可用：当前为 mock 替身模式，请配置真实 embedding 供应商"
-                            + "（llm.mock-enabled=false + 大模型清单启用 embedding 模型）",
+                            + "（llm.mock-enabled=false + 大模型清单启用 embedding 模型；"
+                            + "该开关在启动时装配，改后需 docker compose up -d ai-service 重建生效）",
                     BizErrorCode.AI_PROVIDER_ERROR);
         }
         OpenAiCompatClient client = mintFlooredClient(

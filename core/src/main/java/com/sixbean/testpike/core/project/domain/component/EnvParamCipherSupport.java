@@ -68,21 +68,22 @@ public class EnvParamCipherSupport {
                 }
                 String value = entry.getValue();
                 if (value == null || value.isBlank()) {
-                    throw new ServiceException("参数 " + key + " 的值不能为空", BizErrorCode.VALIDATION_ERROR);
+                    throw new ServiceException("参数 " + key + " 的值不能为空，请在项目详情「环境配置」的「环境参数」中填写实际值后保存", BizErrorCode.VALIDATION_ERROR);
                 }
                 if (value.startsWith(ENC_PREFIX)) {
                     throw new ServiceException("参数 " + key + " 的值不能以 " + ENC_PREFIX
-                            + " 开头（密文形态由系统生成，禁止伪装提交）", BizErrorCode.VALIDATION_ERROR);
+                            + " 开头（密文形态由系统生成，禁止伪装提交），请直接填写真实明文，系统保存时自动加密（入口：项目详情「环境配置」→「环境参数」）", BizErrorCode.VALIDATION_ERROR);
                 }
                 if (ConfigCipher.MASK.equals(value) && !isEncryptedExisting(existing, key)) {
                     throw new ServiceException("参数 " + key + " 提交了打码占位值但原键无可保留的密文，"
-                            + "请输入真实值后保存", BizErrorCode.VALIDATION_ERROR);
+                            + "请输入真实值后保存，请在项目详情「环境配置」的「环境参数」中重新录入该键真实值", BizErrorCode.VALIDATION_ERROR);
                 }
             }
         }
         if (!invalidKeys.isEmpty()) {
             throw new ServiceException("参数键名不合法（仅允许字母/下划线开头 + 字母数字下划线，"
-                    + "且不超过 " + KEY_MAX_LEN + " 字）：" + String.join("、", invalidKeys),
+                    + "且不超过 " + KEY_MAX_LEN + " 字）：" + String.join("、", invalidKeys)
+                    + "，请改用字母或下划线开头的键名（示例：db_password）后重新保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (submitted == null || submitted.isEmpty()) {
@@ -92,7 +93,7 @@ public class EnvParamCipherSupport {
         boolean encryptsAnything = submitted.values().stream().anyMatch(v -> !ConfigCipher.MASK.equals(v));
         if (encryptsAnything && !configCipher.isEnabled()) {
             throw new ServiceException("系统未配置 CONFIG_AES_KEY，无法加密保存环境参数，"
-                    + "请先在部署环境配置该密钥后重试", BizErrorCode.VALIDATION_ERROR);
+                    + "请先在部署环境配置该密钥后重试，请联系运维在服务部署环境变量中配置「CONFIG_AES_KEY」", BizErrorCode.VALIDATION_ERROR);
         }
         ObjectNode params = root.putObject(PARAMS_SECTION);
         submitted.forEach((key, value) -> {
@@ -136,16 +137,16 @@ public class EnvParamCipherSupport {
         try {
             root = objectMapper.readTree(configJson);
         } catch (Exception e) {
-            throw new ServiceException("环境配置不是合法的 JSON，无法解析参数段",
+            throw new ServiceException("环境配置不是合法的 JSON，无法解析参数段，请在项目详情「环境配置」修正后重新保存（正确写法：最外层为对象且含 params 段）",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (!root.isObject()) {
-            throw new ServiceException("环境配置须为 JSON 对象，无法解析参数段",
+            throw new ServiceException("环境配置须为 JSON 对象，无法解析参数段，请在项目详情「环境配置」改成 JSON 对象（形如 {\"params\":{...}}）后重新保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         JsonNode params = root.path(PARAMS_SECTION);
         if (root.has(PARAMS_SECTION) && !params.isObject()) {
-            throw new ServiceException("环境配置的 params 段须为 JSON 对象",
+            throw new ServiceException("环境配置的 params 段须为 JSON 对象，请在项目详情「环境配置」把 params 改成对象（示例：{\"db_password\":\"...\"}）后重新保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return (ObjectNode) root;

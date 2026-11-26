@@ -44,6 +44,7 @@ x-app-environment: &app-env
   # Java @Value shipped defaults (single source, R48); the API key ships empty
   # so no credential ever reaches the compose file itself.
   LLM_PROVIDER: "${LLM_PROVIDER:-openai}"
+  LLM_MOCK_ENABLED: "${LLM_MOCK_ENABLED:-true}"
   LLM_BASE_URL: "${LLM_BASE_URL:-}"
   LLM_API_KEY: "${LLM_API_KEY:-}"
   LLM_MODEL: "${LLM_MODEL:-}"

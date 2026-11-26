@@ -73,7 +73,7 @@ public class ProjectToolServiceImpl implements ProjectToolService {
         }
         List<ProjectToolBindingItem> items = input.tools();
         if (items == null) {
-            throw new ServiceException("tools 不能为空（全量替换语义：清空请传 []）",
+            throw new ServiceException("tools 不能为空（全量替换语义：清空请传 []），请在项目详情「工具启用」页签完成勾选后保存；清空请提交空清单",
                     BizErrorCode.VALIDATION_ERROR);
         }
         List<ResolvedProjectToolBinding> resolved = resolveAndValidate(items, projectId);
@@ -105,7 +105,7 @@ public class ProjectToolServiceImpl implements ProjectToolService {
         Integer n = named.queryForObject("SELECT count(*) FROM tp_project WHERE id = :id",
                 new MapSqlParameterSource("id", projectId), Integer.class);
         if (n == null || n == 0) {
-            throw new ServiceException("项目不存在（id=" + projectId + "）", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在（id=" + projectId + "），请在顶栏「项目切换」选择存在且有权限的项目", BizErrorCode.NOT_FOUND);
         }
         return buildView(projectId);
     }
@@ -150,12 +150,12 @@ public class ProjectToolServiceImpl implements ProjectToolService {
         for (ProjectToolBindingItem item : items) {
             Long toolId = item.toolId();
             if (toolId == null) {
-                throw new ServiceException("启用的 " + ENTITY_LABEL + " id 不能为空",
+                throw new ServiceException("启用的 " + ENTITY_LABEL + " id 不能为空，请在项目详情「工具启用」重新勾选工具后保存",
                         BizErrorCode.NOT_FOUND);
             }
             if (!seen.add(toolId)) {
                 throw new ServiceException("启用的 " + ENTITY_LABEL + " id " + toolId
-                        + " 重复（同一工具只能启用一次）", BizErrorCode.VALIDATION_ERROR);
+                        + " 重复（同一工具只能启用一次），请在项目详情「工具启用」去掉重复勾选后保存", BizErrorCode.VALIDATION_ERROR);
             }
             int enabled = resolveEnabled(item.enabled());
             resolved.add(new ResolvedProjectToolBinding(toolId, enabled));
@@ -171,7 +171,7 @@ public class ProjectToolServiceImpl implements ProjectToolService {
             return 1;
         }
         if (raw != 0 && raw != 1) {
-            throw new ServiceException("启停开关 " + raw + " 只能为 0（停用）或 1（启用）",
+            throw new ServiceException("启停开关 " + raw + " 只能为 0（停用）或 1（启用），请在项目详情「工具启用」用行内开关切换启停后保存",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return raw;
@@ -191,7 +191,7 @@ public class ProjectToolServiceImpl implements ProjectToolService {
         for (ResolvedProjectToolBinding rb : resolved) {
             Map<String, Object> tool = byId.get(rb.toolId());
             if (tool == null) {
-                throw new ServiceException(ENTITY_LABEL + " 不存在（id=" + rb.toolId() + "）",
+                throw new ServiceException(ENTITY_LABEL + " 不存在（id=" + rb.toolId() + "），工具可能已被删除，请到「工具管理 → 工具市场」确认后重新勾选",
                         BizErrorCode.NOT_FOUND);
             }
             String name = (String) tool.get("name");
@@ -199,13 +199,13 @@ public class ProjectToolServiceImpl implements ProjectToolService {
             if (owner != null && ((Number) owner).longValue() != projectId) {
                 throw new ServiceException(ENTITY_LABEL + "「" + name + "」是其他项目的"
                         + "项目级 " + ENTITY_LABEL + "，只能启用于其所属项目（系统级 " + ENTITY_LABEL
-                        + " 可全局启用）", BizErrorCode.VALIDATION_ERROR);
+                        + " 可全局启用），请到该工具所属项目的「工具启用」页签勾选，或先在「工具管理」将其发布为系统级", BizErrorCode.VALIDATION_ERROR);
             }
             int status = ((Number) tool.get("status")).intValue();
             if (!ApprovalStateMachine.isPublished(status)) {
                 throw new ServiceException(ENTITY_LABEL + "「" + name + "」未发布"
                         + "（当前 " + ApprovalStatus.labelOf(status) + "），"
-                        + ENTITY_LABEL + " 须先通过审批（published）才能被项目启用",
+                        + ENTITY_LABEL + " 须先通过审批（published）才能被项目启用，请到「工具管理 → 工具市场」完成审批（状态=已发布）后再启用",
                         BizErrorCode.VALIDATION_ERROR);
             }
         }

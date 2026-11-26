@@ -90,3 +90,10 @@ def test_env_example_llm_base_url_is_container_reachable():
     assert "host.docker.internal" in value, value
     assert "localhost" not in value, \
         "a localhost gateway URL silently fails inside containers on a fresh install"
+
+
+def test_compose_passes_the_llm_mock_toggle():
+    # The Spring property resolves ${LLM_MOCK_ENABLED:true}; without this key
+    # in the shared app-env the containers could never leave the mock stand-in
+    # no matter what the install .env said (live chat trap found 2026-11-26).
+    assert 'LLM_MOCK_ENABLED: "${LLM_MOCK_ENABLED:-true}"' in COMPOSE

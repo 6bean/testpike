@@ -77,7 +77,7 @@ public class ReportServiceImpl implements ReportService {
     public PersonalReviewView personalReview(long projectId, Long userId) {
         Long uid = userId == null ? null : userId;
         if (uid == null) {
-            throw new ServiceException("评审人不能为空", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("评审人不能为空，请在「报表中心」切到「个人评审进度」并选择评审人后查询", BizErrorCode.VALIDATION_ERROR);
         }
         long reviewed = countAction(projectId, uid, null);
         long pass = countAction(projectId, uid, "通过");
@@ -322,13 +322,15 @@ public class ReportServiceImpl implements ReportService {
 
     private CompareItemView compareOne(long projectId) {
         if (projectId <= 0) {
-            throw new ServiceException("项目 ID 非法: " + projectId, BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("项目 ID 非法: " + projectId
+                    + "，请在「报表中心 → 跨项目对比」重新勾选 2~20 个项目后点击「开始对比」", BizErrorCode.VALIDATION_ERROR);
         }
         List<Object[]> rows = jdbcTemplate.query("""
                 SELECT name, status = 2 FROM tp_project WHERE id = ?
                 """, (rs, i) -> new Object[]{rs.getString(1), rs.getBoolean(2)}, projectId);
         if (rows.isEmpty()) {
-            throw new ServiceException("项目不存在: " + projectId, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在: " + projectId
+                    + "，项目可能已删除或无权限，请在「报表中心 → 跨项目对比」重新选择项目", BizErrorCode.NOT_FOUND);
         }
         String name = (String) rows.get(0)[0];
         boolean archived = (Boolean) rows.get(0)[1];
@@ -392,13 +394,13 @@ public class ReportServiceImpl implements ReportService {
                 """, (rs, i) -> new Object[]{rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getString(4)},
                 taskId, projectId);
         if (rows.isEmpty()) {
-            throw new ServiceException("导出任务不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("导出任务不存在，可在「报表中心 → 导出与快照」的「导出任务」列表中找到有效任务点击下载", BizErrorCode.NOT_FOUND);
         }
         Object[] row = rows.get(0);
         int status = (Integer) row[2];
         if (status != 2) {
-            throw new ServiceException(status == 3 ? "导出任务失败，无法下载"
-                    : "导出任务尚未完成，请稍后下载", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException(status == 3 ? "导出任务失败，无法下载，可在「报表中心 → 导出与快照」重新发起导出"
+                    : "导出任务尚未完成，完成后列表会自动更新并通过站内信通知，请稍后在「导出任务」行下载", BizErrorCode.VALIDATION_ERROR);
         }
         String fileKey = (String) row[3];
         String fileName = fileKey.substring(fileKey.lastIndexOf('/') + 1);
@@ -411,7 +413,8 @@ public class ReportServiceImpl implements ReportService {
         String t = reportType == null ? "" : reportType.trim();
         if (!REPORT_TYPES.contains(t)) {
             throw new ServiceException(
-                    "报表类型仅支持 personal_review/team_board/ai_quality/coverage/execution_stat，实际: " + t,
+                    "报表类型仅支持 personal_review/team_board/ai_quality/coverage/execution_stat，实际: " + t
+                    + "，请在「报表中心」的「报表类型」下拉中选择上述类型之一",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return t;
@@ -421,7 +424,7 @@ public class ReportServiceImpl implements ReportService {
         Integer n = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM tp_project WHERE id = ?", Integer.class, projectId);
         if (n == null || n == 0) {
-            throw new ServiceException("项目不存在", BizErrorCode.NOT_FOUND);
+            throw new ServiceException("项目不存在，请在顶栏「项目切换」选择存在且有权限的项目后重试", BizErrorCode.NOT_FOUND);
         }
     }
 
@@ -510,7 +513,8 @@ public class ReportServiceImpl implements ReportService {
             com.alibaba.excel.EasyExcel.write(out).sheet(reportType).doWrite(rows);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new ServiceException("Excel 生成失败: " + e.getMessage(), BizErrorCode.INTERNAL_ERROR);
+            throw new ServiceException("Excel 生成失败: " + e.getMessage()
+                    + "，请稍后在「报表中心 → 导出与快照」重新发起导出；持续失败请联系运维查看服务日志", BizErrorCode.INTERNAL_ERROR);
         }
     }
 

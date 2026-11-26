@@ -48,7 +48,7 @@ public class ToolPackSupport {
         Map<String, Object> contract = readContract(contractJson);
         Object nameValue = contract.get("name");
         if (nameValue == null || nameValue.toString().isBlank()) {
-            throw new ServiceException("工具契约缺少必填字段 name（工具名称）",
+            throw new ServiceException("工具契约缺少必填字段 name（工具名称），请在 tool.json 中补充 name 字段后通过「工具管理 → 工具市场 → 导入工具」重新上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return new ToolCreateInput(projectId,
@@ -73,7 +73,7 @@ public class ToolPackSupport {
         byte[] json = entries.get(CONTRACT_ENTRY);
         if (json == null) {
             throw new ServiceException("zip 包内未找到 " + CONTRACT_ENTRY
-                    + " 契约文件（工具包需包含与 ToolDefinition 对应的 tool.json）",
+                    + " 契约文件（工具包需包含与 ToolDefinition 对应的 tool.json），请在「工具管理 → 工具市场」点击「导入工具」上传包含 tool.json 的 .zip 包",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return new String(json, StandardCharsets.UTF_8);
@@ -81,18 +81,18 @@ public class ToolPackSupport {
 
     private Map<String, Object> readContract(String json) {
         if (json == null || json.isBlank()) {
-            throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）内容为空",
+            throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）内容为空，请写入契约内容后重新通过「工具管理 → 工具市场 → 导入工具」上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if (json.getBytes(StandardCharsets.UTF_8).length > CONTRACT_MAX_BYTES) {
-            throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）超过体积上限 1MB",
+            throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）超过体积上限 1MB，请精简描述与 schema 后重新通过「导入工具」上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
         try {
             Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {
             });
             if (map == null) {
-                throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）需为 JSON 对象",
+                throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）需为 JSON 对象，请改成正确写法（最外层为 {\"name\":\"...\"} 形式的对象）后重新通过「导入工具」上传",
                         BizErrorCode.VALIDATION_ERROR);
             }
             return map;
@@ -100,7 +100,8 @@ public class ToolPackSupport {
             throw e;
         } catch (Exception e) {
             throw new ServiceException("工具契约（" + CONTRACT_ENTRY + "）不是合法 JSON："
-                    + e.getMessage(), BizErrorCode.VALIDATION_ERROR);
+                    + e.getMessage() + "，请修正 tool.json 语法后重新通过「导入工具」上传",
+                    BizErrorCode.VALIDATION_ERROR);
         }
     }
 
@@ -114,7 +115,7 @@ public class ToolPackSupport {
         try {
             return Integer.parseInt(value.toString().trim());
         } catch (NumberFormatException e) {
-            throw new ServiceException("工具契约字段「" + value + "」不是合法整数",
+            throw new ServiceException("工具契约字段「" + value + "」不是合法整数，请将「type」「execKind」「timeoutMs」等数值字段写成数字（示例：timeoutMs=60000）后重新导入",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
@@ -138,7 +139,8 @@ public class ToolPackSupport {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
-            throw new ServiceException("工具契约序列化失败：" + e.getMessage(),
+            throw new ServiceException("工具契约序列化失败：" + e.getMessage()
+                    + "，请检查契约中是否存在异常内容后重新通过「导入工具」上传",
                     BizErrorCode.VALIDATION_ERROR);
         }
     }
