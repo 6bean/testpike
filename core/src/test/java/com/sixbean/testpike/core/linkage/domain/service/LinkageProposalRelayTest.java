@@ -1,5 +1,6 @@
 package com.sixbean.testpike.core.linkage.domain.service;
 
+import com.sixbean.testpike.common.exception.ServiceException;
 import com.sixbean.testpike.core.CoreApplication;
 import com.sixbean.testpike.core.cases.domain.service.CaseService;
 import com.sixbean.testpike.core.linkage.api.dto.LinkageImpactSummary;
@@ -26,6 +27,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -156,6 +158,31 @@ class LinkageProposalRelayTest {
         // the script row itself was never touched by posting a proposal
         assertEquals(1, jdbc.queryForObject("SELECT status FROM tp_script WHERE id = ?",
                 Integer.class, scriptId).intValue());
+    }
+
+    @Test
+    void proposal_validation_refusals_name_the_field_and_the_panel_entry() {
+        ServiceException noImpact = assertThrows(ServiceException.class,
+                () -> proposalService.record(new LinkageProposalInput(null, "script", 1L,
+                        "{}", "v1", "test-model", 1, null)));
+        assertTrue(noImpact.getMessage().contains("impactId"),
+                "the refusal must name the missing field");
+        assertTrue(noImpact.getMessage().contains("待处置的未提交改动"),
+                "guidance must point at the panel where impact ids are visible");
+
+        ServiceException bothBlank = assertThrows(ServiceException.class,
+                () -> proposalService.record(new LinkageProposalInput(1L, "script", 1L,
+                        " ", "v1", "test-model", 1, " ")));
+        assertTrue(bothBlank.getMessage().contains("提案内容"));
+        assertTrue(bothBlank.getMessage().contains("不可用原因"));
+
+        long absentImpact = 979_000_007L;
+        ServiceException ghostImpact = assertThrows(ServiceException.class,
+                () -> proposalService.record(new LinkageProposalInput(absentImpact, "script", 1L,
+                        "{}", "v1", "test-model", 1, null)));
+        assertTrue(ghostImpact.getMessage().contains(String.valueOf(absentImpact)),
+                "the refusal must name the impact id the caller passed");
+        assertTrue(ghostImpact.getMessage().contains("待处置的未提交改动"));
     }
 
     @Test

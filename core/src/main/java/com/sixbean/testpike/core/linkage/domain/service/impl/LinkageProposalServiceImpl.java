@@ -73,19 +73,23 @@ public class LinkageProposalServiceImpl implements LinkageProposalService {
     @Transactional
     public LinkageProposalWrite record(LinkageProposalInput input) {
         if (input == null || input.impactId() == null) {
-            throw new ServiceException("提案快照必须指明所属的联动影响行",
+            throw new ServiceException("提案快照必须指明所属的联动影响行（字段 impactId）；"
+                            + "请先在「待处置的未提交改动」面板或待处置影响查询中取得影响行编号，再随提案一起提交",
                     BizErrorCode.VALIDATION_ERROR);
         }
         if ((input.proposalJson() == null || input.proposalJson().isBlank())
                 && (input.rejectReason() == null || input.rejectReason().isBlank())) {
-            throw new ServiceException("提案内容与不可用原因至少要有一个，空快照不会被展示成草案",
+            throw new ServiceException("「提案内容」与「不可用原因」至少要填写一个，两者皆空的快照不会保存为草案；"
+                            + "请在「提案内容」写明建议改动，或在「不可用原因」说明为何暂不可用",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Integer impactExists = named.queryForObject(
                 "SELECT count(*) FROM tp_linkage_impact WHERE id = :impactId",
                 new MapSqlParameterSource("impactId", input.impactId()), Integer.class);
         if (impactExists == null || impactExists == 0) {
-            throw new ServiceException("联动影响行不存在: " + input.impactId(),
+            throw new ServiceException("联动影响行 " + input.impactId()
+                            + " 不存在，该影响可能已被处置或清理；请打开「待处置的未提交改动」面板核对最新编号后重新提交，"
+                            + "仍失败请联系管理员核对影响记录",
                     BizErrorCode.NOT_FOUND);
         }
 

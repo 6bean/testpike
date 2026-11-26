@@ -113,12 +113,12 @@ public class WebElementInternalController {
     public Response<SurveyResultView> survey(@RequestBody SurveyTriggerInput input) {
         String url = input == null || input.startUrl() == null ? "" : input.startUrl().strip();
         if (url.isEmpty()) {
-            throw new ServiceException("测绘需要先给出页面地址（完整 URL，如 https://shop.example.com/orders）",
+            throw new ServiceException("测绘需要先给出页面地址——请在「发起整页测绘」弹窗的「页面 URL」填写完整地址（如 https://shop.example.com/orders）后点「开始测绘」",
                     BizErrorCode.VALIDATION_ERROR);
         }
         Long projectId = input == null ? null : input.projectId();
         if (projectId == null) {
-            throw new ServiceException("请先选择项目再发起整页测绘", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("整页测绘需要挂靠具体项目——请先在顶栏项目选择器选择一个项目，再到「页面元素库」页点「测绘此页」重新发起", BizErrorCode.VALIDATION_ERROR);
         }
         long operatorId = OperatorContext.currentOperatorId() == null
                 ? 0L : OperatorContext.currentOperatorId();

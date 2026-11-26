@@ -205,7 +205,7 @@ public class WebElementController {
     @RequirePermission("perm:project:project-view")
     public Response<SurveyBridgeResult> survey(@RequestBody TriggerSurveyRequest request) {
         if (request == null || request.projectId() == null) {
-            throw new ServiceException("请先在顶栏选择项目，再发起整页测绘", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请先在顶栏选择项目，再到「页面元素库」页点「测绘此页」重新发起整页测绘", BizErrorCode.VALIDATION_ERROR);
         }
         guard.assertCanManage(UserContext.current(), request.projectId());
         return Response.builderSuccess(client.survey(request.projectId(), request.startUrl()));
@@ -240,7 +240,7 @@ public class WebElementController {
     /** Shared refusal for both census triggers: no lens selection = no projectless scan. */
     private static void requireCensusProject(TriggerCensusPostingRequest request) {
         if (request == null || request.projectId() == null) {
-            throw new ServiceException("请先在顶栏选择项目，再发起存量普查迁移", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("请先在顶栏选择项目，再到「页面元素库」页点「批量迁移入库」或「批量引用替换」重新发起存量普查迁移", BizErrorCode.VALIDATION_ERROR);
         }
     }
 }

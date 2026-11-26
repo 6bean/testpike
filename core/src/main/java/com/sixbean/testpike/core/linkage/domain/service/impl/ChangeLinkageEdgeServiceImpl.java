@@ -103,7 +103,10 @@ public class ChangeLinkageEdgeServiceImpl implements ChangeLinkageEdgeService {
     public ChangeLinkageEdgeInfo findByEdgeKey(String edgeKey) {
         ChangeLinkageRow row = selectByEdgeKey(edgeKey);
         if (row == null) {
-            throw new ServiceException("联动边不存在: " + edgeKey, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("联动边 " + edgeKey
+                    + " 不存在或已被清理，该关联的下游影响不再出现在「待处置的未提交改动」面板；"
+                    + "请打开对应上游对象重新保存一次，联动影响会自动重建；仍失败请联系管理员核对联动配置",
+                    BizErrorCode.NOT_FOUND);
         }
         return row.toInfo();
     }
@@ -115,7 +118,10 @@ public class ChangeLinkageEdgeServiceImpl implements ChangeLinkageEdgeService {
                 "UPDATE tp_change_linkage SET enabled = 0, updated_at = now() WHERE edge_key = :k",
                 new MapSqlParameterSource("k", edgeKey));
         if (updated == 0) {
-            throw new ServiceException("联动边不存在: " + edgeKey, BizErrorCode.NOT_FOUND);
+            throw new ServiceException("停用失败：联动边 " + edgeKey
+                    + " 不存在，该关联此前已被清理；请打开「待处置的未提交改动」面板确认，"
+                    + "其中已无该条目即表示已生效，无需重复操作",
+                    BizErrorCode.NOT_FOUND);
         }
         return findByEdgeKey(edgeKey);
     }

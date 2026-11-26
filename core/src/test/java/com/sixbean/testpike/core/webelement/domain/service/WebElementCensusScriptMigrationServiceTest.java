@@ -259,8 +259,12 @@ class WebElementCensusScriptMigrationServiceTest {
 
     @Test
     void blankProjectIsRefusedBeforeAnyCard() {
-        assertThrows(ServiceException.class,
+        ServiceException refused = assertThrows(ServiceException.class,
                 () -> scriptMigrationService.postScriptRefDrafts(0L));
+        assertTrue(refused.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the trigger: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("批量引用替换"),
+                "refusal must name the trigger button: " + refused.getMessage());
         assertEquals(0, refCards());
     }
 

@@ -135,6 +135,10 @@ class WebElementCensusServiceTest {
         assertEquals(BizErrorCode.VALIDATION_ERROR, missing.getCode());
         assertTrue(missing.getMessage().contains("项目"),
                 "拒止文案须点名缺的是项目： " + missing.getMessage());
+        assertTrue(missing.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the census trigger: " + missing.getMessage());
+        assertTrue(missing.getMessage().contains("批量迁移入库"),
+                "refusal must name a reachable trigger button: " + missing.getMessage());
     }
 
     @Test

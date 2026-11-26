@@ -66,7 +66,7 @@ public class WebElementCensusScriptMigrationServiceImpl
     @Override
     public WebElementScriptRefPosting postScriptRefDrafts(Long projectId) {
         if (projectId == null || projectId <= 0) {
-            throw new ServiceException("批量引用替换需要指定具体项目，请先在顶栏选择一个项目",
+            throw new ServiceException("批量引用替换需要指定具体项目——请先在顶栏项目选择器选择一个项目，再到「页面元素库」页点「批量引用替换」重新发起",
                     BizErrorCode.VALIDATION_ERROR);
         }
         WebElementCensusReport report = censusService.censusProject(projectId);

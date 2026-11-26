@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -57,8 +58,14 @@ class WebElementSurveyBridgeTest {
     @Test
     void survey_missing_project_slice_refuses_without_touching_core() {
         LoggedUserFixture.loginAsTestLead(7L);
-        assertThrows(ServiceException.class,
+        ServiceException refused = assertThrows(ServiceException.class,
                 () -> controller.survey(new TriggerSurveyRequest(null, "https://shop.example.com/orders")));
+        assertTrue(refused.getMessage().contains("顶栏"),
+                "refusal must point at the header project selector: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the trigger: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("测绘此页"),
+                "refusal must name the trigger button: " + refused.getMessage());
         verify(client, never()).survey(anyLong(), anyString());
     }
 }

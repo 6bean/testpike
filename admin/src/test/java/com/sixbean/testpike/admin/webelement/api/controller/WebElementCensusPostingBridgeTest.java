@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -76,10 +77,18 @@ class WebElementCensusPostingBridgeTest {
     @Test
     void missing_project_slice_refuses_without_touching_core() {
         LoggedUserFixture.loginAsTestLead(7L);
-        assertThrows(ServiceException.class,
+        ServiceException ledgerRefused = assertThrows(ServiceException.class,
                 () -> controller.postCensusLedgerDrafts(new TriggerCensusPostingRequest(null)));
-        assertThrows(ServiceException.class,
+        assertTrue(ledgerRefused.getMessage().contains("顶栏"),
+                "refusal must point at the header project selector: " + ledgerRefused.getMessage());
+        assertTrue(ledgerRefused.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the trigger: " + ledgerRefused.getMessage());
+        assertTrue(ledgerRefused.getMessage().contains("批量迁移入库"),
+                "refusal must name the ledger trigger button: " + ledgerRefused.getMessage());
+        ServiceException refRefused = assertThrows(ServiceException.class,
                 () -> controller.postCensusScriptRefDrafts(new TriggerCensusPostingRequest(null)));
+        assertTrue(refRefused.getMessage().contains("批量引用替换"),
+                "refusal must name the replacement trigger button: " + refRefused.getMessage());
         verify(client, never()).postCensusLedgerDrafts(anyLong());
         verify(client, never()).postCensusScriptRefDrafts(anyLong());
     }

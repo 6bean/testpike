@@ -229,5 +229,24 @@ class LinkageImpactQueryTest {
         assertTrue(refused.getMessage().contains("case"),
                 "the refusal must name the upstream kind and id, never fail silently");
         assertTrue(refused.getMessage().contains(String.valueOf(danglingCaseId)));
+        assertTrue(refused.getMessage().contains("待处置的未提交改动"),
+                "guidance must point at the panel the user is looking at");
+        assertTrue(refused.getMessage().contains("可先忽略"),
+                "an intentionally deleted upstream has a valid no-op branch");
+    }
+
+    @Test
+    void pendingViewGuidesHonestlyWhenTheUpstreamKindIsNotWiredIntoLinkage() {
+        long ghostId = 978_000_002L;
+        insertImpact("ghost-kind", "g", ghostId, 1, "script", 771_000_004L, "grouped_draft", 2, false);
+
+        ServiceException refused = assertThrows(ServiceException.class,
+                () -> queryService.findPendingViewByUpstream("ghost-kind", ghostId));
+        assertTrue(refused.getMessage().contains("ghost-kind"),
+                "the refusal must name the upstream type that lacks a linkage entry");
+        assertTrue(refused.getMessage().contains("待处置的未提交改动"),
+                "guidance must name the panel where the view was expected");
+        assertTrue(refused.getMessage().contains("请联系管理员"),
+                "wiring a new upstream type is an admin action; the message must say so");
     }
 }

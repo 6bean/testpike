@@ -132,7 +132,7 @@ public class ImportServiceImpl implements ImportService {
     public ImportResult retryFailedCases(Long operatorId, long projectId, byte[] file, String fileName,
                                          Integer targetStatus, List<Integer> retryRows) {
         if (retryRows == null || retryRows.isEmpty()) {
-            throw new ServiceException("请选择需要重试的失败项（行号不能为空）", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("重试请求未包含失败行号（行号不能为空）——请在「存量导入」结果的「失败明细」勾选需重试的行，再点「一键重试失败项」", BizErrorCode.VALIDATION_ERROR);
         }
         projectService.get(projectId);
         int status = normalizeTargetStatus(targetStatus);
@@ -177,7 +177,7 @@ public class ImportServiceImpl implements ImportService {
     private int normalizeTargetStatus(Integer targetStatus) {
         int status = targetStatus == null ? TARGET_STATUS_PENDING_REVIEW : targetStatus;
         if (status != TARGET_STATUS_PENDING_REVIEW && status != TARGET_STATUS_APPROVED) {
-            throw new ServiceException("导入后状态仅支持 1=待评审 / 3=已通过，实际: " + status,
+            throw new ServiceException("导入后状态仅支持「待评审」(1) 或「已通过」(3)，实际传入: " + status + "——请在「存量导入」弹窗「导入后状态」下拉重新选择",
                     BizErrorCode.VALIDATION_ERROR);
         }
         return status;

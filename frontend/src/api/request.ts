@@ -268,6 +268,10 @@ instance.interceptors.response.use(
       else if (status === 403) msg = ht('http.forbidden')
       else if (status === 404) msg = ht('http.notFound')
       else if (status === 409) msg = ht('http.conflict')
+      // A gateway-level 413 (e.g. nginx client_max_body_size) answers with
+      // plain HTML and no business msg; falling through to the network-error
+      // text would send the user to check their cable instead of the file.
+      else if (status === 413) msg = ht('http.payloadTooLarge')
       else if (status >= 500) msg = ht('http.serverError')
       else if (error?.code === 'ECONNABORTED') msg = ht('http.timeout')
       else msg = ht('http.networkError')

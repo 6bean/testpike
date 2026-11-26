@@ -108,10 +108,29 @@ class WebElementSurveyTriggerEndpointTest {
 
     @Test
     void survey_blank_url_refuses_without_dispatching() {
-        assertThrows(ServiceException.class,
+        ServiceException refused = assertThrows(ServiceException.class,
                 () -> controller.survey(new SurveyTriggerInput(42L, "   ")));
+        assertTrue(refused.getMessage().contains("发起整页测绘"),
+                "refusal must name the dialog the user is standing in: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("页面 URL"),
+                "refusal must name the field to fill: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("开始测绘"),
+                "refusal must name the submit button: " + refused.getMessage());
         verify(dispatch, never()).dispatch(anyLong(), anyLong(), anyString());
         verify(events, never()).step(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void survey_missing_project_refuses_naming_header_and_button() {
+        ServiceException refused = assertThrows(ServiceException.class,
+                () -> controller.survey(new SurveyTriggerInput(null, "https://shop.example.com/orders")));
+        assertTrue(refused.getMessage().contains("顶栏"),
+                "refusal must point at the header project selector: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the trigger: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("测绘此页"),
+                "refusal must name the trigger button: " + refused.getMessage());
+        verify(dispatch, never()).dispatch(anyLong(), anyLong(), anyString());
     }
 
     @Test

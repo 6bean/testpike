@@ -155,6 +155,9 @@ class ImportServiceTest {
                 () -> importService.importCases(1L, projectId, new byte[0], "empty.xlsx", 1));
         assertEquals(BizErrorCode.VALIDATION_ERROR, ex.getCode(), "空文件须 40001 人话");
         assertTrue(ex.getMessage().contains("文件"), "错误信息须人话，实际: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("empty.xlsx"), "must echo the submitted file name. actual: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("存量导入") && ex.getMessage().contains("下载模板"),
+                "refusal must point to the import dialog and template download entry. actual: " + ex.getMessage());
         assertEquals(0, caseService.list(new CaseQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20)).total(),
                 "无部分入库");
     }
@@ -166,8 +169,33 @@ class ImportServiceTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> importService.importCases(1L, projectId, bad, "bad.xlsx", 1));
         assertEquals(BizErrorCode.VALIDATION_ERROR, ex.getCode());
+        assertTrue(ex.getMessage().contains("bad.xlsx"), "must echo the submitted file name. actual: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("下载模板"), "refusal must point to the template download entry. actual: " + ex.getMessage());
         assertEquals(0, caseService.list(new CaseQuery(projectId, null, null, null, null, null, null, null, null, null, 1, 20)).total(),
                 "坏格式无部分入库");
+    }
+
+    @Test
+    void retryWithoutRowNumbersPointsToFailureDetailList() {
+        long projectId = createProject("PJ6");
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> importService.retryFailedCases(1L, projectId, new byte[0], "cases.xlsx", 1, List.of()));
+        assertEquals(BizErrorCode.VALIDATION_ERROR, ex.getCode());
+        assertTrue(ex.getMessage().contains("失败明细") && ex.getMessage().contains("一键重试失败项"),
+                "refusal must point to the failure detail list and retry button. actual: " + ex.getMessage());
+    }
+
+    @Test
+    void unsupportedTargetStatusPointsToStatusDropdown() {
+        long projectId = createProject("PJ7");
+        List<List<Object>> rows = new ArrayList<>();
+        rows.add(List.of("登录功能", "已注册账号", "登录成功进入首页", "1", "2", "web", "打开系统 => 登录页显示"));
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> importService.importCases(1L, projectId, caseExcel(rows), "cases.xlsx", 2));
+        assertEquals(BizErrorCode.VALIDATION_ERROR, ex.getCode());
+        assertTrue(ex.getMessage().contains("待评审") && ex.getMessage().contains("已通过"),
+                "refusal must name the accepted status values. actual: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("导入后状态"), "refusal must point to the status dropdown. actual: " + ex.getMessage());
     }
 
 

@@ -27,14 +27,15 @@ public class CaseExcelParser {
     private static final Set<String> CONFIDENCES = Set.of("1", "2", "3");
 
     public List<ImportCaseRow> parse(byte[] file, String fileName) {
+        String name = fileName == null || fileName.isBlank() ? "未命名文件" : fileName;
         if (file == null || file.length == 0) {
-            throw new ServiceException("导入文件为空，请先下载模板填写后上传", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("上传文件「" + name + "」为空、未读到内容——请在「存量导入」弹窗点「下载模板」，按模板列填写后重新上传 .xlsx 文件", BizErrorCode.VALIDATION_ERROR);
         }
         List<Map<Integer, String>> data;
         try {
             data = EasyExcel.read(new ByteArrayInputStream(file)).headRowNumber(1).sheet().doReadSync();
         } catch (Exception e) {
-            throw new ServiceException("文件格式错误：请使用模板（.xlsx）导出的格式上传", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("上传文件「" + name + "」不是可解析的 .xlsx 格式——请在「存量导入」弹窗点「下载模板」另存后按列填写，勿直接改扩展名", BizErrorCode.VALIDATION_ERROR);
         }
         Map<String, Integer> seenTitles = new HashMap<>();
         List<ImportCaseRow> rows = new ArrayList<>();
@@ -48,7 +49,7 @@ public class CaseExcelParser {
             rowNo++;
         }
         if (rows.isEmpty()) {
-            throw new ServiceException("导入文件没有数据行（至少 1 条），请填写后重新上传", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("上传文件「" + name + "」没有数据行（至少 1 条；模板列：测试目标/前置条件/预期结果/优先级/置信度/终端类型/步骤）——请在「存量导入」弹窗点「下载模板」对照列名填写后重新上传", BizErrorCode.VALIDATION_ERROR);
         }
         return rows;
     }

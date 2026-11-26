@@ -95,12 +95,16 @@ public class LinkageImpactQueryServiceImpl implements LinkageImpactQueryService 
         }
         String kind = upstreamObjectType.trim();
         if (!ownership.knows(kind)) {
-            throw new ServiceException("上游对象类型 " + kind + " 还没有可解析的归属项目路径，"
-                    + "请先在变更联动边账中登记该类型的边", BizErrorCode.VALIDATION_ERROR);
+            throw new ServiceException("上游对象类型 " + kind + " 尚未接入联动关系，"
+                    + "其待处置影响无法在「待处置的未提交改动」面板展示归属项目；"
+                    + "可直接打开对应草稿卡逐条查看处理；如需为该类型建立联动请联系管理员登记配置",
+                    BizErrorCode.VALIDATION_ERROR);
         }
         UpstreamOwnership owner = ownership.resolve(kind, upstreamObjectId)
                 .orElseThrow(() -> new ServiceException("上游" + kind + "对象 " + upstreamObjectId
-                        + " 已不存在或不再指向任何项目，联动账无法展示", BizErrorCode.NOT_FOUND));
+                        + " 已不存在或不再指向任何项目，其下游影响无法在「待处置的未提交改动」面板展示；"
+                        + "若该对象确已删除可先忽略本条，否则请重新保存上游对象重建归属，"
+                        + "仍失败请联系管理员核对归属记录", BizErrorCode.NOT_FOUND));
         return new LinkagePendingImpacts(owner.projectId(), pending);
     }
 }

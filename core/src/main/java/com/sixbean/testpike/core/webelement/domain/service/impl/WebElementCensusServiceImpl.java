@@ -52,7 +52,7 @@ public class WebElementCensusServiceImpl implements WebElementCensusService {
     @Override
     public WebElementCensusReport censusProject(Long projectId) {
         if (projectId == null || projectId <= 0) {
-            throw new ServiceException("普查需要指定具体项目，请先在顶栏选择一个项目",
+            throw new ServiceException("普查需要指定具体项目——请先在顶栏项目选择器选择一个项目，再到「页面元素库」页点「批量迁移入库」或「批量引用替换」重新发起",
                     BizErrorCode.VALIDATION_ERROR);
         }
         LinkedHashMap<Long, String> actionJsonByScript = new LinkedHashMap<>();

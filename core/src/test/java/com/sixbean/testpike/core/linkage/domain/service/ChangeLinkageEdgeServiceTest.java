@@ -62,6 +62,26 @@ class ChangeLinkageEdgeServiceTest {
     }
 
     @Test
+    void missing_edge_failures_point_at_the_pending_panel_and_the_next_step() {
+        String absentKey = "case->plan_case:absent" + System.nanoTime();
+
+        ServiceException looked = assertThrows(ServiceException.class,
+                () -> changeLinkageEdgeService.findByEdgeKey(absentKey));
+        assertTrue(looked.getMessage().contains(absentKey),
+                "the refusal must name the edge key the caller passed");
+        assertTrue(looked.getMessage().contains("待处置的未提交改动"),
+                "guidance must point at a panel the user can actually open");
+        assertTrue(looked.getMessage().contains("保存一次"),
+                "guidance must state the retry action that rebuilds the edge impact");
+
+        ServiceException disabled = assertThrows(ServiceException.class,
+                () -> changeLinkageEdgeService.disable(absentKey));
+        assertTrue(disabled.getMessage().contains(absentKey));
+        assertTrue(disabled.getMessage().contains("无需重复操作"),
+                "an already-cleaned edge must tell the caller no further action is needed");
+    }
+
+    @Test
     void register_then_active_lookup_returns_the_edge() {
         String key = edgeKey("case", "plan_case");
         ChangeLinkageEdgeInfo saved = changeLinkageEdgeService.register(validInput(key));

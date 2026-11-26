@@ -39,11 +39,11 @@ public class WebElementLifecycle {
     /** Refuse with 40902 unless the move is on the table; unknown states refuse with 40001. */
     public void requireAllowed(int from, int to) {
         if (to < CANDIDATE || to > RETIRED) {
-            throw new ServiceException("元素状态取值超出范围（当前 %s，允许：0=候选、1=已确认、2=陈旧、3=退役）",
+            throw new ServiceException("元素状态取值超出范围（当前 %s，允许：0=候选、1=已确认、2=陈旧、3=退役）——请改为允许值，或先在「页面元素库」列表核对该元素当前状态再做状态操作",
                     BizErrorCode.VALIDATION_ERROR, to);
         }
         if (!ALLOWED.getOrDefault(from, Set.of()).contains(to)) {
-            throw new ServiceException("元素状态不允许从「%s」迁移到「%s」（候选→已确认/退役，已确认→陈旧/退役，陈旧→已确认/退役，退役为终态）",
+            throw new ServiceException("元素状态不允许从「%s」迁移到「%s」（候选→已确认/退役，已确认→陈旧/退役，陈旧→已确认/退役，退役为终态）——请改成允许的走向，或先在「页面元素库」查看该元素当前状态后再发起",
                     BizErrorCode.STATE_MACHINE_REJECT, name(from), name(to));
         }
     }

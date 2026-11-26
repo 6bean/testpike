@@ -160,7 +160,12 @@ class WebElementCensusMigrationServiceTest {
 
     @Test
     void blankProjectIsRefusedBeforeAnyDrafting() {
-        assertThrows(ServiceException.class, () -> migrationService.postLedgerDrafts(0L));
+        ServiceException refused = assertThrows(ServiceException.class,
+                () -> migrationService.postLedgerDrafts(0L));
+        assertTrue(refused.getMessage().contains("页面元素库"),
+                "refusal must name the page hosting the trigger: " + refused.getMessage());
+        assertTrue(refused.getMessage().contains("批量迁移入库"),
+                "refusal must name the trigger button: " + refused.getMessage());
         assertEquals(0, pendingCards());
     }
 

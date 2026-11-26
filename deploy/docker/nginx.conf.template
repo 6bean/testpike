@@ -12,6 +12,16 @@ server {
     gzip_types text/css application/javascript application/json image/svg+xml;
     gzip_min_length 1024;
 
+    # Upload door body cap. nginx ships a 1m default client_max_body_size, so
+    # without this a >1MB document/screenshot/package upload is rejected HERE
+    # with a raw 413 (HTML body, no business envelope) before it ever reaches
+    # admin — the browser then surfaces the generic network-error fallback.
+    # The value is an install-time knob (compose passes TP_NGINX_MAX_BODY_SIZE,
+    # factory 110M) kept ABOVE the backend multipart ceiling (admin
+    # max-request-size 101MB) so the backend is always the one that decides an
+    # oversize upload (it returns a readable 40001), never this proxy.
+    client_max_body_size ${TP_NGINX_MAX_BODY_SIZE};
+
     # Hashed vite assets are content-addressed: safe to cache hard.
     location /assets/ {
         expires 30d;
