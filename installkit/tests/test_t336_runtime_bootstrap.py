@@ -192,3 +192,40 @@ def test_existing_module_doctor_and_ledger_untouched_by_import():
     import doctor  # noqa: F401
     import ledger  # noqa: F401
     assert callable(rb.bootstrap_plan)
+
+
+def test_check_unknown_profile_exit_names_doc_url_and_rerun_literal(tmp_path, monkeypatch, capsys):
+    # Unknown package-manager profile: the exit message must carry the
+    # literal official docs URL and a literal re-check command so the
+    # operator can recover by following it verbatim (no guessing).
+    (tmp_path / "recipe-R.json").write_text(json.dumps(
+        {"hosts": {"linux": {}}, "runtime_requires": {"node": ">=22.12"}}), encoding="utf-8")
+    monkeypatch.setattr(rb, "current_node_version", lambda: None)
+    monkeypatch.setattr(rb.pkg_probe, "pkg_manager_for", lambda *a, **k: None)
+    rc = rb.main(["check", "--state-dir", str(tmp_path)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "https://nodejs.org/en/download/package-manager" in text, \
+        "unknown-profile exit must name the literal node docs URL"
+    assert "runtime_bootstrap.py check --state-dir" in text, \
+        "unknown-profile exit must name the literal re-check entry"
+
+
+def test_check_known_profile_exit_names_ensure_entry_literal(tmp_path, monkeypatch, capsys):
+    # Known profile: report-only check must point at the one-command
+    # self-repair entry (ensure --yes with the same state dir) instead of
+    # asking the operator to copy each command by hand.
+    (tmp_path / "recipe-S.json").write_text(json.dumps(
+        {"hosts": {"linux": {}}, "runtime_requires": {"node": ">=22.12"}}), encoding="utf-8")
+    monkeypatch.setattr(rb, "current_node_version", lambda: None)
+    rc = rb.main(["check", "--state-dir", str(tmp_path), "--assume-pm", "apk"])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "runtime_bootstrap.py ensure --state-dir" in text and "--yes" in text, \
+        "known-profile exit must offer one literal self-repair command"
+
+
+def test_bootstrap_plan_unknown_profile_message_carries_node_docs_url():
+    with pytest.raises(ValueError) as exc:
+        rb.bootstrap_plan("zypper", minimum=(22, 0))
+    assert "https://nodejs.org/en/download/package-manager" in str(exc.value)

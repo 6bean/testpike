@@ -91,8 +91,11 @@ def _nvm_windows_plan(minimum):
 def bootstrap_plan(pm, minimum, win_lts_behind=False):
     pass
     if pm not in pkg_probe.PREREQ_CMD:
-        raise ValueError("unregistered package-manager profile '%s' — supported: %s; for other distributions install node manually per its official docs, then re-run"
-                         % (pm, " / ".join(pkg_probe.PREREQ_CMD)))
+        raise ValueError("unregistered package-manager profile '%s' — supported: %s; "
+                         "for other distributions install node per the official docs "
+                         "(%s), then re-run the same check"
+                         % (pm, " / ".join(pkg_probe.PREREQ_CMD),
+                            pkg_probe.PREREQ_DOCS["node"]))
     if minimum is None:
         return [pkg_probe.install_command(pm, "node")]
     if pm in ("apt", "dnf"):
@@ -149,11 +152,18 @@ def cmd_check(args):
     if version is not None and satisfies(version, minimum):
         return 0
     if pm is None:
-        print("package-manager profile unknown — install node manually per your distribution's official docs, then re-check")
+        # Unknown profile: the machine cannot be self-repaired, so the exit
+        # must stay actionable — literal docs URL plus the verbatim re-check
+        # line (recovery entry, per the three-element error guidance rule).
+        print("package-manager profile unknown — install node manually per the official docs: %s"
+              % pkg_probe.PREREQ_DOCS["node"])
+        print("  after installing node, re-run this check: python3 installkit/runtime_bootstrap.py check --state-dir %s"
+              % args.state_dir)
         return 0
     for cmd in bootstrap_plan(pm, minimum):
         print("  refill command: %s" % cmd)
-    print("  how to apply: installkit/install.sh runs these automatically with --yes during install; manually = copy each command above and run it")
+    print("  how to apply: python3 installkit/runtime_bootstrap.py ensure --state-dir %s --yes "
+          "runs them automatically (install.sh does the same during install)" % args.state_dir)
     return 0
 
 

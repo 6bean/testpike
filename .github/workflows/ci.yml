@@ -157,6 +157,11 @@ jobs:
           # (throwaway CI credential); without it the local-disk probe and the
           # visual-baseline round-trip refuse with the missing-secret error.
           STORAGE_URL_SIGN_SECRET: "dev-hmac-change-me"
+          # Factory prod-host blacklist published in .env.example: without it
+          # the guard has zero patterns, the dbconnection blacklist test falls
+          # through to a real JDBC probe and CI dies on the socket timeout
+          # instead of the expected fail-fast 403.
+          TESTPIKE_PROD_BLACKLIST: "*.example.com"
         run: |
           set +e
           # Maven Central intermittently rate-limits the shared runner IPs (429).
